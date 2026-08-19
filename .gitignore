@@ -1,0 +1,30 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/
+*.swp
+
+# Env
+.env
+.env.local
+*.local
+
+# Go
+bin/
+dist/
+vendor/
+*.exe
+*.test
+coverage.out
+
+# Node
+node_modules/
+frontend/dist/
+frontend/build/
+npm-debug.log*
+
+# Docker
+*.log

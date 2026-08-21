@@ -1,15 +1,16 @@
 # Duekeep
 
-Календарь истечений: домены, SSL, подписки, договоры, гарантии.
+Календарь истечений: домены, подписки, аренда, договоры, страховки.
 
-Сейчас зафиксирован только функционал. Кода ещё нет.
+Кода ещё нет. Сначала функционал и архитектура — так требует задание (история git).
 
-- Предполагаемый функционал: [FUNCTIONAL.md](FUNCTIONAL.md)
+- Функционал: [FUNCTIONAL.md](FUNCTIONAL.md)
+- Архитектура: [ARCHITECTURE.md](ARCHITECTURE.md)
+- Спринты: [docs/README.md](docs/README.md)
 - Журнал работы: [REPORT.md](REPORT.md)
-- Архитектура и план разработки появятся после согласования функционала (`ARCHITECTURE.md`)
 
-Стек первой версии: backend на Go, frontend — предложение в `FUNCTIONAL.md` (React + TypeScript + Vite), PostgreSQL, запуск через `docker compose up`.
+Стек: Go 1.25, React + TypeScript + Vite (PWA), PostgreSQL, JWT + refresh, SSE + Web Push, `docker compose up`.
 
 ## Статус
 
-Этап 1: описание функционала, согласование объёма.
+Архитектура и спринты зафиксированы. Следующий шаг — [Sprint 1](docs/sprint-1-checklist.md) (каркас, без бизнес-логики).

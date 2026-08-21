@@ -1,0 +1,24 @@
+---
+description: Как гонять линтер в Duekeep
+alwaysApply: true
+---
+
+# Линтер
+
+Если в корне есть `Taskfile` / `Taskfile.yml` и цель `lint`:
+
+```bash
+task lint
+```
+
+Иначе не плоди команды «на всё сразу». Только затронутый контур:
+
+```bash
+# backend
+cd backend && golangci-lint run ./...
+
+# frontend
+cd frontend && npm run lint && npm run typecheck
+```
+
+Не запускать линтеры в обход этого правила (`golangci-lint` из корня, `npx eslint .` и т.п.), если пользователь явно не попросил иное.

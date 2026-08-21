@@ -1,0 +1,62 @@
+---
+description: Идиомы Go 1.25 (вместо привычек Go ≤1.21 / раннего 1.22)
+globs: "**/*.go"
+alwaysApply: false
+---
+
+# Go 1.25 — стиль кода Duekeep
+
+Проект на **Go 1.25** (`go.mod`). При написании и ревью предпочитай идиомы ниже вместо паттернов «как в 1.21 и раньше».
+
+Слои: `handler` → `service` → `repository`. Хендлер не пишет SQL. Service не трогает `http.ResponseWriter`. `any`, не `interface{}`.
+
+## Типы и ошибки
+
+```go
+// ❌
+var v interface{}
+err = fmt.Errorf("load: %v", err)
+
+// ✅
+var v any
+err = fmt.Errorf("load: %w", err)
+err = errors.Join(err1, err2)
+```
+
+## Встроенные и stdlib вместо самописного
+
+| Вместо | Использовать |
+|--------|--------------|
+| ручной min/max | `min(a, b)`, `max(a, b)` |
+| цикл обнуления map/slice | `clear(m)`, `clear(s)` |
+| цепочки дефолтов | `cmp.Or(a, b, c)` |
+| `sync.Once` + обёртка | `sync.OnceFunc` / `sync.OnceValue` |
+| копирование с aliasing | `strings.Clone` / `bytes.Clone` |
+| самописный поиск/копия | `slices.*`, `maps.*` |
+
+```go
+// ❌
+for i := 0; i < n; i++ { ... }
+
+// ✅
+for i := range n { ... }
+limit := min(a, b)
+name := cmp.Or(cfg.Name, "default")
+```
+
+## Context
+
+```go
+ctx, cancel := context.WithCancelCause(parent)
+cancel(fmt.Errorf("worker stopped: %w", err))
+// context.Cause(ctx)
+```
+
+Аналогично `WithTimeoutCause` / `WithDeadlineCause`. `context.AfterFunc` — для cleanup по отмене.
+
+## Чего не делать
+
+- Не откатывайся к `interface{}`, ручным min/max и классическому `sync.Once`, если есть стандартный эквивалент.
+- Не тяни библиотеки ради того, что есть в `slices` / `maps` / `cmp` / `sync`.
+- Не предлагай синтаксис новее **1.25**.
+- Интерфейсы репозиториев объявляй в `service`, реализации — в `repository`.

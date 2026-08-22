@@ -21,7 +21,7 @@ func (f fakeHealth) Check(context.Context) error {
 
 func TestHealthzOK(t *testing.T) {
 	t.Parallel()
-	api := handler.New(fakeHealth{})
+	api := handler.New(fakeHealth{}, nil)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/healthz", nil)
 	api.Router().ServeHTTP(rec, req)
@@ -40,7 +40,7 @@ func TestHealthzOK(t *testing.T) {
 
 func TestHealthzUnavailable(t *testing.T) {
 	t.Parallel()
-	api := handler.New(fakeHealth{err: errors.New("down")})
+	api := handler.New(fakeHealth{err: errors.New("down")}, nil)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/healthz", nil)
 	api.Router().ServeHTTP(rec, req)

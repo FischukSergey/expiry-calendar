@@ -6,7 +6,7 @@
 
 **Нет предметного API.** Только `/healthz`. Auth, справочники, записи — Sprint 2–3.
 
-**Нет OpenAPI / Swagger.** Живая страница — Sprint 6.
+**OpenAPI покрывает только текущие ручки.** Живой `/docs` уже есть; kinds/items и остальное добавим в спеку вместе с хендлерами. Полная сверка — Sprint 6.
 
 ## Auth
 
@@ -29,3 +29,5 @@
 **Хостовый Postgres не на 5432.** Локаль: `localhost:15432`. Прод порт БД не публикует.
 
 **Frontend-образ — SPA-заглушка.** Один экран, без роутера и запросов к `/api/v1`. PWA — Sprint 5.
+
+**CI без integration и compose build.** В Actions только unit-тесты Go, golangci-lint и npm lint/typecheck. `docker compose build` и тесты с Postgres в workflow нет.

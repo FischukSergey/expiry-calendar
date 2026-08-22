@@ -6,6 +6,7 @@ require (
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/pressly/goose/v3 v3.27.3
+	github.com/swaggest/swgui v1.8.9
 )
 
 require (
@@ -14,6 +15,7 @@ require (
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/sethvargo/go-retry v0.4.0 // indirect
+	github.com/vearutop/statigz v1.4.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/text v0.40.0 // indirect

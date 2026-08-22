@@ -12,7 +12,7 @@
 
 ## 1) Решения спринта
 
-- Канон для проверяющего: `GET http://localhost:8080/docs` (Swagger UI).
+- Канон для проверяющего: `GET http://localhost:8080/docs` (Swagger UI). UI и `GET /openapi.yaml` подключены сразу после Sprint 1; в этом спринте сверяем спеку со всеми ручками 1–5.
 - `backend/openapi.yaml` не имеет права расходиться с markdown выше. При конфликте сначала правим оба, потом код.
 - Схема auth в OpenAPI: `bearerAuth`. Для refresh описать cookie и body.
 

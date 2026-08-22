@@ -119,3 +119,26 @@
 - nginx проксирует `/api/` и `/healthz` на `backend:8080` (браузер не ходит на `:8080`).
 - `npm run lint`, `typecheck`, `build` зелёные.
 - Smoke после `task local:up`: `localhost/` 200 (Duekeep), `localhost/healthz` → ok, `/api/v1/nope` уходит в backend (404 chi).
+
+## 2026-08-22 — Sprint 1 §5 CI
+
+- Добавлен `.github/workflows/ci.yml`: Lint (golangci-lint v2.12.2 в `backend/`), Unit Tests (`go test -race`), Frontend (`npm ci` + lint + typecheck).
+- Триггеры: любой push/PR и `workflow_dispatch`. Integration-джобы нет — `test:integration` ещё заглушка.
+- Попутно починил precondition в Taskfile: при `dir: backend` проверяем `go.mod`, а не `backend/go.mod`.
+- Локально те же команды зелёные. Зелёный Actions — после пуша.
+
+## 2026-08-22 — Sprint 1 §6 DoD
+
+- Чистый прогон из корня: `docker compose down -v && docker compose up --build -d --wait`.
+- Три сервиса Up, db healthy, новый том. Goose накатил `001_init.sql` (version 1). DSN в логе с `***`.
+- `localhost:8080/healthz` и `localhost/healthz` → 200 `{"status":"ok"}`. `localhost/` → заглушка Duekeep.
+- `task test` зелёный. Limitations уже в `docs/known-limitations-sprint-1.md`.
+- Sprint 1 закрыт. Actions на GitHub — после пуша.
+
+## 2026-08-22 — живой Swagger
+
+- Обязательное условие сдачи: OpenAPI + Swagger UI, не откладывая на Sprint 6 целиком.
+- `backend/openapi.yaml` встроен в бинарь (`duekeep.OpenAPISpec`). UI — `swgui/v5emb` на `GET /docs` (редирект на `/docs/`), спека — `GET /openapi.yaml`.
+- Без кодогенерации: спека пишется руками, сейчас только `/healthz` и docs.
+- nginx фронта и прод: proxy `/docs` и `/openapi.yaml` на backend. Vite dev — те же proxy.
+- Тесты: `TestOpenAPISpec`, `TestDocsRedirect`, `TestDocsUI`.

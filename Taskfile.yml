@@ -37,7 +37,7 @@ tasks:
     desc: Синхронизировать go.mod / go.sum
     dir: "{{.BACKEND_DIR}}"
     preconditions:
-      - sh: test -f "{{.BACKEND_DIR}}/go.mod"
+      - sh: test -f go.mod
         msg: "нет backend/go.mod — сначала каркас Sprint 1"
     cmds:
       - go mod tidy
@@ -46,10 +46,10 @@ tasks:
     desc: Форматировать Go (gofumpt)
     dir: "{{.BACKEND_DIR}}"
     preconditions:
-      - sh: test -d "{{.BACKEND_DIR}}"
+      - sh: test -f go.mod
         msg: "нет backend/ — сначала каркас Sprint 1"
     cmds:
-      - gofumpt -w ./...
+      - gofumpt -w .
 
   lint:
     desc: Линтеры (Go в Docker + frontend, если есть)
@@ -89,7 +89,7 @@ tasks:
     desc: golangci-lint локально (опционально)
     dir: "{{.BACKEND_DIR}}"
     preconditions:
-      - sh: test -d "{{.BACKEND_DIR}}"
+      - sh: test -f go.mod
         msg: "нет backend/ — сначала каркас Sprint 1"
     cmds:
       - golangci-lint run -v --timeout=5m ./...
@@ -108,7 +108,7 @@ tasks:
     desc: Юнит-тесты backend
     dir: "{{.BACKEND_DIR}}"
     preconditions:
-      - sh: test -f "{{.BACKEND_DIR}}/go.mod"
+      - sh: test -f go.mod
         msg: "нет backend/go.mod — сначала каркас Sprint 1"
     cmds:
       - go test -race -count=1 ./...
@@ -133,7 +133,7 @@ tasks:
     desc: Собрать backend-бинарь
     dir: "{{.BACKEND_DIR}}"
     preconditions:
-      - sh: test -d "{{.BACKEND_DIR}}/cmd/server"
+      - sh: test -d cmd/server
         msg: "нет backend/cmd/server — сначала каркас Sprint 1"
     cmds:
       - go build -o ../bin/server ./cmd/server

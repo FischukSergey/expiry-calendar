@@ -1,0 +1,95 @@
+openapi: 3.0.3
+info:
+  title: Duekeep API
+  version: 0.1.0
+  description: |
+    Календарь истечений. Спека растёт вместе со спринтами, без кодогенерации.
+    Сейчас в коде: health и этот документ.
+servers:
+  - url: /
+    description: Тот же origin (frontend :80 или backend :8080)
+tags:
+  - name: Health
+    description: Liveness и доступность PostgreSQL
+  - name: Docs
+    description: OpenAPI и Swagger UI
+paths:
+  /healthz:
+    get:
+      tags: [Health]
+      summary: Проверка процесса и БД
+      operationId: getHealthz
+      security: []
+      responses:
+        "200":
+          description: Процесс жив и видит PostgreSQL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthOK"
+              example:
+                status: ok
+        "503":
+          description: База недоступна
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: internal
+                  message: database unavailable
+  /openapi.yaml:
+    get:
+      tags: [Docs]
+      summary: Сырой OpenAPI-документ
+      operationId: getOpenAPISpec
+      security: []
+      responses:
+        "200":
+          description: YAML
+          content:
+            application/yaml:
+              schema:
+                type: string
+  /docs:
+    get:
+      tags: [Docs]
+      summary: Swagger UI
+      operationId: getDocs
+      security: []
+      responses:
+        "200":
+          description: HTML
+          content:
+            text/html:
+              schema:
+                type: string
+        "302":
+          description: Редирект на /docs/
+components:
+  schemas:
+    HealthOK:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: ok
+    APIError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          $ref: "#/components/schemas/APIError"

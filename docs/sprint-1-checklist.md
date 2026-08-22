@@ -46,12 +46,18 @@
 
 ## 5) CI и качество
 
-- [ ] GitHub Actions: go test + golangci-lint.
-- [ ] npm lint + typecheck.
-- [ ] Хотя бы один дымовой `TestHealthz` или `TestMain` package.
+- [x] GitHub Actions: go test + golangci-lint.
+  Примечание: `.github/workflows/ci.yml` — джобы Lint (golangci-lint v2.12.2, `working-directory: backend`) и Unit Tests (`go test -race -count=1 ./...`). Локально: `task lint:go`, `task test` — 0 issues / handler ok.
+- [x] npm lint + typecheck.
+  Примечание: джоба Frontend: `npm ci && npm run lint && npm run typecheck`. Локально: `task lint:frontend` зелёный.
+- [x] Хотя бы один дымовой `TestHealthz` или `TestMain` package.
+  Примечание: `TestHealthzOK` / `TestHealthzUnavailable` в `internal/handler` (пакет `handler_test`).
 
 ## 6) DoD
 
-- [ ] Три контейнера поднимаются одной командой.
-- [ ] `/healthz` зелёный.
-- [ ] Зафиксированы [`known-limitations-sprint-1.md`](known-limitations-sprint-1.md).
+- [x] Три контейнера поднимаются одной командой.
+  Примечание: из корня `docker compose down -v && docker compose up --build -d --wait`. На чистом томе: `duekeep-db-local` (healthy), `duekeep-backend-local`, `duekeep-frontend-local`. Goose: `001_init.sql` → version 1. UI `localhost/` 200 Duekeep.
+- [x] `/healthz` зелёный.
+  Примечание: `curl localhost:8080/healthz` и `localhost/healthz` → 200 `{"status":"ok"}`. `task test` — handler ok.
+- [x] Зафиксированы [`known-limitations-sprint-1.md`](known-limitations-sprint-1.md).
+  Примечание: нет предметного API/JWT/seed/PWA; CI без integration и compose build.

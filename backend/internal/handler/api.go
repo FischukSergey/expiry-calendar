@@ -11,18 +11,26 @@ import (
 // API — HTTP-вход приложения.
 type API struct {
 	health HealthService
+	spec   []byte
 }
 
 // New собирает handlers.
-func New(health HealthService) *API {
-	return &API{health: health}
+func New(health HealthService, spec []byte) *API {
+	return &API{health: health, spec: spec}
 }
 
-// Router возвращает chi-роутер с /healthz.
+// Router возвращает chi-роутер с /healthz и Swagger.
 func (a *API) Router() http.Handler {
 	r := chi.NewRouter()
 	r.Use(requestLog)
 	r.Get("/healthz", a.healthz)
+	r.Get("/openapi.yaml", a.openAPISpec)
+	r.Get("/docs", func(w http.ResponseWriter, req *http.Request) {
+		http.Redirect(w, req, "/docs/", http.StatusFound)
+	})
+	ui := a.swaggerUI()
+	r.Handle("/docs/", ui)
+	r.Handle("/docs/*", ui)
 	return r
 }
 

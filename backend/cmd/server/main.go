@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	duekeep "duekeep"
 	"duekeep/internal/db"
 	"duekeep/internal/handler"
 	"duekeep/internal/repository"
@@ -53,7 +54,7 @@ func run() error {
 		return err
 	}
 
-	api := handler.New(service.NewHealth(repository.NewHealth(pool)))
+	api := handler.New(service.NewHealth(repository.NewHealth(pool)), duekeep.OpenAPISpec)
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           api.Router(),

@@ -2,7 +2,7 @@
 
 Календарь истечений: домены, подписки, аренда, договоры, страховки.
 
-Backend Sprint 1: `GET /healthz`. Frontend: заглушка на `http://localhost` (nginx проксирует `/api` и `/healthz`).
+Backend Sprint 1: `GET /healthz`. Swagger: `http://localhost:8080/docs` (через UI — `http://localhost/docs`). Frontend: заглушка на `http://localhost` (nginx проксирует `/api`, `/healthz`, `/docs`).
 
 - Функционал: [FUNCTIONAL.md](FUNCTIONAL.md)
 - Архитектура: [ARCHITECTURE.md](ARCHITECTURE.md)
@@ -23,7 +23,7 @@ task test            # go test -race
 
 `task` без аргументов: tidy → fmt → lint → test.
 
-Проверка API: `http://localhost:8080/healthz`. Postgres с хоста: `localhost:15432`.
+Проверка API: `http://localhost:8080/healthz`. Swagger: `http://localhost:8080/docs`. Postgres с хоста: `localhost:15432`.
 
 Локальный стек: `task local:up` / `local:down` (файл [`deploy/local/docker-compose.local.yml`](deploy/local/docker-compose.local.yml)). Из корня для сдачи по-прежнему `docker compose up`.
 
@@ -31,4 +31,4 @@ task test            # go test -race
 
 ## Статус
 
-Sprint 1: разделы 1–4 закрыты. Дальше — CI (раздел 5).
+Sprint 1 закрыт (каркас). Дальше — Sprint 2 (auth и справочники).

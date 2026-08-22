@@ -142,3 +142,9 @@
 - Без кодогенерации: спека пишется руками, сейчас только `/healthz` и docs.
 - nginx фронта и прод: proxy `/docs` и `/openapi.yaml` на backend. Vite dev — те же proxy.
 - Тесты: `TestOpenAPISpec`, `TestDocsRedirect`, `TestDocsUI`.
+
+## 2026-08-22 — CI build
+
+- В `.github/workflows/ci.yml` джоба Build: `go build ./cmd/server`.
+- Frontend: к lint/typecheck добавлен `npm run build`.
+- `docker compose build` в CI по-прежнему нет — ловим Dockerfile локально.

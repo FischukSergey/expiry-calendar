@@ -30,4 +30,4 @@
 
 **Frontend-образ — SPA-заглушка.** Один экран, без роутера и запросов к `/api/v1`. PWA — Sprint 5.
 
-**CI без integration и compose build.** В Actions только unit-тесты Go, golangci-lint и npm lint/typecheck. `docker compose build` и тесты с Postgres в workflow нет.
+**CI без integration и compose build.** В Actions есть lint, `go test`, `go build`, npm lint/typecheck/build. `docker compose build` и тесты с Postgres в workflow нет.

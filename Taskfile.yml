@@ -95,11 +95,11 @@ tasks:
       - golangci-lint run -v --timeout=5m ./...
 
   lint:frontend:
-    desc: ESLint + tsc (когда появится frontend/)
+    desc: ESLint + tsc
     dir: "{{.FRONTEND_DIR}}"
     preconditions:
-      - sh: test -f "{{.FRONTEND_DIR}}/package.json"
-        msg: "нет frontend/package.json — пропуск до Sprint 1"
+      - sh: test -f package.json
+        msg: "нет frontend/package.json — сначала раздел 4 Sprint 1"
     cmds:
       - npm run lint
       - npm run typecheck
@@ -117,8 +117,8 @@ tasks:
     desc: Тесты frontend (когда появится npm test)
     dir: "{{.FRONTEND_DIR}}"
     preconditions:
-      - sh: test -f "{{.FRONTEND_DIR}}/package.json"
-        msg: "нет frontend/package.json — пропуск до Sprint 1"
+      - sh: test -f package.json
+        msg: "нет frontend/package.json — сначала раздел 4 Sprint 1"
     cmds:
       - npm test
 

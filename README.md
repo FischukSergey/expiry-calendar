@@ -2,7 +2,7 @@
 
 Календарь истечений: домены, подписки, аренда, договоры, страховки.
 
-Backend Sprint 1: `GET /healthz`. Frontend-заглушка — следующий раздел чеклиста.
+Backend Sprint 1: `GET /healthz`. Frontend: заглушка на `http://localhost` (nginx проксирует `/api` и `/healthz`).
 
 - Функционал: [FUNCTIONAL.md](FUNCTIONAL.md)
 - Архитектура: [ARCHITECTURE.md](ARCHITECTURE.md)
@@ -31,4 +31,4 @@ task test            # go test -race
 
 ## Статус
 
-Sprint 1: разделы 1–3 закрыты. Дальше — frontend (раздел 4).
+Sprint 1: разделы 1–4 закрыты. Дальше — CI (раздел 5).

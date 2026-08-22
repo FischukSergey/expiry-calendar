@@ -37,9 +37,12 @@
 
 ## 4) Frontend
 
-- [ ] Vite + React + TS + Tailwind.
-- [ ] Заглушка на `/`.
-- [ ] nginx: статика + `/api` proxy.
+- [x] Vite + React + TS + Tailwind.
+  Примечание: React 18, Vite 6, Tailwind 4 (`@tailwindcss/vite`). `npm run lint` / `typecheck` / `build` зелёные.
+- [x] Заглушка на `/`.
+  Примечание: `HomePage` — «Duekeep / Скоро», без роутера и API-клиента.
+- [x] nginx: статика + `/api` proxy.
+  Примечание: `frontend/nginx.conf` — `try_files` на `index.html`, `/api/` и `/healthz` на `backend:8080`. Smoke: `localhost/` 200 Duekeep, `localhost/healthz` → `{"status":"ok"}`, `/api/v1/nope` → 404 chi (не SPA).
 
 ## 5) CI и качество
 

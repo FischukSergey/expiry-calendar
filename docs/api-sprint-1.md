@@ -50,9 +50,9 @@ Response `503`: БД недоступна.
 
 ### Frontend
 
-`GET /` — HTML-заглушка. Не API.
+`GET /` — HTML-заглушка Vite/React. Не API.
 
-`/api/*` проксируется на backend. В Sprint 1 кроме `/healthz` (на корне backend, не под `/api/v1`) других маршрутов нет.
+`/api/*` и `/healthz` с `:80` проксируются nginx фронта на backend. В Sprint 1 кроме `/healthz` (на корне backend, не под `/api/v1`) других маршрутов нет.
 
 Исключение: `/healthz` живёт на корне `:8080`, не под `/api/v1` — так проще проверять compose без префикса.
 

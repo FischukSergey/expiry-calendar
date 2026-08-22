@@ -111,3 +111,11 @@
 - Backend: chi + pgx + goose, слои handler→service→repository, `GET /healthz` 200/503 по контракту.
 - Образ `golang:1.25-alpine`. slog JSON, DSN в логе без пароля.
 - Проверка: `task local:up`, `curl localhost:8080/healthz` → `{"status":"ok"}`. `go test` handler ok.
+
+## 2026-08-22 — Sprint 1 §4 Frontend
+
+- Vite 6 + React 18 + TypeScript + Tailwind 4. Заглушка `HomePage`: Duekeep / «Скоро».
+- Образ: multi-stage `node:22` → `nginx:1.27-alpine`. Статика из `dist`, SPA fallback.
+- nginx проксирует `/api/` и `/healthz` на `backend:8080` (браузер не ходит на `:8080`).
+- `npm run lint`, `typecheck`, `build` зелёные.
+- Smoke после `task local:up`: `localhost/` 200 (Duekeep), `localhost/healthz` → ok, `/api/v1/nope` уходит в backend (404 chi).

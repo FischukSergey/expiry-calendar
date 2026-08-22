@@ -7,10 +7,17 @@ Thumbs.db
 .vscode/
 *.swp
 
-# Env
+# Env — реальные секреты только на машине/VPS
 .env
 .env.local
 *.local
+deploy/**/.env
+
+# Let's Encrypt (приватные ключи)
+deploy/prod/certbot/conf/*
+!deploy/prod/certbot/conf/.gitkeep
+deploy/prod/certbot/www/*
+!deploy/prod/certbot/www/.gitkeep
 
 # Go
 bin/

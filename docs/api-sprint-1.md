@@ -4,7 +4,8 @@
 
 ## 1) Решения спринта
 
-- Единственный публичный API backend — liveness/readiness к БД.
+- Публичный API backend — liveness/readiness к БД плюс живой OpenAPI (`/docs`, `/openapi.yaml`).
+- Реализация: `handler` → `service.Health` → `repository.Health` (`SELECT 1`).
 - Префикс будущего API: `/api/v1`. В Sprint 1 его ручек нет.
 - Ошибки сразу в целевом конверте (чтобы не ломать клиентов позже).
 
@@ -49,12 +50,20 @@ Response `503`: БД недоступна.
 
 ### Frontend
 
-`GET /` — HTML-заглушка. Не API.
+`GET /` — HTML-заглушка Vite/React. Не API.
 
-`/api/*` проксируется на backend. В Sprint 1 кроме `/healthz` (на корне backend, не под `/api/v1`) других маршрутов нет.
+`/api/*`, `/healthz`, `/docs` и `/openapi.yaml` с `:80` проксируются nginx фронта на backend.
 
-Исключение: `/healthz` живёт на корне `:8080`, не под `/api/v1` — так проще проверять compose без префикса.
+### `GET /docs`
+
+Anon. Swagger UI (редирект на `/docs/`).
+
+### `GET /openapi.yaml`
+
+Anon. Сырой OpenAPI 3 документ (`backend/openapi.yaml`, встроен в бинарь).
+
+Исключение: `/healthz` и `/docs` живут на корне `:8080`, не под `/api/v1`.
 
 ## 4) Совместимость
 
-Следующий спринт не меняет `/healthz`. Новые ручки только под `/api/v1`.
+Следующий спринт не меняет `/healthz` и `/docs`. Новые прикладные ручки только под `/api/v1`.

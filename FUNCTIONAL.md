@@ -10,13 +10,13 @@
 
 | Слой | Решение | Комментарий |
 |---|---|---|
-| Backend | **Go** | зафиксировано |
+| Backend | **Go 1.25** | зафиксировано |
+| Запуск | `deploy/` + корневой `docker compose up` | local демо-пароли; prod — `.env` на VPS |
 | Frontend | React + TypeScript + Vite | зафиксировано |
 | БД | PostgreSQL | иерархия категорий, JSONB, фильтры |
 | Реалтайм | SSE + Web Push | вкладка открыта — SSE; свёрнуто / PWA — пуш в ОС |
 | Клиент | PWA | установка на домашний экран, офлайн-заглушка |
 | Auth | JWT access + refresh | access 15 мин, refresh 14 дней с ротацией; готово к нескольким клиентам |
-| Запуск | Docker Compose | backend + frontend + БД, одна команда |
 
 ---
 

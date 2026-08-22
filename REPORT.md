@@ -66,3 +66,85 @@
 
 - Создана папка `.cursor/rules/` по образцу `my-chat`: `go-idioms.mdc` (Go 1.25), `lint.mdc`.
 - Добавлен `sprints.mdc`: агент опирается на `docs/sprint-N-*`, не расширяет scope, API правит вместе с контрактом.
+
+## 2026-08-22 — Taskfile
+
+- Корневой `Taskfile.yml` по образцу my-chat: `tools:install`, `tidy`, `fmt` (gofumpt), `lint` (golangci-lint в Docker + frontend), `lint:local`, `test` (`go test -race`).
+- `test:integration`, `local:up`, `local:down` — заглушки с понятной ошибкой, дополним в Sprint 1.
+- Правило `.cursor/rules/lint.mdc` снова требует только `task lint`.
+- Пока нет `backend/`, цели с `dir: backend` падают на precondition — так и задумано.
+
+## 2026-08-22 — Sprint 1, раздел 1 (Подготовка)
+
+- Заведена структура каталогов из `ARCHITECTURE.md` §5: слои backend + папки frontend.
+- Добавлен `.env.example` (без реальных секретов).
+- `api-sprint-1.md` не меняли. Хендлер появится в разделе 3 — тогда повторная сверка.
+
+## 2026-08-22 — Sprint 1, раздел 2 (Docker)
+
+- Добавлен `docker-compose.yml`: db + backend + frontend. Backend стартует только после `healthy` у Postgres.
+- Заглушки Dockerfile, чтобы `up --build` не ждал Go/Vite. Заменим в разделах 3–4.
+- Postgres: `16-alpine` — `postgres:16` не скачался (таймаут registry).
+- Прогон: `down -v` + `up --build`. Стек поднялся; `:80` отвечает 200. На `:8080` сидел my-chat — его main-service остановлен.
+- Taskfile: рабочие `local:up` / `local:down` / `local:down:clean`.
+
+## 2026-08-22 — deploy/ как в my-chat
+
+- `deploy/local` — демо-пароли в compose, для учёбы и сдачи.
+- `deploy/test` — Postgres на 55432, tmpfs, под будущие integration-тесты.
+- `deploy/prod` — без секретов в git: `env_file` + обязательные `${VAR:?}`, nginx 80/443, certbot, `init-ssl.sh`.
+- Корневой `.env.example` — шаблон прода (JWT, Postgres hex-пароль, VAPID, DOMAIN). Живой `.env` и `certbot/conf` в gitignore.
+- Корневой `docker-compose.yml` — `include` локального файла, чтобы `docker compose up` из корня не сломался.
+
+## 2026-08-22 — починка task local:down
+
+- После переноса compose задача гасила проект `duekeep`, а жил старый `expiry-calendar` (имя из папки). Вывод был пустой из‑за `silent: true`.
+- Теперь `local:up/down` явно `-p duekeep`, плюс снимают leftover `expiry-calendar`. У корневого compose тоже `name: duekeep`. Silent на этих целях выключен.
+
+## 2026-08-22 — порт Postgres на локали
+
+- В `deploy/local` опубликован `15432:5432` (хостовый 5432 занят). Прод без внешнего порта.
+
+## 2026-08-22 — документация инфра + Sprint 1 §3 Backend
+
+- Зафиксированы в `ARCHITECTURE.md` §4/§5/§15, `sprint-1-plan`, `known-limitations`, `FUNCTIONAL.md`, `deploy/README.md`: `deploy/`, проект `duekeep`, порт БД 15432, секреты только в `.env` на проде.
+- Backend: chi + pgx + goose, слои handler→service→repository, `GET /healthz` 200/503 по контракту.
+- Образ `golang:1.25-alpine`. slog JSON, DSN в логе без пароля.
+- Проверка: `task local:up`, `curl localhost:8080/healthz` → `{"status":"ok"}`. `go test` handler ok.
+
+## 2026-08-22 — Sprint 1 §4 Frontend
+
+- Vite 6 + React 18 + TypeScript + Tailwind 4. Заглушка `HomePage`: Duekeep / «Скоро».
+- Образ: multi-stage `node:22` → `nginx:1.27-alpine`. Статика из `dist`, SPA fallback.
+- nginx проксирует `/api/` и `/healthz` на `backend:8080` (браузер не ходит на `:8080`).
+- `npm run lint`, `typecheck`, `build` зелёные.
+- Smoke после `task local:up`: `localhost/` 200 (Duekeep), `localhost/healthz` → ok, `/api/v1/nope` уходит в backend (404 chi).
+
+## 2026-08-22 — Sprint 1 §5 CI
+
+- Добавлен `.github/workflows/ci.yml`: Lint (golangci-lint v2.12.2 в `backend/`), Unit Tests (`go test -race`), Frontend (`npm ci` + lint + typecheck).
+- Триггеры: любой push/PR и `workflow_dispatch`. Integration-джобы нет — `test:integration` ещё заглушка.
+- Попутно починил precondition в Taskfile: при `dir: backend` проверяем `go.mod`, а не `backend/go.mod`.
+- Локально те же команды зелёные. Зелёный Actions — после пуша.
+
+## 2026-08-22 — Sprint 1 §6 DoD
+
+- Чистый прогон из корня: `docker compose down -v && docker compose up --build -d --wait`.
+- Три сервиса Up, db healthy, новый том. Goose накатил `001_init.sql` (version 1). DSN в логе с `***`.
+- `localhost:8080/healthz` и `localhost/healthz` → 200 `{"status":"ok"}`. `localhost/` → заглушка Duekeep.
+- `task test` зелёный. Limitations уже в `docs/known-limitations-sprint-1.md`.
+- Sprint 1 закрыт. Actions на GitHub — после пуша.
+
+## 2026-08-22 — живой Swagger
+
+- Обязательное условие сдачи: OpenAPI + Swagger UI, не откладывая на Sprint 6 целиком.
+- `backend/openapi.yaml` встроен в бинарь (`duekeep.OpenAPISpec`). UI — `swgui/v5emb` на `GET /docs` (редирект на `/docs/`), спека — `GET /openapi.yaml`.
+- Без кодогенерации: спека пишется руками, сейчас только `/healthz` и docs.
+- nginx фронта и прод: proxy `/docs` и `/openapi.yaml` на backend. Vite dev — те же proxy.
+- Тесты: `TestOpenAPISpec`, `TestDocsRedirect`, `TestDocsUI`.
+
+## 2026-08-22 — CI build
+
+- В `.github/workflows/ci.yml` джоба Build: `go build ./cmd/server`.
+- Frontend: к lint/typecheck добавлен `npm run build`.
+- `docker compose build` в CI по-прежнему нет — ловим Dockerfile локально.

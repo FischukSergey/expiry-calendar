@@ -77,6 +77,9 @@ flowchart LR
 - Преподаватель открывает UI на `http://localhost` и Swagger на `http://localhost:8080/docs`.
 - Nginx отдаёт статику SPA и проксирует `/api` на backend — один origin для повседневной работы.
 - Backend также слушает `:8080` снаружи: так проще проверить API без фронта.
+- Compose лежит в `deploy/` (как в my-chat). Из корня `docker compose up` — `include` локального файла, проект `duekeep`.
+- Локальная Postgres с хоста: `localhost:15432` (хостовый 5432 занят). Внутри сети контейнеров backend ходит на `db:5432`.
+- Прод: секреты только в корневом `.env` (не в git), Postgres наружу не публикуем.
 
 ### Процессы backend
 
@@ -97,7 +100,13 @@ expiry-calendar/
   FUNCTIONAL.md
   REPORT.md
   README.md
-  docker-compose.yml
+  Taskfile.yml
+  docker-compose.yml          # include deploy/local, name: duekeep
+  .env.example                # шаблон прода; живой .env не коммитить
+  deploy/
+    local/docker-compose.local.yml
+    test/docker-compose.test.yml
+    prod/                     # nginx, certbot, init-ssl.sh
   .github/workflows/ci.yml
   backend/
     cmd/server/main.go
@@ -561,13 +570,21 @@ Frontend в CI: lint + typecheck. E2E не блокируют сдачу.
 
 ## 15. Docker Compose и CI
 
-`docker compose.yml`:
+Стеки:
 
-- `db` — postgres:16, volume, healthcheck;
-- `backend` — build, зависит от healthy db, `8080:8080`;
-- `frontend` — multi-stage Vite → nginx, `80:80`.
+| Файл | Проект | Секреты |
+|---|---|---|
+| `deploy/local/docker-compose.local.yml` | учёба и сдача | демо в YAML |
+| `deploy/test/docker-compose.test.yml` | integration (позже) | демо, порт хоста 55432 |
+| `deploy/prod/docker-compose.prod.yml` | VPS | только `.env`, `chmod 600` |
 
-Переменные через `.env.example`: `DATABASE_URL`, `HTTP_ADDR`, `JWT_SECRET`, `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `VAPID_PUBLIC`, `VAPID_PRIVATE`, `VAPID_SUBJECT`. В compose — значения для демо, секреты не коммитить.
+Локально: `db` (`postgres:16-alpine`, healthcheck `pg_isready`), `backend` (ждёт healthy db, `8080:8080`), `frontend` (`80:80`). Postgres на хост — `15432:5432`.
+
+Прод: те же сервисы + edge nginx `:80/:443`, certbot. `JWT_SECRET` / `POSTGRES_PASSWORD` / VAPID обязательны через `${VAR:?}`. Порт БД наружу не публикуем.
+
+Команды: `task local:up` / `local:down` / `prod:up`. Сдача: из корня `docker compose up` (тот же проект `duekeep`).
+
+`.env.example` — шаблон прода. Локальный стек `.env` не читает.
 
 CI (GitHub Actions):
 

@@ -1,0 +1,6 @@
+# Сдача: из корня `docker compose up`.
+# Тот же проект, что task local:* — иначе down не видит контейнеры.
+name: duekeep
+
+include:
+  - deploy/local/docker-compose.local.yml

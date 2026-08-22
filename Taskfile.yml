@@ -19,12 +19,13 @@ vars:
 
 tasks:
   default:
-    desc: tidy + fmt + lint + test
+    desc: tidy + fmt + lint + test + build
     cmds:
       - task: tidy
       - task: fmt
       - task: lint
       - task: test
+      - task: build
 
   tools:install:
     desc: Поставить локальные инструменты разработки

@@ -21,7 +21,7 @@ task lint            # Go в Docker + frontend, если есть
 task test            # go test -race
 ```
 
-`task` без аргументов: tidy → fmt → lint → test.
+`task` без аргументов: tidy → fmt → lint → test → build.
 
 Проверка API: `http://localhost:8080/healthz`. Swagger: `http://localhost:8080/docs`. Postgres с хоста: `localhost:15432`.
 

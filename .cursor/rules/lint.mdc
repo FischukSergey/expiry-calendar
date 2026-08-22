@@ -1,24 +1,18 @@
 ---
-description: Как гонять линтер в Duekeep
+description: При прогоне линтера использовать task lint
 alwaysApply: true
 ---
 
 # Линтер
 
-Если в корне есть `Taskfile` / `Taskfile.yml` и цель `lint`:
+При прогоне кода линтером всегда использовать команду:
 
 ```bash
 task lint
 ```
 
-Иначе не плоди команды «на всё сразу». Только затронутый контур:
+Она гоняет Go (golangci-lint в Docker) и frontend, если каталог уже есть.
 
-```bash
-# backend
-cd backend && golangci-lint run ./...
+Не запускать линтеры напрямую (`golangci-lint`, `eslint`, `npm run lint` и т.п.), если пользователь явно не попросил иное.
 
-# frontend
-cd frontend && npm run lint && npm run typecheck
-```
-
-Не запускать линтеры в обход этого правила (`golangci-lint` из корня, `npx eslint .` и т.п.), если пользователь явно не попросил иное.
+Смежные цели: `task fmt`, `task test`, `task tools:install`. Список — `task --list`.

@@ -5,6 +5,7 @@
 ## 1) Решения спринта
 
 - Единственный публичный API backend — liveness/readiness к БД.
+- Реализация: `handler` → `service.Health` → `repository.Health` (`SELECT 1`).
 - Префикс будущего API: `/api/v1`. В Sprint 1 его ручек нет.
 - Ошибки сразу в целевом конверте (чтобы не ломать клиентов позже).
 

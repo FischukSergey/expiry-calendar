@@ -1,0 +1,184 @@
+# https://taskfile.dev
+version: "3"
+
+silent: true
+
+vars:
+  GO_MODULE: duekeep
+  BACKEND_DIR: backend
+  FRONTEND_DIR: frontend
+  GOLANGCI_LINT_VERSION: v2.12.2
+  GOLANGCI_LINT_CACHE:
+    sh: echo "$HOME/Library/Caches/golangci-lint"
+  DOCKER_COMPOSE_CMD: "docker compose"
+  COMPOSE_PROJECT: duekeep
+  LEGACY_COMPOSE_PROJECT: expiry-calendar
+  LOCAL_COMPOSE_FILE: docker-compose.yml
+  PROD_COMPOSE_FILE: deploy/prod/docker-compose.prod.yml
+  TEST_COMPOSE_FILE: deploy/test/docker-compose.test.yml
+
+tasks:
+  default:
+    desc: tidy + fmt + lint + test
+    cmds:
+      - task: tidy
+      - task: fmt
+      - task: lint
+      - task: test
+
+  tools:install:
+    desc: Поставить локальные инструменты разработки
+    cmds:
+      - go install mvdan.cc/gofumpt@latest
+      - go install github.com/golangci/golangci-lint/cmd/golangci-lint@{{.GOLANGCI_LINT_VERSION}}
+      - go install github.com/pressly/goose/v3/cmd/goose@latest
+
+  tidy:
+    desc: Синхронизировать go.mod / go.sum
+    dir: "{{.BACKEND_DIR}}"
+    preconditions:
+      - sh: test -f "{{.BACKEND_DIR}}/go.mod"
+        msg: "нет backend/go.mod — сначала каркас Sprint 1"
+    cmds:
+      - go mod tidy
+
+  fmt:
+    desc: Форматировать Go (gofumpt)
+    dir: "{{.BACKEND_DIR}}"
+    preconditions:
+      - sh: test -d "{{.BACKEND_DIR}}"
+        msg: "нет backend/ — сначала каркас Sprint 1"
+    cmds:
+      - gofumpt -w ./...
+
+  lint:
+    desc: Линтеры (Go в Docker + frontend, если есть)
+    cmds:
+      - task: lint:go
+      - task: lint:frontend
+
+  lint:go:
+    desc: golangci-lint в Docker (как в my-chat)
+    cmds:
+      - mkdir -p {{.GOLANGCI_LINT_CACHE}}
+      - task: lint:cmd
+        vars:
+          CLI_ARGS: "run -v --fix --timeout=5m ./..."
+
+  lint:cmd:
+    desc: Запуск golangci-lint в контейнере, рабочая директория backend/
+    preconditions:
+      - sh: test -d "{{.BACKEND_DIR}}"
+        msg: "нет backend/ — сначала каркас Sprint 1"
+    cmds:
+      - |
+        GOMODCACHE="$(go env GOMODCACHE)" && \
+        docker run --rm \
+          -v "$(pwd)/{{.BACKEND_DIR}}:/app" -w /app \
+          -v "{{.GOLANGCI_LINT_CACHE}}:/root/.cache" \
+          -v "${GOMODCACHE}:/root/go/pkg/mod:ro" \
+          golangci/golangci-lint:{{.GOLANGCI_LINT_VERSION}} \
+          golangci-lint {{.CLI_ARGS}}
+
+  lint:docker:
+    desc: Алиас lint:go
+    cmds:
+      - task: lint:go
+
+  lint:local:
+    desc: golangci-lint локально (опционально)
+    dir: "{{.BACKEND_DIR}}"
+    preconditions:
+      - sh: test -d "{{.BACKEND_DIR}}"
+        msg: "нет backend/ — сначала каркас Sprint 1"
+    cmds:
+      - golangci-lint run -v --timeout=5m ./...
+
+  lint:frontend:
+    desc: ESLint + tsc (когда появится frontend/)
+    dir: "{{.FRONTEND_DIR}}"
+    preconditions:
+      - sh: test -f "{{.FRONTEND_DIR}}/package.json"
+        msg: "нет frontend/package.json — пропуск до Sprint 1"
+    cmds:
+      - npm run lint
+      - npm run typecheck
+
+  test:
+    desc: Юнит-тесты backend
+    dir: "{{.BACKEND_DIR}}"
+    preconditions:
+      - sh: test -f "{{.BACKEND_DIR}}/go.mod"
+        msg: "нет backend/go.mod — сначала каркас Sprint 1"
+    cmds:
+      - go test -race -count=1 ./...
+
+  test:frontend:
+    desc: Тесты frontend (когда появится npm test)
+    dir: "{{.FRONTEND_DIR}}"
+    preconditions:
+      - sh: test -f "{{.FRONTEND_DIR}}/package.json"
+        msg: "нет frontend/package.json — пропуск до Sprint 1"
+    cmds:
+      - npm test
+
+  test:integration:
+    desc: "Позже: интеграционные тесты с Postgres"
+    cmds:
+      - |
+        echo "test:integration ещё не заведён — добавим вместе с тестовым compose" >&2
+        exit 1
+
+  build:
+    desc: Собрать backend-бинарь
+    dir: "{{.BACKEND_DIR}}"
+    preconditions:
+      - sh: test -d "{{.BACKEND_DIR}}/cmd/server"
+        msg: "нет backend/cmd/server — сначала каркас Sprint 1"
+    cmds:
+      - go build -o ../bin/server ./cmd/server
+
+  local:up:
+    desc: Поднять локальное окружение (docker compose)
+    silent: false
+    cmds:
+      - "{{.DOCKER_COMPOSE_CMD}} -p {{.LEGACY_COMPOSE_PROJECT}} down --remove-orphans"
+      - "{{.DOCKER_COMPOSE_CMD}} -p {{.COMPOSE_PROJECT}} -f {{.LOCAL_COMPOSE_FILE}} up --build -d --wait"
+
+  local:down:
+    desc: Остановить локальное окружение (тома сохранить)
+    silent: false
+    cmds:
+      - "{{.DOCKER_COMPOSE_CMD}} -p {{.COMPOSE_PROJECT}} -f {{.LOCAL_COMPOSE_FILE}} down --remove-orphans"
+      - "{{.DOCKER_COMPOSE_CMD}} -p {{.LEGACY_COMPOSE_PROJECT}} down --remove-orphans"
+
+  local:down:clean:
+    desc: Остановить окружение и удалить тома
+    silent: false
+    cmds:
+      - "{{.DOCKER_COMPOSE_CMD}} -p {{.COMPOSE_PROJECT}} -f {{.LOCAL_COMPOSE_FILE}} down -v --remove-orphans"
+      - "{{.DOCKER_COMPOSE_CMD}} -p {{.LEGACY_COMPOSE_PROJECT}} down -v --remove-orphans"
+
+  local:ps:
+    desc: Статус локальных контейнеров
+    silent: false
+    cmds:
+      - "{{.DOCKER_COMPOSE_CMD}} -p {{.COMPOSE_PROJECT}} -f {{.LOCAL_COMPOSE_FILE}} ps -a"
+
+  prod:up:
+    desc: Прод-стек (нужен корневой .env с секретами)
+    preconditions:
+      - sh: test -f .env
+        msg: "скопируйте .env.example в .env и заполните секреты (не коммитить)"
+    cmds:
+      - "{{.DOCKER_COMPOSE_CMD}} -f {{.PROD_COMPOSE_FILE}} --env-file .env up -d --build"
+
+  prod:down:
+    desc: Остановить прод-стек
+    cmds:
+      - "{{.DOCKER_COMPOSE_CMD}} -f {{.PROD_COMPOSE_FILE}} --env-file .env down"
+
+  prod:ps:
+    desc: Статус прод-контейнеров
+    cmds:
+      - "{{.DOCKER_COMPOSE_CMD}} -f {{.PROD_COMPOSE_FILE}} --env-file .env ps"

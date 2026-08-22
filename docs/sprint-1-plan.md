@@ -38,6 +38,7 @@
 - `.gitignore`, `.env.example` (`DATABASE_URL`, `HTTP_ADDR`, заготовки `JWT_*`, `VAPID_*`).
 - `docker-compose.yml`: `db` (postgres:16, healthcheck, volume), `backend`, `frontend`.
 - README: как поднять каркас (порты 80 и 8080).
+- Taskfile уже в корне: `fmt` / `lint` / `test` / `tools:install`. В спринте дописать `local:up` / `local:down` и `test:integration`.
 
 ### B. Backend
 
@@ -61,9 +62,13 @@
 ## 4) Техрешения спринта
 
 - Go **1.25**, слои классические, не доменные пакеты.
-- Backend снаружи `:8080`, UI `:80` — как в архитектуре.
-- Миграции при старте контейнера, не руками.
-- Секреты не в git; в compose — демо-значения.
+- Backend снаружи `:8080`, UI `:80`.
+- Миграции при старте контейнера (goose), не руками.
+- Образ БД: `postgres:16-alpine`.
+- Каталог `deploy/` как в my-chat. Корень `docker-compose.yml` — `include` + `name: duekeep`.
+- Локальный Postgres на хосте: **15432**. Внутри compose — `db:5432`.
+- Прод: секреты только в `.env` на VPS.
+- Taskfile `local:*` с проектом `duekeep`, leftover `expiry-calendar` снимается.
 
 ## 5) DoD
 

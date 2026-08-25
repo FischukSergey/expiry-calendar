@@ -164,6 +164,21 @@
 - Bearer только на /me и logout-all. Cookie Path=/api/v1/auth, без Secure на локали.
 - JWT_SECRET обязателен, порог «≥ 32» не вводили (local compose короче).
 
+## 2026-08-25 — Sprint 2, раздел 3 (Справочники)
+
+- CRUD kinds/categories: GET под Bearer, мутации — admin (`RequireAdmin`). Viewer → 403.
+- `attr_schema`: массив `{key,label,type,required}`, type string|number|boolean, уникальный key.
+- Дерево категорий: глубина ≤ 3 (корень = 1), цикл и высота поддерева при move; DELETE с детьми → 409.
+- `CountItems` = 0 до таблицы items. OpenAPI дополнен путями kinds/categories.
+
+## 2026-08-25 — Sprint 2, разделы 4–5 (тесты и DoD)
+
+- Unit: hash refresh (SHA-256 hex), claims access (sub/role/iss/iat/exp), глубина дерева и цикл.
+- HTTP-сценарии на реальном service + память: login→refresh→logout, reuse family, viewer 403 на POST kind, admin создаёт kind.
+- Контракт `api-sprint-2.md` сверен с хендлерами. Limitations: CountItems=0, нет UI логина, нет Postgres в `task test:integration`.
+- `task lint` / `task test` зелёные. Compose после rebuild: login admin → /me /kinds(9) /categories → refresh; старый refresh 401; viewer POST kind 403.
+- Sprint 2 закрыт по чеклисту.
+
 ## 2026-08-25 — Sprint 7 (документы, без кода)
 
 - После v1: хозяин своей org на одном сервере (PWA), инвайт viewer без почты.

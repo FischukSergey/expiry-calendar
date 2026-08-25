@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
+
 	"duekeep/internal/clock"
 	"duekeep/internal/model"
 	"duekeep/internal/service"
@@ -19,6 +21,9 @@ func TestHashRefreshStable(t *testing.T) {
 	}
 	if a == raw {
 		t.Fatal("hash must not equal raw token")
+	}
+	if len(a) != 64 {
+		t.Fatalf("sha256 hex length %d", len(a))
 	}
 	if service.HashRefresh("other") == a {
 		t.Fatal("different raw must differ")
@@ -48,6 +53,35 @@ func TestParseAccessClaims(t *testing.T) {
 	if id.UserID == "" {
 		t.Fatal("empty sub")
 	}
+
+	parsed, _, err := jwt.NewParser().ParseUnverified(pair.AccessToken, jwt.MapClaims{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	claims, ok := parsed.Claims.(jwt.MapClaims)
+	if !ok {
+		t.Fatal("claims type")
+	}
+	iss, err := claims.GetIssuer()
+	if err != nil || iss != model.JWTIssuer {
+		t.Fatalf("iss %q %v", iss, err)
+	}
+	sub, err := claims.GetSubject()
+	if err != nil || sub != id.UserID {
+		t.Fatalf("sub %q %v", sub, err)
+	}
+	exp, err := claims.GetExpirationTime()
+	if err != nil || exp.Before(time.Now()) {
+		t.Fatalf("exp %v %v", exp, err)
+	}
+	iat, err := claims.GetIssuedAt()
+	if err != nil || iat.IsZero() {
+		t.Fatalf("iat %v %v", iat, err)
+	}
+	if claims["role"] != string(model.RoleViewer) {
+		t.Fatalf("role claim %v", claims["role"])
+	}
+
 	if _, err := service.ParseAccess([]byte("wrong"), pair.AccessToken); err == nil {
 		t.Fatal("want unauthorized for wrong secret")
 	}

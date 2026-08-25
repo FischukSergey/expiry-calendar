@@ -38,19 +38,29 @@
 
 ## 3) Справочники
 
-- [ ] `GET/POST /api/v1/kinds`, `PATCH/DELETE /api/v1/kinds/{id}`
-- [ ] `attr_schema` валидируется как массив описателей
-- [ ] `GET/POST /api/v1/categories`, `PATCH/DELETE /api/v1/categories/{id}`
-- [ ] Глубина ≤ 3
-- [ ] Запрет удалить категорию с детьми
-- [ ] Viewer: только чтение
+- [x] `GET/POST /api/v1/kinds`, `PATCH/DELETE /api/v1/kinds/{id}`
+  Примечание: GET под Bearer; мутации — admin. DELETE занятого kind → 409 (count items = 0 до Sprint 3).
+- [x] `attr_schema` валидируется как массив описателей
+  Примечание: `{key,label,type,required}`, type ∈ string|number|boolean, key уникален.
+- [x] `GET/POST /api/v1/categories`, `PATCH/DELETE /api/v1/categories/{id}`
+  Примечание: GET отдаёт `{items:[корни]}` с вложенными `children`.
+- [x] Глубина ≤ 3
+  Примечание: корень = 1; create/move глубже → 422. Цикл при смене родителя → 422.
+- [x] Запрет удалить категорию с детьми
+  Примечание: дети или items → 409.
+- [x] Viewer: только чтение
+  Примечание: `RequireAdmin` на POST/PATCH/DELETE; viewer → 403, не 401.
 
 ## 4) Тесты
 
-- [ ] Unit: hash refresh, claims, глубина дерева
-- [ ] Integration: login → refresh → logout; viewer 403 на запись kind
+- [x] Unit: hash refresh, claims, глубина дерева
+  Примечание: `TestHashRefreshStable` (SHA-256 hex), `TestParseAccessClaims` (sub/role/iss/iat/exp), `CategoryDepth` 1/3/−1/цикл.
+- [x] Integration: login → refresh → logout; viewer 403 на запись kind
+  Примечание: httptest + in-memory store (`flow_test.go`). Register→refresh→logout 401; reuse гасит family; viewer GET kinds/categories 200, POST kind 403; admin login + POST kind 201.
 
 ## 5) DoD
 
-- [ ] Контракт [`api-sprint-2.md`](api-sprint-2.md) соблюдён
-- [ ] [`known-limitations-sprint-2.md`](known-limitations-sprint-2.md) заполнен
+- [x] Контракт [`api-sprint-2.md`](api-sprint-2.md) соблюдён
+  Примечание: auth/kinds/categories совпадают с хендлерами и `openapi.yaml`. Сценарии плана §6 покрыты `flow_test` + service-тестами.
+- [x] [`known-limitations-sprint-2.md`](known-limitations-sprint-2.md) заполнен
+  Примечание: access после logout, CountItems=0, нет UI логина, integration без Postgres.

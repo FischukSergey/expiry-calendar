@@ -109,7 +109,9 @@ Admin. `204` или `409`, если есть items.
 
 ### `GET /api/v1/categories`
 
-Дерево: элементы с `id`, `parent_id`, `name`, `sort_order`, `children`.
+Auth. `200`: `{ "items": [ корни с вложенными children ] }`.
+
+Узел: `id`, `parent_id`, `name`, `sort_order`, `children` (массив, не null).
 
 ### `POST /api/v1/categories`
 

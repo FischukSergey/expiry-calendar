@@ -17,10 +17,28 @@ type AuthService interface {
 	Me(ctx context.Context, userID string) (model.PublicUser, error)
 }
 
+// KindService — справочник типов.
+type KindService interface {
+	List(ctx context.Context) ([]model.Kind, error)
+	Create(ctx context.Context, in model.Kind) (model.Kind, error)
+	Patch(ctx context.Context, id string, p model.KindPatch) (model.Kind, error)
+	Delete(ctx context.Context, id string) error
+}
+
+// CategoryService — дерево категорий.
+type CategoryService interface {
+	List(ctx context.Context) ([]model.Category, error)
+	Create(ctx context.Context, parentID *string, name string, sortOrder int) (model.Category, error)
+	Patch(ctx context.Context, id string, p model.CategoryPatch) (model.Category, error)
+	Delete(ctx context.Context, id string) error
+}
+
 // Deps — зависимости HTTP-слоя. JWTSecret нужен middleware, не service повторно.
 type Deps struct {
 	Health       HealthService
 	Auth         AuthService
+	Kinds        KindService
+	Categories   CategoryService
 	Spec         []byte
 	JWTSecret    []byte
 	CookieSecure bool

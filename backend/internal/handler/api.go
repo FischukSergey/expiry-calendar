@@ -14,6 +14,8 @@ import (
 type API struct {
 	health       HealthService
 	auth         AuthService
+	kinds        KindService
+	categories   CategoryService
 	spec         []byte // сырой openapi.yaml, тот же duekeep.OpenAPISpec.
 	jwtSecret    []byte
 	cookieSecure bool
@@ -25,6 +27,8 @@ func New(d Deps) *API {
 	return &API{
 		health:       d.Health,
 		auth:         d.Auth,
+		kinds:        d.Kinds,
+		categories:   d.Categories,
 		spec:         d.Spec,
 		jwtSecret:    d.JWTSecret,
 		cookieSecure: d.CookieSecure,
@@ -54,6 +58,17 @@ func (a *API) Router() http.Handler {
 			r.Use(middleware.Bearer(a.jwtSecret))
 			r.Post("/auth/logout-all", a.logoutAll)
 			r.Get("/me", a.me)
+			r.Get("/kinds", a.listKinds)
+			r.Get("/categories", a.listCategories)
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.RequireAdmin)
+				r.Post("/kinds", a.createKind)
+				r.Patch("/kinds/{id}", a.patchKind)
+				r.Delete("/kinds/{id}", a.deleteKind)
+				r.Post("/categories", a.createCategory)
+				r.Patch("/categories/{id}", a.patchCategory)
+				r.Delete("/categories/{id}", a.deleteCategory)
+			})
 		})
 	})
 	return r

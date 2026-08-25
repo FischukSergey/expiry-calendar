@@ -44,6 +44,8 @@ func testAPI(auth handler.AuthService) *handler.API {
 	return handler.New(handler.Deps{
 		Health:     fakeHealth{},
 		Auth:       auth,
+		Kinds:      nopKinds{},
+		Categories: nopCategories{},
 		JWTSecret:  []byte("handler-test-secret"),
 		RefreshTTL: 336 * time.Hour,
 	})

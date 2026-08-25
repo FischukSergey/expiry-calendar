@@ -259,7 +259,7 @@ func (s *Auth) issuePair(ctx context.Context, user model.User, familyID, userAge
 func normalizeEmail(email string) (string, error) {
 	email = strings.TrimSpace(email)
 	if email == "" || !strings.Contains(email, "@") {
-		return "", model.Validation("invalid email", map[string]any{"email": "required"})
+		return "", model.Validation("invalid email", map[string]any{"email": detailRequired})
 	}
 	return email, nil
 }

@@ -75,6 +75,8 @@ func run() error {
 	api := handler.New(handler.Deps{
 		Health:       service.NewHealth(repository.NewHealth(pool)),
 		Auth:         auth,
+		Kinds:        service.NewKind(repository.NewKinds(pool)),
+		Categories:   service.NewCategory(repository.NewCategories(pool)),
 		Spec:         duekeep.OpenAPISpec,
 		JWTSecret:    []byte(cfg.JWTSecret),
 		CookieSecure: cfg.CookieSecure,

@@ -4,7 +4,7 @@ info:
   version: 0.2.0
   description: |
     Календарь истечений. Спека растёт вместе со спринтами, без кодогенерации.
-    Sprint 2: JWT access + refresh. Справочники kinds/categories — следующий раздел.
+    Sprint 2: JWT access + refresh, CRUD kinds и categories.
 servers:
   - url: /
     description: Тот же origin (frontend :80 или backend :8080)
@@ -15,6 +15,8 @@ tags:
     description: OpenAPI и Swagger UI
   - name: Auth
     description: Регистрация, вход, refresh, logout, /me
+  - name: Catalog
+    description: Общие справочники kinds и categories (не per-user)
 paths:
   /healthz:
     get:
@@ -211,6 +213,254 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/kinds:
+    get:
+      tags: [Catalog]
+      summary: Список типов записей
+      operationId: getKinds
+      responses:
+        "200":
+          description: Без пагинации
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KindList"
+        "401":
+          description: Нет access
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      tags: [Catalog]
+      summary: Создать тип (admin)
+      operationId: postKinds
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KindWrite"
+      responses:
+        "201":
+          description: Созданный kind
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Kind"
+        "403":
+          description: Viewer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Slug занят
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: slug / name / color / attr_schema
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/kinds/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      tags: [Catalog]
+      summary: Частичное обновление типа (admin)
+      operationId: patchKind
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KindPatch"
+      responses:
+        "200":
+          description: Обновлённый kind
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Kind"
+        "403":
+          description: Viewer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Нет такого id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Slug занят
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Валидация полей
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      tags: [Catalog]
+      summary: Удалить тип (admin)
+      operationId: deleteKind
+      responses:
+        "204":
+          description: Удалён
+        "403":
+          description: Viewer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Нет такого id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Есть items (Sprint 3)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/categories:
+    get:
+      tags: [Catalog]
+      summary: Дерево категорий (корни в items)
+      operationId: getCategories
+      responses:
+        "200":
+          description: Корни с вложенными children
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryList"
+        "401":
+          description: Нет access
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      tags: [Catalog]
+      summary: Создать категорию (admin)
+      operationId: postCategories
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryWrite"
+      responses:
+        "201":
+          description: Созданный узел
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        "403":
+          description: Viewer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: parent_id не найден
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Имя или глубина > 3
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/categories/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      tags: [Catalog]
+      summary: Имя, порядок или родитель (admin)
+      operationId: patchCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryPatch"
+      responses:
+        "200":
+          description: Обновлённый узел
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        "403":
+          description: Viewer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Нет id или нового родителя
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Цикл или глубина > 3
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      tags: [Catalog]
+      summary: Удалить категорию (admin)
+      operationId: deleteCategory
+      responses:
+        "204":
+          description: Удалена
+        "403":
+          description: Viewer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Нет такого id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Есть дети или items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   securitySchemes:
     bearerAuth:
@@ -265,6 +515,122 @@ components:
         role:
           type: string
           enum: [admin, viewer]
+    AttrField:
+      type: object
+      required: [key, label, type, required]
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        type:
+          type: string
+          enum: [string, number, boolean]
+        required:
+          type: boolean
+    Kind:
+      type: object
+      required: [id, slug, name, color, attr_schema]
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        name:
+          type: string
+        color:
+          type: string
+        attr_schema:
+          type: array
+          items:
+            $ref: "#/components/schemas/AttrField"
+    KindList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Kind"
+    KindWrite:
+      type: object
+      required: [slug, name, color]
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        color:
+          type: string
+        attr_schema:
+          type: array
+          items:
+            $ref: "#/components/schemas/AttrField"
+    KindPatch:
+      type: object
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        color:
+          type: string
+        attr_schema:
+          type: array
+          items:
+            $ref: "#/components/schemas/AttrField"
+    Category:
+      type: object
+      required: [id, name, sort_order, children]
+      properties:
+        id:
+          type: string
+          format: uuid
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+        name:
+          type: string
+        sort_order:
+          type: integer
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/Category"
+    CategoryList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Category"
+    CategoryWrite:
+      type: object
+      required: [name]
+      properties:
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+        name:
+          type: string
+        sort_order:
+          type: integer
+    CategoryPatch:
+      type: object
+      properties:
+        name:
+          type: string
+        sort_order:
+          type: integer
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: null — сделать корнем; отсутствие поля — не менять
     APIError:
       type: object
       required: [code, message]

@@ -29,6 +29,7 @@ func main() {
 	}
 }
 
+// run поднимает slog, пул, goose, seed и HTTP. По SIGINT/SIGTERM — Shutdown за 10 с.
 func run() error {
 	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	slog.SetDefault(log)
@@ -62,7 +63,7 @@ func run() error {
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           api.Router(),
-		ReadHeaderTimeout: 5 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second, // отсекает зависший заголовок (slowloris).
 	}
 
 	errCh := make(chan error, 1)
@@ -85,11 +86,13 @@ func run() error {
 	}
 }
 
+// config — только то, что процесс читает сейчас. JWT_* подключит Sprint 2 §2.
 type config struct {
 	HTTPAddr    string
 	DatabaseURL string
 }
 
+// loadConfig берёт HTTP_ADDR (дефолт :8080) и обязательный DATABASE_URL.
 func loadConfig() (config, error) {
 	cfg := config{
 		HTTPAddr:    cmp.Or(os.Getenv("HTTP_ADDR"), ":8080"),
@@ -101,6 +104,7 @@ func loadConfig() (config, error) {
 	return cfg, nil
 }
 
+// redactDSN маскирует пароль в DSN для slog. Невалидный URL → "invalid".
 func redactDSN(raw string) string {
 	u, err := url.Parse(raw)
 	if err != nil {

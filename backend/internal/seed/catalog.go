@@ -5,11 +5,13 @@ import (
 	"slices"
 )
 
+// requiredKindSlugs — девять slug из ARCHITECTURE.md. ssl и warranty сюда не входят.
 var requiredKindSlugs = []string{
 	"domain", "subscription", "rent", "contract", "insurance",
 	"license", "tax", "vehicle", "other",
 }
 
+// forbiddenKindSlugs — сознательно не в seed; admin может завести тип позже.
 var forbiddenKindSlugs = []string{"ssl", "warranty"}
 
 // CheckCatalog проверяет инварианты seed-справочников без обращения к БД.
@@ -65,6 +67,7 @@ func CheckCatalog() error {
 	return nil
 }
 
+// checkAttrSchema допускает только string|number|boolean и уникальные key.
 func checkAttrSchema(slug string, fields []attrField) error {
 	seen := make(map[string]struct{}, len(fields))
 	for _, f := range fields {

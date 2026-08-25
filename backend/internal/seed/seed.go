@@ -28,6 +28,7 @@ func Run(ctx context.Context, pool *pgxpool.Pool) error {
 	return nil
 }
 
+// seedUsers пишет admin и viewer. Конфликт по email — пропуск, пароль не обновляет.
 func seedUsers(ctx context.Context, pool *pgxpool.Pool) error {
 	const q = `
 INSERT INTO users (id, email, password_hash, role, created_at)
@@ -46,6 +47,7 @@ ON CONFLICT (email) DO NOTHING`
 	return nil
 }
 
+// seedKinds пишет 9 типов. Конфликт по slug — пропуск (id/схема не меняются).
 func seedKinds(ctx context.Context, pool *pgxpool.Pool) error {
 	const q = `
 INSERT INTO item_kinds (id, slug, name, color, attr_schema, created_at)
@@ -64,6 +66,7 @@ ON CONFLICT (slug) DO NOTHING`
 	return nil
 }
 
+// seedCategories пишет дерево. Пустой parent_id в SQL → NULL; конфликт по id.
 func seedCategories(ctx context.Context, pool *pgxpool.Pool) error {
 	const q = `
 INSERT INTO categories (id, parent_id, name, sort_order, created_at)

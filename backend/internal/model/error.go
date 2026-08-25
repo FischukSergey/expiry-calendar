@@ -4,7 +4,7 @@ package model
 type APIError struct {
 	Code    string         `json:"code"`
 	Message string         `json:"message"`
-	Details map[string]any `json:"details,omitempty"`
+	Details map[string]any `json:"details,omitempty"` // поля валидации; пусто — ключ опускаем.
 }
 
 // ErrorResponse — JSON-конверт ошибки.

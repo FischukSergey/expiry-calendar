@@ -11,6 +11,7 @@ import (
 	"duekeep/internal/handler"
 )
 
+// fakeHealth подменяет HealthService. err != nil → хендлер должен отдать 503.
 type fakeHealth struct {
 	err error
 }

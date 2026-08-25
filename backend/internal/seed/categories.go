@@ -1,5 +1,6 @@
 package seed
 
+// categorySeed — узел дерева. Пустой parentID в INSERT становится NULL (корень).
 type categorySeed struct {
 	id        string
 	parentID  string
@@ -7,6 +8,7 @@ type categorySeed struct {
 	sortOrder int
 }
 
+// Стабильные UUID корней. Дети ссылаются на них, не на gen_random_uuid.
 const (
 	catIT        = "44444444-4444-4444-4444-444444444401"
 	catFinance   = "44444444-4444-4444-4444-444444444402"
@@ -32,6 +34,7 @@ var categorySeeds = []categorySeed{
 	{id: "44444444-4444-4444-4444-444444444451", parentID: catTransport, name: "Авто", sortOrder: 0},
 }
 
+// categoryDepth считает уровни от узла к корню (корень = 1). Цикл или дыра → -1.
 func categoryDepth(cats []categorySeed, id string) int {
 	byID := make(map[string]categorySeed, len(cats))
 	for _, c := range cats {

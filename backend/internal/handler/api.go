@@ -11,7 +11,7 @@ import (
 // API — HTTP-вход приложения.
 type API struct {
 	health HealthService
-	spec   []byte
+	spec   []byte // сырой openapi.yaml, тот же duekeep.OpenAPISpec.
 }
 
 // New собирает handlers.
@@ -34,6 +34,7 @@ func (a *API) Router() http.Handler {
 	return r
 }
 
+// requestLog пишет method/path/status/ms. Секреты в query не ожидаем и не логируем.
 func requestLog(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -48,6 +49,7 @@ func requestLog(next http.Handler) http.Handler {
 	})
 }
 
+// statusWriter запоминает код ответа: у ResponseWriter его не прочитать после записи.
 type statusWriter struct {
 	http.ResponseWriter
 	status int

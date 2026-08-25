@@ -10,6 +10,8 @@ alwaysApply: false
 
 Слои: `handler` → `service` → `repository`. Хендлер не пишет SQL. Service не трогает `http.ResponseWriter`. `any`, не `interface{}`.
 
+Комментарии: `.cursor/rules/comments.mdc`. Экспорт в Go — комментарий-предложение с точкой (`godot`).
+
 ## Типы и ошибки
 
 ```go

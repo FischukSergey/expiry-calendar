@@ -1,5 +1,6 @@
 package seed
 
+// kindSeed — строка item_kinds. Идемпотентность по slug, не по id.
 type kindSeed struct {
 	id         string
 	slug       string
@@ -8,6 +9,7 @@ type kindSeed struct {
 	attrSchema []attrField
 }
 
+// attrField — описатель поля формы (не JSON Schema). Type: string|number|boolean.
 type attrField struct {
 	Key      string `json:"key"`
 	Label    string `json:"label"`
@@ -15,6 +17,7 @@ type attrField struct {
 	Required bool   `json:"required"`
 }
 
+// field собирает необязательный атрибут seed-схемы (required=false).
 func field(key, label, typ string) attrField {
 	return attrField{Key: key, Label: label, Type: typ, Required: false}
 }

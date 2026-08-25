@@ -24,7 +24,7 @@ func Connect(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
-// Migrate прогоняет goose.Up из embed FS.
+// Migrate гоняет goose.Up из embed FS. dir обычно "." — корень FS, не путь на диске.
 func Migrate(ctx context.Context, pool *pgxpool.Pool, migrationsFS fs.FS, dir string) error {
 	sqlDB := stdlib.OpenDBFromPool(pool)
 	defer func() {

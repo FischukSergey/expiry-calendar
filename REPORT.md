@@ -148,3 +148,39 @@
 - В `.github/workflows/ci.yml` джоба Build: `go build ./cmd/server`.
 - Frontend: к lint/typecheck добавлен `npm run build`.
 - `docker compose build` в CI по-прежнему нет — ловим Dockerfile локально.
+
+## 2026-08-25 — Sprint 2, раздел 1 (Данные)
+
+- Миграции goose 002–005: `users`, `refresh_tokens`, `item_kinds`, `categories` по схеме `ARCHITECTURE.md` §6.2.
+- Идемпотентный seed в `internal/seed`: 2 пользователя (фиксированные UUID из api-sprint-2), 9 kinds без ssl/warranty, 13 категорий (глубина 2).
+- `cmd/server`: goose up → seed → listen. Конфликт по email/slug/id — `ON CONFLICT DO NOTHING`.
+- Проверка: `task test` / `task lint` зелёные. Compose: goose version 5, повторный restart не плодит строки.
+- Демо-пароли записаны в README, не как прод-секрет.
+
+## 2026-08-25 — Sprint 2, раздел 2 (Auth)
+
+- JWT HS256 access 15 мин, opaque refresh 14 дней. Claims: sub, role, iss=duekeep, iat, exp.
+- Register всегда viewer. Refresh: body важнее cookie. Reuse отозванного → revoke family; неизвестный токен семьи не трогает.
+- Bearer только на /me и logout-all. Cookie Path=/api/v1/auth, без Secure на локали.
+- JWT_SECRET обязателен, порог «≥ 32» не вводили (local compose короче).
+
+## 2026-08-25 — Sprint 2, раздел 3 (Справочники)
+
+- CRUD kinds/categories: GET под Bearer, мутации — admin (`RequireAdmin`). Viewer → 403.
+- `attr_schema`: массив `{key,label,type,required}`, type string|number|boolean, уникальный key.
+- Дерево категорий: глубина ≤ 3 (корень = 1), цикл и высота поддерева при move; DELETE с детьми → 409.
+- `CountItems` = 0 до таблицы items. OpenAPI дополнен путями kinds/categories.
+
+## 2026-08-25 — Sprint 2, разделы 4–5 (тесты и DoD)
+
+- Unit: hash refresh (SHA-256 hex), claims access (sub/role/iss/iat/exp), глубина дерева и цикл.
+- HTTP-сценарии на реальном service + память: login→refresh→logout, reuse family, viewer 403 на POST kind, admin создаёт kind.
+- Контракт `api-sprint-2.md` сверен с хендлерами. Limitations: CountItems=0, нет UI логина, нет Postgres в `task test:integration`.
+- `task lint` / `task test` зелёные. Compose после rebuild: login admin → /me /kinds(9) /categories → refresh; старый refresh 401; viewer POST kind 403.
+- Sprint 2 закрыт по чеклисту.
+
+## 2026-08-25 — Sprint 7 (документы, без кода)
+
+- После v1: хозяин своей org на одном сервере (PWA), инвайт viewer без почты.
+- Добавлены `docs/sprint-7-*.md`, строка в индексе спринтов. Код — только после Sprint 6.
+- Спринты 1–6 не меняем: v1 остаётся общим контуром + роли.

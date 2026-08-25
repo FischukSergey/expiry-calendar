@@ -11,6 +11,7 @@ import (
 	"duekeep/internal/handler"
 )
 
+// fakeHealth подменяет HealthService. err != nil → хендлер должен отдать 503.
 type fakeHealth struct {
 	err error
 }
@@ -21,7 +22,7 @@ func (f fakeHealth) Check(context.Context) error {
 
 func TestHealthzOK(t *testing.T) {
 	t.Parallel()
-	api := handler.New(fakeHealth{}, nil)
+	api := testAPI(fakeAuth{})
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/healthz", nil)
 	api.Router().ServeHTTP(rec, req)
@@ -40,7 +41,7 @@ func TestHealthzOK(t *testing.T) {
 
 func TestHealthzUnavailable(t *testing.T) {
 	t.Parallel()
-	api := handler.New(fakeHealth{err: errors.New("down")}, nil)
+	api := handler.New(handler.Deps{Health: fakeHealth{err: errors.New("down")}, Auth: fakeAuth{}, JWTSecret: []byte("x")})
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/healthz", nil)
 	api.Router().ServeHTTP(rec, req)

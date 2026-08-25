@@ -1,2 +1,2 @@
-// Package middleware — JWT, request_id, ACL. Подключение в Sprint 2.
+// Package middleware — Bearer JWT. request_id и ACL ролей — по мере появления ручек.
 package middleware

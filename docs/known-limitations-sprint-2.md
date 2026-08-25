@@ -14,6 +14,12 @@
 
 **Нет `org_id` в claims.** Заложено в архитектуре на потом.
 
+**Refresh: body важнее cookie.** Пустой body + cookie — берём cookie.
+
+**Logout без refresh (только access)** не находит текущую сессию в БД и отвечает 204: access не содержит id refresh.
+
+**JWT_SECRET** в local compose короче 32 символов — порог длины не вводим.
+
 ## UI
 
 **Нет экрана логина.** Проверка API тестами и curl.

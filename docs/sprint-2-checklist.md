@@ -17,15 +17,24 @@
 
 ## 2) Auth
 
-- [ ] `POST /api/v1/auth/register`
-- [ ] `POST /api/v1/auth/login`
-- [ ] `POST /api/v1/auth/refresh` (cookie или body)
-- [ ] `POST /api/v1/auth/logout`
-- [ ] `POST /api/v1/auth/logout-all`
-- [ ] `GET /api/v1/me`
-- [ ] Middleware Bearer, 401 без токена
-- [ ] Ротация refresh
-- [ ] Reuse → revoke family
+- [x] `POST /api/v1/auth/register`
+  Примечание: всегда viewer; email UNIQUE → 409; пароль короче 8 символов → 422.
+- [x] `POST /api/v1/auth/login`
+  Примечание: неверный email/пароль → 401 без различия причины. Cookie `duekeep_refresh`.
+- [x] `POST /api/v1/auth/refresh` (cookie или body)
+  Примечание: непустой body важнее cookie.
+- [x] `POST /api/v1/auth/logout`
+  Примечание: access и/или refresh; неизвестный refresh → 204.
+- [x] `POST /api/v1/auth/logout-all`
+  Примечание: только access; гасит все семьи.
+- [x] `GET /api/v1/me`
+  Примечание: `{id,email,role}`.
+- [x] Middleware Bearer, 401 без токена
+  Примечание: на `/me` и `/logout-all`. Register/login/refresh без Bearer.
+- [x] Ротация refresh
+  Примечание: тот же `family_id`, старый хеш revoked.
+- [x] Reuse → revoke family
+  Примечание: отозванный/прокрученный refresh гасит семью; неизвестный токен — 401 без revoke.
 
 ## 3) Справочники
 

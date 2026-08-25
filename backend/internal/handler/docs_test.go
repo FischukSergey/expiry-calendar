@@ -10,9 +10,13 @@ import (
 	"duekeep/internal/handler"
 )
 
+func docsAPI() *handler.API {
+	return handler.New(handler.Deps{Health: fakeHealth{}, Auth: fakeAuth{}, Spec: duekeep.OpenAPISpec, JWTSecret: []byte("x")})
+}
+
 func TestOpenAPISpec(t *testing.T) {
 	t.Parallel()
-	api := handler.New(fakeHealth{}, duekeep.OpenAPISpec)
+	api := docsAPI()
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/openapi.yaml", nil)
 	api.Router().ServeHTTP(rec, req)
@@ -21,14 +25,14 @@ func TestOpenAPISpec(t *testing.T) {
 		t.Fatalf("status: got %d", rec.Code)
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, "/healthz") {
-		t.Fatalf("spec without /healthz: %s", body)
+	if !strings.Contains(body, "/healthz") || !strings.Contains(body, "/api/v1/auth/login") {
+		t.Fatalf("spec without health/auth: %s", body)
 	}
 }
 
 func TestDocsRedirect(t *testing.T) {
 	t.Parallel()
-	api := handler.New(fakeHealth{}, duekeep.OpenAPISpec)
+	api := docsAPI()
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/docs", nil)
 	api.Router().ServeHTTP(rec, req)
@@ -43,7 +47,7 @@ func TestDocsRedirect(t *testing.T) {
 
 func TestDocsUI(t *testing.T) {
 	t.Parallel()
-	api := handler.New(fakeHealth{}, duekeep.OpenAPISpec)
+	api := docsAPI()
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/docs/", nil)
 	api.Router().ServeHTTP(rec, req)

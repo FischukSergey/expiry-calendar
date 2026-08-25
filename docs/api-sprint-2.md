@@ -6,7 +6,8 @@
 
 - Access JWT 15 мин, refresh 14 дней, ротация, family revoke.
 - Refresh в JSON и в cookie `duekeep_refresh`.
-- Регистрация → роль `viewer`.
+- Непустой `refresh_token` в body важнее cookie (один источник истины в service — сырая строка).
+- Регистрация → роль `viewer`. Пароль короче 8 символов → 422.
 - Справочники общие на инсталляцию (не per-user).
 
 ## 2) Соглашения
@@ -46,7 +47,7 @@ Set-Cookie: `duekeep_refresh=...; HttpOnly; Path=/api/v1/auth; SameSite=Lax`.
 
 ### `POST /api/v1/auth/refresh`
 
-Body опционален, если есть cookie:
+Body опционален, если есть cookie. Если есть оба — берём body.
 
 ```json
 { "refresh_token": "opaque..." }
@@ -58,7 +59,7 @@ Body опционален, если есть cookie:
 
 ### `POST /api/v1/auth/logout`
 
-Access и/или refresh. `204`.
+Access и/или refresh. Нужен хотя бы один. `204`, в том числе если refresh уже неизвестен или отозван (не revoke family).
 
 ### `POST /api/v1/auth/logout-all`
 

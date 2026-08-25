@@ -1,10 +1,10 @@
 openapi: 3.0.3
 info:
   title: Duekeep API
-  version: 0.1.0
+  version: 0.2.0
   description: |
     Календарь истечений. Спека растёт вместе со спринтами, без кодогенерации.
-    Сейчас в коде: health и этот документ.
+    Sprint 2: JWT access + refresh. Справочники kinds/categories — следующий раздел.
 servers:
   - url: /
     description: Тот же origin (frontend :80 или backend :8080)
@@ -13,6 +13,8 @@ tags:
     description: Liveness и доступность PostgreSQL
   - name: Docs
     description: OpenAPI и Swagger UI
+  - name: Auth
+    description: Регистрация, вход, refresh, logout, /me
 paths:
   /healthz:
     get:
@@ -67,7 +69,154 @@ paths:
                 type: string
         "302":
           description: Редирект на /docs/
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Регистрация viewer + пара токенов
+      operationId: postAuthRegister
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailPassword"
+      responses:
+        "201":
+          description: Пара токенов, роль viewer
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenPair"
+        "409":
+          description: Email занят
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Валидация email/пароля
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Вход
+      operationId: postAuthLogin
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailPassword"
+      responses:
+        "200":
+          description: Пара токенов + cookie duekeep_refresh
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenPair"
+        "401":
+          description: Неверный email или пароль
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Новая пара по refresh (body важнее cookie)
+      operationId: postAuthRefresh
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          description: Новая пара; старый refresh мёртв
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenPair"
+        "401":
+          description: Неизвестный, просроченный, revoked или reuse family
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke текущего refresh (access и/или refresh)
+      operationId: postAuthLogout
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "204":
+          description: Идемпотентно, в том числе если refresh уже мёртв
+        "401":
+          description: Нет ни access, ни refresh
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/auth/logout-all:
+    post:
+      tags: [Auth]
+      summary: Revoke всех refresh пользователя
+      operationId: postAuthLogoutAll
+      responses:
+        "204":
+          description: Все семьи отозваны
+        "401":
+          description: Нет access
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/me:
+    get:
+      tags: [Auth]
+      summary: Текущий пользователь
+      operationId: getMe
+      responses:
+        "200":
+          description: id, email, role
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicUser"
+        "401":
+          description: Нет или битый access
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
     HealthOK:
       type: object
@@ -76,6 +225,46 @@ components:
         status:
           type: string
           example: ok
+    EmailPassword:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+          minLength: 8
+    RefreshRequest:
+      type: object
+      properties:
+        refresh_token:
+          type: string
+    TokenPair:
+      type: object
+      required: [access_token, refresh_token, token_type, expires_in]
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          example: Bearer
+        expires_in:
+          type: integer
+          example: 900
+    PublicUser:
+      type: object
+      required: [id, email, role]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, viewer]
     APIError:
       type: object
       required: [code, message]
@@ -93,3 +282,5 @@ components:
       properties:
         error:
           $ref: "#/components/schemas/APIError"
+security:
+  - bearerAuth: []

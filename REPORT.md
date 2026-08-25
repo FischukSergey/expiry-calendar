@@ -157,6 +157,13 @@
 - Проверка: `task test` / `task lint` зелёные. Compose: goose version 5, повторный restart не плодит строки.
 - Демо-пароли записаны в README, не как прод-секрет.
 
+## 2026-08-25 — Sprint 2, раздел 2 (Auth)
+
+- JWT HS256 access 15 мин, opaque refresh 14 дней. Claims: sub, role, iss=duekeep, iat, exp.
+- Register всегда viewer. Refresh: body важнее cookie. Reuse отозванного → revoke family; неизвестный токен семьи не трогает.
+- Bearer только на /me и logout-all. Cookie Path=/api/v1/auth, без Secure на локали.
+- JWT_SECRET обязателен, порог «≥ 32» не вводили (local compose короче).
+
 ## 2026-08-25 — Sprint 7 (документы, без кода)
 
 - После v1: хозяин своей org на одном сервере (PWA), инвайт viewer без почты.

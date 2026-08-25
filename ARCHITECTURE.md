@@ -625,12 +625,13 @@ CI (GitHub Actions):
 | [4](docs/sprint-4-plan.md) | тикер, notifications, SSE, Web Push, dashboard, calendar | |
 | [5](docs/sprint-5-plan.md) | CSV, экраны, PWA | |
 | [6](docs/sprint-6-plan.md) | OpenAPI `/docs`, тесты ≥ 10, полный seed, сдача | |
+| [7](docs/sprint-7-plan.md) | После v1: org, изоляция данных, инвайт viewer | |
 
 Правило: handler не меняет контракт спринта без правки `docs/api-sprint-N.md`.
 
 Спринты 4 и 5 можно частично перекрывать (API обзора раньше UI). Не перескакивать 2→5.
 
-**Не делать раньше времени:** вложения, почта, Telegram, iCal, конвертация валют, фильтр по JSONB, `org_id` на записях, второй инстанс backend.
+**Не делать раньше времени (в спринты 1–6):** вложения, почта, Telegram, iCal, конвертация валют, фильтр по JSONB, `org_id` на записях, второй инстанс backend. Изоляция — [Sprint 7](docs/sprint-7-plan.md).
 
 ---
 

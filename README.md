@@ -4,6 +4,11 @@
 
 Backend Sprint 1: `GET /healthz`. Swagger: `http://localhost:8080/docs` (через UI — `http://localhost/docs`). Frontend: заглушка на `http://localhost` (nginx проксирует `/api`, `/healthz`, `/docs`).
 
+Демо-аккаунты (только локальный стенд, не прод-секреты):
+
+- `admin@duekeep.local` / `admin1234` — роль admin
+- `viewer@duekeep.local` / `viewer1234` — роль viewer
+
 - Функционал: [FUNCTIONAL.md](FUNCTIONAL.md)
 - Архитектура: [ARCHITECTURE.md](ARCHITECTURE.md)
 - Спринты: [docs/README.md](docs/README.md)

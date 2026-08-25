@@ -17,6 +17,7 @@ import (
 	"duekeep/internal/db"
 	"duekeep/internal/handler"
 	"duekeep/internal/repository"
+	"duekeep/internal/seed"
 	"duekeep/internal/service"
 	"duekeep/migrations"
 )
@@ -51,6 +52,9 @@ func run() error {
 	defer db.Close(pool)
 
 	if err := db.Migrate(ctx, pool, migrations.FS, "."); err != nil {
+		return err
+	}
+	if err := seed.Run(ctx, pool); err != nil {
 		return err
 	}
 

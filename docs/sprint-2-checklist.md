@@ -4,11 +4,16 @@
 
 ## 1) Данные
 
-- [ ] Миграция `users`.
-- [ ] Миграция `refresh_tokens` (family_id, token_hash, revoked_at).
-- [ ] Миграция `item_kinds`.
-- [ ] Миграция `categories`.
-- [ ] Идемпотентный seed: 2 пользователя, 9 kinds, ≥ 10 категорий.
+- [x] Миграция `users`.
+  Примечание: `002_users.sql` — citext, `email` UNIQUE, `role` admin/viewer.
+- [x] Миграция `refresh_tokens` (family_id, token_hash, revoked_at).
+  Примечание: `003_refresh_tokens.sql` + индексы user_id / family_id / expires_at.
+- [x] Миграция `item_kinds`.
+  Примечание: `004_item_kinds.sql` — slug UNIQUE, `attr_schema` JSONB `[]`.
+- [x] Миграция `categories`.
+  Примечание: `005_categories.sql` — self-FK `parent_id`.
+- [x] Идемпотентный seed: 2 пользователя, 9 kinds, ≥ 10 категорий.
+  Примечание: `seed.Run` после goose. Повторный restart: 2 / 9 / 13 строк, без дублей. Пароли в README.
 
 ## 2) Auth
 

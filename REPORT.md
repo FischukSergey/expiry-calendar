@@ -148,3 +148,17 @@
 - В `.github/workflows/ci.yml` джоба Build: `go build ./cmd/server`.
 - Frontend: к lint/typecheck добавлен `npm run build`.
 - `docker compose build` в CI по-прежнему нет — ловим Dockerfile локально.
+
+## 2026-08-25 — Sprint 2, раздел 1 (Данные)
+
+- Миграции goose 002–005: `users`, `refresh_tokens`, `item_kinds`, `categories` по схеме `ARCHITECTURE.md` §6.2.
+- Идемпотентный seed в `internal/seed`: 2 пользователя (фиксированные UUID из api-sprint-2), 9 kinds без ssl/warranty, 13 категорий (глубина 2).
+- `cmd/server`: goose up → seed → listen. Конфликт по email/slug/id — `ON CONFLICT DO NOTHING`.
+- Проверка: `task test` / `task lint` зелёные. Compose: goose version 5, повторный restart не плодит строки.
+- Демо-пароли записаны в README, не как прод-секрет.
+
+## 2026-08-25 — Sprint 7 (документы, без кода)
+
+- После v1: хозяин своей org на одном сервере (PWA), инвайт viewer без почты.
+- Добавлены `docs/sprint-7-*.md`, строка в индексе спринтов. Код — только после Sprint 6.
+- Спринты 1–6 не меняем: v1 остаётся общим контуром + роли.

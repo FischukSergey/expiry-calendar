@@ -4,10 +4,14 @@
 
 ## 1) Данные
 
-- [ ] Миграция `items` (в т.ч. `attrs`, индексы)
-- [ ] Миграция `renewals`
-- [ ] Миграция `audit_log`
-- [ ] Часть seed записей можно отложить до Sprint 6; минимум несколько items для тестов
+- [x] Миграция `items` (в т.ч. `attrs`, индексы)
+  Примечание: `006_items.sql` — колонки + `attrs` JSONB, `cost_amount INT`, CHECK дат/cost/status, GIN `tags`/`attrs`.
+- [x] Миграция `renewals`
+  Примечание: `007_renewals.sql` — FK на items (CASCADE) и users.
+- [x] Миграция `audit_log`
+  Примечание: `008_audit_log.sql` — `actor_id` NULL, индекс `created_at DESC`.
+- [x] Часть seed записей можно отложить до Sprint 6; минимум несколько items для тестов
+  Примечание: 4 items (rent/subscription/domain/insurance), даты от `Clock.Today()`, статус при записи. Полные 50+ — Sprint 6. `CountItems` больше не заглушка.
 
 ## 2) API
 

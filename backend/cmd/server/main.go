@@ -59,7 +59,7 @@ func run() error {
 	if err := db.Migrate(ctx, pool, migrations.FS, "."); err != nil {
 		return err
 	}
-	if err := seed.Run(ctx, pool); err != nil {
+	if err := seed.Run(ctx, pool, clock.Real{}); err != nil {
 		return err
 	}
 

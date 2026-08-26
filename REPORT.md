@@ -179,6 +179,14 @@
 - `task lint` / `task test` зелёные. Compose после rebuild: login admin → /me /kinds(9) /categories → refresh; старый refresh 401; viewer POST kind 403.
 - Sprint 2 закрыт по чеклисту.
 
+## 2026-08-26 — Sprint 3, раздел 1 (Данные)
+
+- Миграции goose 006–008: `items` (гибрид колонки + `attrs` JSONB, индексы и GIN), `renewals`, `audit_log`.
+- Seed: 4 записи с фиксированными UUID, даты относительно `clock.Today` (UTC), статус `active`/`expiring`/`expired` при вставке. Повторный restart обновляет даты, не плодит строки.
+- `CountItems` для kind/category теперь считает строки в `items` — DELETE занятого справочника даст 409, а не пройдёт мимо.
+- Полный каталог 50+ items — Sprint 6. Notifications — Sprint 4.
+- `cost_amount` / `renewals.old_cost` / `new_cost` — `INT`, без дробной части.
+
 ## 2026-08-25 — Sprint 7 (документы, без кода)
 
 - После v1: хозяин своей org на одном сервере (PWA), инвайт viewer без почты.

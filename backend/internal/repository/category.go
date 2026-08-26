@@ -110,9 +110,14 @@ func (r *Categories) CountChildren(ctx context.Context, id string) (int, error) 
 	return n, nil
 }
 
-// CountItems заглушка до таблицы items.
-func (r *Categories) CountItems(context.Context, string) (int, error) {
-	return 0, nil
+// CountItems — сколько записей с этим category_id (запрет DELETE занятой категории).
+func (r *Categories) CountItems(ctx context.Context, id string) (int, error) {
+	var n int
+	err := r.q(ctx).QueryRow(ctx, `SELECT count(*) FROM items WHERE category_id = $1::uuid`, id).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("count items by category: %w", err)
+	}
+	return n, nil
 }
 
 func parentArg(id *string) any {

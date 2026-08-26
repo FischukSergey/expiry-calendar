@@ -8,7 +8,7 @@ import (
 	"duekeep/internal/model"
 )
 
-// KindStore — справочник типов. CountItems до Sprint 3 всегда 0.
+// KindStore — справочник типов. CountItems > 0 запрещает DELETE.
 type KindStore interface {
 	List(ctx context.Context) ([]model.Kind, error)
 	ByID(ctx context.Context, id string) (model.Kind, error)

@@ -7,12 +7,13 @@ Auth и справочники — [`api-sprint-2.md`](api-sprint-2.md).
 - Item: колонки + `attrs` JSONB.
 - Пагинация offset: `page`, `per_page` (max 100), `total`.
 - Статус пересчитывается при записи, если не `cancelled`/`archived`.
+- `cost_amount` и `new_cost` — целые (≥ 0), без дробной части.
 
 ## 2) Item
 
 Поля: `id`, `title`, `description`, `kind_id`, `category_id`, `vendor`, `tags`, `cost_amount`, `currency`, `billing_period` (`one_time`|`monthly`|`yearly`), `started_at`, `expires_at`, `notify_before_days`, `url`, `account_hint`, `status`, `attrs`, `created_at`, `updated_at`.
 
-Обязательны при создании: `title`, `kind_id`, `expires_at`. `cost_amount` ≥ 0. `started_at` ≤ `expires_at`, если обе заданы.
+Обязательны при создании: `title`, `kind_id`, `expires_at`. `cost_amount` — целое ≥ 0. `started_at` ≤ `expires_at`, если обе заданы.
 
 ### `GET /api/v1/items`
 
@@ -50,7 +51,7 @@ Admin.
 ```json
 {
   "new_expires_at": "2027-08-01",
-  "new_cost": 1990.00,
+  "new_cost": 1990,
   "comment": "продлил на год"
 }
 ```

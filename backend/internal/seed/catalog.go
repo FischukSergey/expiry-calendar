@@ -7,14 +7,14 @@ import (
 
 // requiredKindSlugs — девять slug из ARCHITECTURE.md. ssl и warranty сюда не входят.
 var requiredKindSlugs = []string{
-	"domain", "subscription", "rent", "contract", "insurance",
-	"license", "tax", "vehicle", "other",
+	slugDomain, slugSubscription, slugRent, slugContract, slugInsurance,
+	slugLicense, slugTax, slugVehicle, slugOther,
 }
 
 // forbiddenKindSlugs — сознательно не в seed; admin может завести тип позже.
 var forbiddenKindSlugs = []string{"ssl", "warranty"}
 
-// CheckCatalog проверяет инварианты seed-справочников без обращения к БД.
+// CheckCatalog проверяет инварианты seed (пользователи, kinds, categories, items) без БД.
 func CheckCatalog() error {
 	if len(userSeeds) != 2 {
 		return fmt.Errorf("want 2 users, got %d", len(userSeeds))
@@ -64,7 +64,88 @@ func CheckCatalog() error {
 			return fmt.Errorf("category %s: depth %d > 3", c.name, depth)
 		}
 	}
+
+	return checkItemSeeds()
+}
+
+// checkItemSeeds: несколько записей, уникальные id, kind/category из справочников, attrs по схеме.
+func checkItemSeeds() error {
+	items := itemSeeds()
+	if len(items) < 3 {
+		return fmt.Errorf("want at least 3 items, got %d", len(items))
+	}
+	ids := make(map[string]struct{}, len(items))
+	for _, it := range items {
+		if _, dup := ids[it.id]; dup {
+			return fmt.Errorf("duplicate item id %s", it.id)
+		}
+		ids[it.id] = struct{}{}
+		if kindIDBySlug(it.kindSlug) == "" {
+			return fmt.Errorf("item %s: unknown kind %s", it.title, it.kindSlug)
+		}
+		if it.categoryID != "" && !categoryExists(it.categoryID) {
+			return fmt.Errorf("item %s: unknown category %s", it.title, it.categoryID)
+		}
+		if it.cost < 0 {
+			return fmt.Errorf("item %s: cost_amount must be >= 0", it.title)
+		}
+		if it.currency == "" || len(it.currency) != 3 {
+			return fmt.Errorf("item %s: currency must be ISO 4217", it.title)
+		}
+		switch it.billing {
+		case billingOneTime, billingMonthly, billingYearly:
+		default:
+			return fmt.Errorf("item %s: bad billing_period %s", it.title, it.billing)
+		}
+		if err := checkItemAttrs(it); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func checkItemAttrs(it itemSeed) error {
+	var schema []attrField
+	for _, k := range kindSeeds {
+		if k.slug == it.kindSlug {
+			schema = k.attrSchema
+			break
+		}
+	}
+	allowed := make(map[string]string, len(schema))
+	for _, f := range schema {
+		allowed[f.Key] = f.Type
+	}
+	for key, val := range it.attrs {
+		typ, ok := allowed[key]
+		if !ok {
+			return fmt.Errorf("item %s: extra attr %s", it.title, key)
+		}
+		if !attrValueMatches(typ, val) {
+			return fmt.Errorf("item %s: attr %s want %s", it.title, key, typ)
+		}
+	}
+	return nil
+}
+
+func attrValueMatches(typ string, val any) bool {
+	switch typ {
+	case "string":
+		_, ok := val.(string)
+		return ok
+	case "number":
+		switch val.(type) {
+		case int, int64, float64:
+			return true
+		default:
+			return false
+		}
+	case "boolean":
+		_, ok := val.(bool)
+		return ok
+	default:
+		return false
+	}
 }
 
 // checkAttrSchema допускает только string|number|boolean и уникальные key.

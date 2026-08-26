@@ -26,7 +26,7 @@ func field(key, label, typ string) attrField {
 var kindSeeds = []kindSeed{
 	{
 		id:    "33333333-3333-3333-3333-333333333301",
-		slug:  "domain",
+		slug:  slugDomain,
 		name:  "Домен",
 		color: "#3B82F6",
 		attrSchema: []attrField{
@@ -36,7 +36,7 @@ var kindSeeds = []kindSeed{
 	},
 	{
 		id:    "33333333-3333-3333-3333-333333333302",
-		slug:  "subscription",
+		slug:  slugSubscription,
 		name:  "Подписки",
 		color: "#8B5CF6",
 		attrSchema: []attrField{
@@ -46,7 +46,7 @@ var kindSeeds = []kindSeed{
 	},
 	{
 		id:    "33333333-3333-3333-3333-333333333303",
-		slug:  "rent",
+		slug:  slugRent,
 		name:  "Аренда",
 		color: "#F59E0B",
 		attrSchema: []attrField{
@@ -56,7 +56,7 @@ var kindSeeds = []kindSeed{
 	},
 	{
 		id:    "33333333-3333-3333-3333-333333333304",
-		slug:  "contract",
+		slug:  slugContract,
 		name:  "Договор",
 		color: "#6366F1",
 		attrSchema: []attrField{
@@ -66,7 +66,7 @@ var kindSeeds = []kindSeed{
 	},
 	{
 		id:    "33333333-3333-3333-3333-333333333305",
-		slug:  "insurance",
+		slug:  slugInsurance,
 		name:  "Страховка",
 		color: "#10B981",
 		attrSchema: []attrField{
@@ -76,7 +76,7 @@ var kindSeeds = []kindSeed{
 	},
 	{
 		id:    "33333333-3333-3333-3333-333333333306",
-		slug:  "license",
+		slug:  slugLicense,
 		name:  "Лицензия",
 		color: "#EC4899",
 		attrSchema: []attrField{
@@ -86,7 +86,7 @@ var kindSeeds = []kindSeed{
 	},
 	{
 		id:    "33333333-3333-3333-3333-333333333307",
-		slug:  "tax",
+		slug:  slugTax,
 		name:  "Налог",
 		color: "#EF4444",
 		attrSchema: []attrField{
@@ -96,7 +96,7 @@ var kindSeeds = []kindSeed{
 	},
 	{
 		id:    "33333333-3333-3333-3333-333333333308",
-		slug:  "vehicle",
+		slug:  slugVehicle,
 		name:  "Авто",
 		color: "#14B8A6",
 		attrSchema: []attrField{
@@ -106,7 +106,7 @@ var kindSeeds = []kindSeed{
 	},
 	{
 		id:         "33333333-3333-3333-3333-333333333309",
-		slug:       "other",
+		slug:       slugOther,
 		name:       "Прочее",
 		color:      "#6B7280",
 		attrSchema: []attrField{},

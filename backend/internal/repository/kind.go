@@ -107,9 +107,14 @@ func (r *Kinds) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-// CountItems заглушка: таблицы items ещё нет (Sprint 3).
-func (r *Kinds) CountItems(context.Context, string) (int, error) {
-	return 0, nil
+// CountItems — сколько записей с этим kind_id (запрет DELETE занятого типа).
+func (r *Kinds) CountItems(ctx context.Context, id string) (int, error) {
+	var n int
+	err := r.q(ctx).QueryRow(ctx, `SELECT count(*) FROM items WHERE kind_id = $1::uuid`, id).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("count items by kind: %w", err)
+	}
+	return n, nil
 }
 
 type kindRow interface {

@@ -15,27 +15,42 @@
 
 ## 2) API
 
-- [ ] `GET/POST /api/v1/items`
-- [ ] `GET/PATCH/DELETE /api/v1/items/{id}`
-- [ ] Фильтры и сортировка из контракта
-- [ ] Пагинация `page`, `per_page`, `total`
-- [ ] `POST /api/v1/items/{id}/renew`
-- [ ] `POST /api/v1/items/bulk`
-- [ ] `GET /api/v1/audit`
-- [ ] Валидация `attrs` по схеме kind
-- [ ] Viewer: 403 на мутации
+- [x] `GET/POST /api/v1/items`
+  Примечание: GET под Bearer; POST admin, 201, status уже посчитан. Дефолты RUB / one_time / 30 дней.
+- [x] `GET/PATCH/DELETE /api/v1/items/{id}`
+  Примечание: GET → `{item, renewals}`; PATCH/DELETE — admin, 200/204.
+- [x] Фильтры и сортировка из контракта
+  Примечание: q (title/vendor/tags), kind/status/category+потомки (CTE), vendor, даты, цена, billing, tag; sort whitelist.
+- [x] Пагинация `page`, `per_page`, `total`
+  Примечание: дефолт 1/20, per_page max 100.
+- [x] `POST /api/v1/items/{id}/renew`
+  Примечание: пишет `renewals` + audit; `bulk` зарегистрирован до `/{id}`.
+- [x] `POST /api/v1/items/bulk`
+  Примечание: ids + хотя бы одно из category_id/status (cancelled|archived).
+- [x] `GET /api/v1/audit`
+  Примечание: admin, пагинация как у items.
+- [x] Валидация `attrs` по схеме kind
+  Примечание: лишние ключи и тип → 422; пустая схема → `{}`.
+- [x] Viewer: 403 на мутации
+  Примечание: `RequireAdmin` на POST/PATCH/DELETE/renew/bulk и GET /audit. GET items — viewer 200.
 
 ## 3) Аудит
 
-- [ ] create / update / delete / renew / bulk пишут audit
-- [ ] before/after без секретов
+- [x] create / update / delete / renew / bulk пишут audit
+  Примечание: в той же tx, что мутация. `TestMutationsWriteAudit` — все пять `action`.
+- [x] before/after без секретов
+  Примечание: `itemAuditSnap` — id/title/kind/category/status/expires/cost/attrs. Нет url, account_hint, паролей.
 
 ## 4) Тесты
 
-- [ ] Unit: attrs, статус при записи, глубина уже есть
-- [ ] Integration: CRUD, renew, фильтр+page, viewer 403
+- [x] Unit: attrs, статус при записи, глубина уже есть
+  Примечание: `TestValidateAttrs`, `TestStatusAtWrite`, `TestCategoryDepthAndCreateLimit`.
+- [x] Integration: CRUD, renew, фильтр+page, viewer 403
+  Примечание: `TestItemsCRUDRenewFilterPage` — patch/renew+история, q+page, tag. Viewer 403 на POST/PATCH/DELETE/renew/bulk и GET /audit.
 
 ## 5) DoD
 
-- [ ] [`api-sprint-3.md`](api-sprint-3.md)
-- [ ] [`known-limitations-sprint-3.md`](known-limitations-sprint-3.md)
+- [x] [`api-sprint-3.md`](api-sprint-3.md)
+  Примечание: ручки items/audit совпадают с хендлерами и `openapi.yaml`. Дефолты и снимок audit зафиксированы.
+- [x] [`known-limitations-sprint-3.md`](known-limitations-sprint-3.md)
+  Примечание: нет тикера, нет UI/SSE/dashboard, seed 50+ в Sprint 6, audit без фильтров, integration без Postgres.

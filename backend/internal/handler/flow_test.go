@@ -37,6 +37,7 @@ func liveAPI(t *testing.T, users *memUsers) *handler.API {
 		Auth:       auth,
 		Kinds:      service.NewKind(newMemKinds()),
 		Categories: nopCategories{},
+		Items:      nopItems{},
 		JWTSecret:  []byte("handler-test-secret"),
 		RefreshTTL: 336 * time.Hour,
 	})

@@ -214,3 +214,26 @@ func (m *memCats) CountChildren(_ context.Context, id string) (int, error) {
 }
 
 func (m *memCats) CountItems(context.Context, string) (int, error) { return 0, nil }
+
+func (m *memCats) DescendantIDs(ctx context.Context, id string) ([]string, error) {
+	rows, err := m.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	byParent := map[string][]string{}
+	for _, r := range rows {
+		if r.ParentID != nil && *r.ParentID != "" {
+			byParent[*r.ParentID] = append(byParent[*r.ParentID], r.ID)
+		}
+	}
+	out := []string{id}
+	var walk func(string)
+	walk = func(parent string) {
+		for _, ch := range byParent[parent] {
+			out = append(out, ch)
+			walk(ch)
+		}
+	}
+	walk(id)
+	return out, nil
+}

@@ -110,6 +110,30 @@ func (r *Categories) CountChildren(ctx context.Context, id string) (int, error) 
 	return n, nil
 }
 
+// DescendantIDs — id узла и всех потомков (CTE). Нет узла → пустой список.
+func (r *Categories) DescendantIDs(ctx context.Context, id string) ([]string, error) {
+	rows, err := r.q(ctx).Query(ctx, `
+WITH RECURSIVE tree AS (
+    SELECT id FROM categories WHERE id = $1::uuid
+    UNION ALL
+    SELECT c.id FROM categories c JOIN tree t ON c.parent_id = t.id
+)
+SELECT id::text FROM tree`, id)
+	if err != nil {
+		return nil, fmt.Errorf("category descendants: %w", err)
+	}
+	defer rows.Close()
+	out := make([]string, 0)
+	for rows.Next() {
+		var one string
+		if err := rows.Scan(&one); err != nil {
+			return nil, err
+		}
+		out = append(out, one)
+	}
+	return out, rows.Err()
+}
+
 // CountItems — сколько записей с этим category_id (запрет DELETE занятой категории).
 func (r *Categories) CountItems(ctx context.Context, id string) (int, error) {
 	var n int

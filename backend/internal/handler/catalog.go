@@ -10,6 +10,8 @@ import (
 	"duekeep/internal/model"
 )
 
+const jsonNull = "null"
+
 type kindWrite struct {
 	Slug       string            `json:"slug"`
 	Name       string            `json:"name"`
@@ -135,7 +137,7 @@ func (a *API) patchCategory(w http.ResponseWriter, r *http.Request) {
 	p := model.CategoryPatch{Name: body.Name, SortOrder: body.SortOrder}
 	if body.ParentID != nil {
 		p.SetParent = true
-		if string(body.ParentID) != "null" {
+		if string(body.ParentID) != jsonNull {
 			var parent string
 			if err := json.Unmarshal(body.ParentID, &parent); err != nil {
 				writeError(w, http.StatusUnprocessableEntity, "validation_error", "invalid parent_id")

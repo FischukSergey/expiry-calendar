@@ -65,18 +65,27 @@ func run() error {
 
 	users := repository.NewUsers(pool)
 	refresh := repository.NewRefreshTokens(pool)
-	auth := service.NewAuth(users, refresh, func(ctx context.Context, fn func(context.Context) error) error {
+	runTx := func(ctx context.Context, fn func(context.Context) error) error {
 		return db.RunTx(ctx, pool, fn)
-	}, clock.Real{}, service.AuthConfig{
+	}
+	clk := clock.Real{}
+	auth := service.NewAuth(users, refresh, runTx, clk, service.AuthConfig{
 		Secret:     []byte(cfg.JWTSecret),
 		AccessTTL:  cfg.AccessTTL,
 		RefreshTTL: cfg.RefreshTTL,
 	})
+	kindsRepo := repository.NewKinds(pool)
+	catsRepo := repository.NewCategories(pool)
+	itemsSvc := service.NewItem(
+		repository.NewItems(pool), kindsRepo, catsRepo,
+		repository.NewRenewals(pool), repository.NewAudit(pool), runTx, clk,
+	)
 	api := handler.New(handler.Deps{
 		Health:       service.NewHealth(repository.NewHealth(pool)),
 		Auth:         auth,
-		Kinds:        service.NewKind(repository.NewKinds(pool)),
-		Categories:   service.NewCategory(repository.NewCategories(pool)),
+		Kinds:        service.NewKind(kindsRepo),
+		Categories:   service.NewCategory(catsRepo),
+		Items:        itemsSvc,
 		Spec:         duekeep.OpenAPISpec,
 		JWTSecret:    []byte(cfg.JWTSecret),
 		CookieSecure: cfg.CookieSecure,

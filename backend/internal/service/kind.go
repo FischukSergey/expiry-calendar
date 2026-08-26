@@ -115,13 +115,13 @@ func ValidateAttrSchema(fields []model.AttrField) error {
 			return model.Validation("invalid attr_schema", map[string]any{"index": i, "field": "key/label"})
 		}
 		if _, dup := seen[key]; dup {
-			return model.Validation("duplicate attr key", map[string]any{"key": key})
+			return model.Validation("duplicate attr key", map[string]any{fieldKey: key})
 		}
 		seen[key] = struct{}{}
 		switch f.Type {
 		case model.AttrString, model.AttrNumber, model.AttrBoolean:
 		default:
-			return model.Validation("invalid attr type", map[string]any{"key": key, "type": f.Type})
+			return model.Validation("invalid attr type", map[string]any{fieldKey: key, "type": f.Type})
 		}
 		fields[i].Key = key
 		fields[i].Label = label

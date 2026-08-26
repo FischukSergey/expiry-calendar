@@ -16,6 +16,7 @@ func docsAPI() *handler.API {
 		Auth:       fakeAuth{},
 		Kinds:      nopKinds{},
 		Categories: nopCategories{},
+		Items:      nopItems{},
 		Spec:       duekeep.OpenAPISpec,
 		JWTSecret:  []byte("x"),
 	})
@@ -37,6 +38,9 @@ func TestOpenAPISpec(t *testing.T) {
 	}
 	if !strings.Contains(body, "/api/v1/kinds") || !strings.Contains(body, "/api/v1/categories") {
 		t.Fatalf("spec without catalogs: %s", body)
+	}
+	if !strings.Contains(body, "/api/v1/items") || !strings.Contains(body, "/api/v1/audit") {
+		t.Fatalf("spec without items/audit: %s", body)
 	}
 }
 

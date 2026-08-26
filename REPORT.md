@@ -179,6 +179,25 @@
 - `task lint` / `task test` зелёные. Compose после rebuild: login admin → /me /kinds(9) /categories → refresh; старый refresh 401; viewer POST kind 403.
 - Sprint 2 закрыт по чеклисту.
 
+## 2026-08-26 — Sprint 3, разделы 4–5 (тесты и DoD)
+
+- Unit: attrs, статус при записи, глубина категорий — уже были и остаются зелёными.
+- HTTP: `TestItemsCRUDRenewFilterPage` (CRUD, renew пишет историю, q+page, tag), `TestViewerForbiddenItemMutations`.
+- Контракт `api-sprint-3.md` сверен с роутером и OpenAPI. Limitations: нет тикера/UI, audit без фильтров, тесты без Postgres.
+- `task test` / `task lint` зелёные. Sprint 3 закрыт по чеклисту.
+
+## 2026-08-26 — Sprint 3, раздел 3 (Аудит)
+
+- Снимок `itemAuditSnap`: только id, title, kind_id, category_id, status, expires_at, cost_amount, attrs.
+- Create/update/delete/renew/bulk пишут audit в той же транзакции. Тест `TestMutationsWriteAudit` проверяет все action и отсутствие url/account_hint/паролей.
+
+## 2026-08-26 — Sprint 3, раздел 2 (API)
+
+- CRUD `/api/v1/items`, фильтры + CTE потомков категории, пагинация, renew, bulk, GET `/audit`.
+- Валидация `attrs` против `attr_schema`; статус при записи от `clock.Today` (UTC), с клиента только cancelled/archived.
+- Viewer 403 на мутации и audit; OpenAPI дополнен путями items/audit.
+- Мутации пишут audit (before/after без секретов) — задел на раздел 3.
+
 ## 2026-08-26 — Sprint 3, раздел 1 (Данные)
 
 - Миграции goose 006–008: `items` (гибрид колонки + `attrs` JSONB, индексы и GIN), `renewals`, `audit_log`.

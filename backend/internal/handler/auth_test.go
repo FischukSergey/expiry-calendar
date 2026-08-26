@@ -46,6 +46,7 @@ func testAPI(auth handler.AuthService) *handler.API {
 		Auth:       auth,
 		Kinds:      nopKinds{},
 		Categories: nopCategories{},
+		Items:      nopItems{},
 		JWTSecret:  []byte("handler-test-secret"),
 		RefreshTTL: 336 * time.Hour,
 	})

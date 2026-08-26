@@ -4,6 +4,9 @@ package service
 const (
 	fieldName      = "name"
 	fieldParentID  = "parent_id"
+	fieldKey       = "key"
 	detailRequired = "required"
+	detailMinZero  = ">= 0"
+	detailUUID     = "uuid"
 	msgInvalidName = "invalid name"
 )

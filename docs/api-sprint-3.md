@@ -7,12 +7,15 @@ Auth и справочники — [`api-sprint-2.md`](api-sprint-2.md).
 - Item: колонки + `attrs` JSONB.
 - Пагинация offset: `page`, `per_page` (max 100), `total`.
 - Статус пересчитывается при записи, если не `cancelled`/`archived`.
+- `cost_amount` и `new_cost` — целые (≥ 0), без дробной части.
+- Дефолты create: `currency=RUB`, `billing_period=one_time`, `notify_before_days=30`, `cost_amount=0`, `attrs={}`.
+- С клиента в `status` принимаем только `cancelled` / `archived`; остальное считает сервер от `Clock.Today()`.
 
 ## 2) Item
 
 Поля: `id`, `title`, `description`, `kind_id`, `category_id`, `vendor`, `tags`, `cost_amount`, `currency`, `billing_period` (`one_time`|`monthly`|`yearly`), `started_at`, `expires_at`, `notify_before_days`, `url`, `account_hint`, `status`, `attrs`, `created_at`, `updated_at`.
 
-Обязательны при создании: `title`, `kind_id`, `expires_at`. `cost_amount` ≥ 0. `started_at` ≤ `expires_at`, если обе заданы.
+Обязательны при создании: `title`, `kind_id`, `expires_at`. `cost_amount` — целое ≥ 0. `started_at` ≤ `expires_at`, если обе заданы.
 
 ### `GET /api/v1/items`
 
@@ -50,7 +53,7 @@ Admin.
 ```json
 {
   "new_expires_at": "2027-08-01",
-  "new_cost": 1990.00,
+  "new_cost": 1990,
   "comment": "продлил на год"
 }
 ```
@@ -66,6 +69,10 @@ Admin. `{ "ids": ["..."], "category_id": "...", "status": "archived" }` — хо
 ### `GET /api/v1/audit`
 
 Admin. Пагинация как у items. Элемент: `id`, `actor_id`, `action`, `entity`, `entity_id`, `before_json`, `after_json`, `created_at`.
+
+`action`: `create` | `update` | `delete` | `renew` | `bulk`. `entity` = `item`.
+
+`before_json` / `after_json` — краткий снимок: `id`, `title`, `kind_id`, `category_id`, `status`, `expires_at`, `cost_amount`, `attrs`. Нет `url`, `account_hint`, паролей. Create: before пустой; delete: after пустой; bulk: after = `{ids, category_id, status, updated}`.
 
 ## 4) Совместимость
 

@@ -33,3 +33,35 @@ func (nopCategories) Patch(context.Context, string, model.CategoryPatch) (model.
 }
 
 func (nopCategories) Delete(context.Context, string) error { return model.ErrForbidden }
+
+type nopItems struct{}
+
+func (nopItems) List(context.Context, model.ItemFilter, model.Page) (model.ItemList, error) {
+	return model.ItemList{Items: []model.Item{}}, nil
+}
+
+func (nopItems) Create(context.Context, model.Item, string) (model.Item, error) {
+	return model.Item{}, model.ErrForbidden
+}
+
+func (nopItems) Get(context.Context, string) (model.ItemCard, error) {
+	return model.ItemCard{}, model.ErrNotFound
+}
+
+func (nopItems) Patch(context.Context, string, model.ItemPatch, string) (model.Item, error) {
+	return model.Item{}, model.ErrForbidden
+}
+
+func (nopItems) Delete(context.Context, string, string) error { return model.ErrForbidden }
+
+func (nopItems) Renew(context.Context, string, model.RenewInput, string) (model.Item, error) {
+	return model.Item{}, model.ErrForbidden
+}
+
+func (nopItems) Bulk(context.Context, model.BulkInput, string) (model.BulkResult, error) {
+	return model.BulkResult{}, model.ErrForbidden
+}
+
+func (nopItems) ListAudit(context.Context, model.Page) (model.AuditList, error) {
+	return model.AuditList{Items: []model.AuditEntry{}}, nil
+}

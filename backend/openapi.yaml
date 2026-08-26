@@ -4,7 +4,7 @@ info:
   version: 0.2.0
   description: |
     Календарь истечений. Спека растёт вместе со спринтами, без кодогенерации.
-    Sprint 2: JWT access + refresh, CRUD kinds и categories.
+    Sprint 3: CRUD items, renew, bulk, audit.
 servers:
   - url: /
     description: Тот же origin (frontend :80 или backend :8080)
@@ -17,6 +17,10 @@ tags:
     description: Регистрация, вход, refresh, logout, /me
   - name: Catalog
     description: Общие справочники kinds и categories (не per-user)
+  - name: Items
+    description: Записи истечения, продление, bulk
+  - name: Audit
+    description: Журнал мутаций (admin)
 paths:
   /healthz:
     get:
@@ -461,12 +465,260 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/items:
+    get:
+      tags: [Items]
+      summary: Список записей
+      operationId: listItems
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: kind_id
+          schema: { type: string, format: uuid }
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [active, expiring, expired, cancelled, archived]
+        - in: query
+          name: category_id
+          schema: { type: string, format: uuid }
+        - in: query
+          name: vendor
+          schema: { type: string }
+        - in: query
+          name: expires_from
+          schema: { type: string, format: date }
+        - in: query
+          name: expires_to
+          schema: { type: string, format: date }
+        - in: query
+          name: cost_from
+          schema: { type: integer }
+        - in: query
+          name: cost_to
+          schema: { type: integer }
+        - in: query
+          name: billing_period
+          schema:
+            type: string
+            enum: [one_time, monthly, yearly]
+        - in: query
+          name: tag
+          schema: { type: string }
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [expires_at, cost_amount, title, updated_at]
+        - in: query
+          name: order
+          schema:
+            type: string
+            enum: [asc, desc]
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Страница
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Items]
+      summary: Создать запись (admin)
+      operationId: createItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemWrite"
+      responses:
+        "201":
+          description: Создана, status уже посчитан
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Item"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/v1/items/bulk:
+    post:
+      tags: [Items]
+      summary: Массовое обновление (admin)
+      operationId: bulkItems
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemBulk"
+      responses:
+        "200":
+          description: Сколько строк обновлено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkResult"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/v1/items/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [Items]
+      summary: Карточка и renewals
+      operationId: getItem
+      responses:
+        "200":
+          description: Карточка
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemCard"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Items]
+      summary: Частичное обновление (admin)
+      operationId: patchItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemPatch"
+      responses:
+        "200":
+          description: Обновлённая запись
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Item"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+    delete:
+      tags: [Items]
+      summary: Удалить (admin)
+      operationId: deleteItem
+      responses:
+        "204":
+          description: Удалена
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/items/{id}/renew:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [Items]
+      summary: Продлить (admin)
+      operationId: renewItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemRenew"
+      responses:
+        "200":
+          description: Обновлённый item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Item"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/v1/audit:
+    get:
+      tags: [Audit]
+      summary: Журнал (admin)
+      operationId: listAudit
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Страница audit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditList"
+        "403":
+          $ref: "#/components/responses/Forbidden"
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  parameters:
+    ID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PerPage:
+      name: per_page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+  responses:
+    Unauthorized:
+      description: Нет или битый access
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Viewer
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Нет такого id
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unprocessable:
+      description: Валидация
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
   schemas:
     HealthOK:
       type: object
@@ -648,5 +900,284 @@ components:
       properties:
         error:
           $ref: "#/components/schemas/APIError"
+    Item:
+      type: object
+      required: [id, title, kind_id, expires_at, status, attrs]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        kind_id:
+          type: string
+          format: uuid
+        category_id:
+          type: string
+          format: uuid
+          nullable: true
+        vendor:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        cost_amount:
+          type: integer
+          minimum: 0
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        billing_period:
+          type: string
+          enum: [one_time, monthly, yearly]
+        started_at:
+          type: string
+          format: date
+          nullable: true
+        expires_at:
+          type: string
+          format: date
+        notify_before_days:
+          type: integer
+          minimum: 0
+        url:
+          type: string
+        account_hint:
+          type: string
+        status:
+          type: string
+          enum: [active, expiring, expired, cancelled, archived]
+        attrs:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ItemList:
+      type: object
+      required: [items, page, per_page, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Item"
+        page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+    ItemCard:
+      type: object
+      required: [item, renewals]
+      properties:
+        item:
+          $ref: "#/components/schemas/Item"
+        renewals:
+          type: array
+          items:
+            $ref: "#/components/schemas/Renewal"
+    ItemWrite:
+      type: object
+      required: [title, kind_id, expires_at]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        kind_id:
+          type: string
+          format: uuid
+        category_id:
+          type: string
+          format: uuid
+          nullable: true
+        vendor:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        cost_amount:
+          type: integer
+          minimum: 0
+        currency:
+          type: string
+          default: RUB
+        billing_period:
+          type: string
+          enum: [one_time, monthly, yearly]
+          default: one_time
+        started_at:
+          type: string
+          format: date
+        expires_at:
+          type: string
+          format: date
+        notify_before_days:
+          type: integer
+          default: 30
+        url:
+          type: string
+        account_hint:
+          type: string
+        status:
+          type: string
+          enum: [cancelled, archived]
+          description: Остальные статусы считает сервер
+        attrs:
+          type: object
+          additionalProperties: true
+    ItemPatch:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        kind_id:
+          type: string
+          format: uuid
+        category_id:
+          type: string
+          format: uuid
+          nullable: true
+        vendor:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        cost_amount:
+          type: integer
+        currency:
+          type: string
+        billing_period:
+          type: string
+          enum: [one_time, monthly, yearly]
+        started_at:
+          type: string
+          format: date
+          nullable: true
+        expires_at:
+          type: string
+          format: date
+        notify_before_days:
+          type: integer
+        url:
+          type: string
+        account_hint:
+          type: string
+        status:
+          type: string
+          enum: [cancelled, archived]
+        attrs:
+          type: object
+          additionalProperties: true
+    ItemRenew:
+      type: object
+      required: [new_expires_at]
+      properties:
+        new_expires_at:
+          type: string
+          format: date
+        new_cost:
+          type: integer
+          minimum: 0
+        comment:
+          type: string
+    ItemBulk:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        category_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [cancelled, archived]
+    BulkResult:
+      type: object
+      required: [updated]
+      properties:
+        updated:
+          type: integer
+    Renewal:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        item_id:
+          type: string
+          format: uuid
+        actor_id:
+          type: string
+          format: uuid
+        old_expires_at:
+          type: string
+          format: date
+        new_expires_at:
+          type: string
+          format: date
+        old_cost:
+          type: integer
+        new_cost:
+          type: integer
+        comment:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    AuditEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        actor_id:
+          type: string
+          format: uuid
+          nullable: true
+        action:
+          type: string
+        entity:
+          type: string
+        entity_id:
+          type: string
+          format: uuid
+        before_json:
+          nullable: true
+        after_json:
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+    AuditList:
+      type: object
+      required: [items, page, per_page, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditEntry"
+        page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
 security:
   - bearerAuth: []

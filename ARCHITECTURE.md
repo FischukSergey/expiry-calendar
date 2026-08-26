@@ -209,7 +209,7 @@ items
   category_id         UUID NULL REFERENCES categories(id)
   vendor              TEXT NOT NULL DEFAULT ''
   tags                TEXT[] NOT NULL DEFAULT '{}'
-  cost_amount         NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (cost_amount >= 0)
+  cost_amount         INT NOT NULL DEFAULT 0 CHECK (cost_amount >= 0)
   currency            CHAR(3) NOT NULL
   billing_period      TEXT NOT NULL CHECK (billing_period IN ('one_time', 'monthly', 'yearly'))
   started_at          DATE NULL
@@ -229,8 +229,8 @@ renewals
   actor_id        UUID NOT NULL REFERENCES users(id)
   old_expires_at  DATE NOT NULL
   new_expires_at  DATE NOT NULL
-  old_cost        NUMERIC(12,2) NOT NULL
-  new_cost        NUMERIC(12,2) NOT NULL
+  old_cost        INT NOT NULL
+  new_cost        INT NOT NULL
   comment         TEXT NOT NULL DEFAULT ''
   created_at      TIMESTAMPTZ NOT NULL
 

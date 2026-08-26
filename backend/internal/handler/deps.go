@@ -33,12 +33,25 @@ type CategoryService interface {
 	Delete(ctx context.Context, id string) error
 }
 
+// ItemService — записи, renew, bulk, audit list.
+type ItemService interface {
+	List(ctx context.Context, f model.ItemFilter, page model.Page) (model.ItemList, error)
+	Create(ctx context.Context, in model.Item, actorID string) (model.Item, error)
+	Get(ctx context.Context, id string) (model.ItemCard, error)
+	Patch(ctx context.Context, id string, p model.ItemPatch, actorID string) (model.Item, error)
+	Delete(ctx context.Context, id, actorID string) error
+	Renew(ctx context.Context, id string, in model.RenewInput, actorID string) (model.Item, error)
+	Bulk(ctx context.Context, in model.BulkInput, actorID string) (model.BulkResult, error)
+	ListAudit(ctx context.Context, page model.Page) (model.AuditList, error)
+}
+
 // Deps — зависимости HTTP-слоя. JWTSecret нужен middleware, не service повторно.
 type Deps struct {
 	Health       HealthService
 	Auth         AuthService
 	Kinds        KindService
 	Categories   CategoryService
+	Items        ItemService
 	Spec         []byte
 	JWTSecret    []byte
 	CookieSecure bool

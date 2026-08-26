@@ -8,7 +8,7 @@ import (
 	"duekeep/internal/model"
 )
 
-// KindStore — справочник типов. CountItems до Sprint 3 всегда 0.
+// KindStore — справочник типов. CountItems > 0 запрещает DELETE.
 type KindStore interface {
 	List(ctx context.Context) ([]model.Kind, error)
 	ByID(ctx context.Context, id string) (model.Kind, error)
@@ -115,13 +115,13 @@ func ValidateAttrSchema(fields []model.AttrField) error {
 			return model.Validation("invalid attr_schema", map[string]any{"index": i, "field": "key/label"})
 		}
 		if _, dup := seen[key]; dup {
-			return model.Validation("duplicate attr key", map[string]any{"key": key})
+			return model.Validation("duplicate attr key", map[string]any{fieldKey: key})
 		}
 		seen[key] = struct{}{}
 		switch f.Type {
 		case model.AttrString, model.AttrNumber, model.AttrBoolean:
 		default:
-			return model.Validation("invalid attr type", map[string]any{"key": key, "type": f.Type})
+			return model.Validation("invalid attr type", map[string]any{fieldKey: key, "type": f.Type})
 		}
 		fields[i].Key = key
 		fields[i].Label = label

@@ -16,6 +16,7 @@ type API struct {
 	auth         AuthService
 	kinds        KindService
 	categories   CategoryService
+	items        ItemService
 	spec         []byte // сырой openapi.yaml, тот же duekeep.OpenAPISpec.
 	jwtSecret    []byte
 	cookieSecure bool
@@ -29,6 +30,7 @@ func New(d Deps) *API {
 		auth:         d.Auth,
 		kinds:        d.Kinds,
 		categories:   d.Categories,
+		items:        d.Items,
 		spec:         d.Spec,
 		jwtSecret:    d.JWTSecret,
 		cookieSecure: d.CookieSecure,
@@ -60,6 +62,8 @@ func (a *API) Router() http.Handler {
 			r.Get("/me", a.me)
 			r.Get("/kinds", a.listKinds)
 			r.Get("/categories", a.listCategories)
+			r.Get("/items", a.listItems)
+			r.Get("/items/{id}", a.getItem)
 			r.Group(func(r chi.Router) {
 				r.Use(middleware.RequireAdmin)
 				r.Post("/kinds", a.createKind)
@@ -68,6 +72,12 @@ func (a *API) Router() http.Handler {
 				r.Post("/categories", a.createCategory)
 				r.Patch("/categories/{id}", a.patchCategory)
 				r.Delete("/categories/{id}", a.deleteCategory)
+				r.Post("/items", a.createItem)
+				r.Post("/items/bulk", a.bulkItems)
+				r.Patch("/items/{id}", a.patchItem)
+				r.Delete("/items/{id}", a.deleteItem)
+				r.Post("/items/{id}/renew", a.renewItem)
+				r.Get("/audit", a.listAudit)
 			})
 		})
 	})

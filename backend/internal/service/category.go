@@ -16,6 +16,7 @@ type CategoryStore interface {
 	Delete(ctx context.Context, id string) error
 	CountChildren(ctx context.Context, id string) (int, error)
 	CountItems(ctx context.Context, id string) (int, error)
+	DescendantIDs(ctx context.Context, id string) ([]string, error)
 }
 
 // Category — дерево, глубина ≤ 3, цикл и непустой DELETE.

@@ -4,12 +4,18 @@
 
 ## 1) Статусы и уведомления
 
-- [ ] Тикер / ручной tick в тестах
-- [ ] Не трогает `cancelled` / `archived`
-- [ ] Таблица `notifications`, уникальность на день
-- [ ] `GET /api/v1/notifications`
-- [ ] `POST /api/v1/notifications/{id}/read`
-- [ ] `POST /api/v1/notifications/read-all`
+- [x] Тикер / ручной tick в тестах
+  Примечание: `service.Ticker.Tick` — тот же `StatusAtWrite`. `Run` в `cmd/server` сразу и каждые 60 с; тесты зовут `Tick`.
+- [x] Не трогает `cancelled` / `archived`
+  Примечание: `ListOpen` / `SetStatus` отсекают эти статусы. `TestTickerSkipsCancelledArchived`.
+- [x] Таблица `notifications`, уникальность на день
+  Примечание: `009_notifications.sql` — unique `(item_id, to_status, день UTC)`. Повторный tick не плодит строки.
+- [x] `GET /api/v1/notifications`
+  Примечание: auth, `unread=true`, пагинация как у items. Viewer 200.
+- [x] `POST /api/v1/notifications/{id}/read`
+  Примечание: 204; повтор уже прочитанного — тоже 204; нет id → 404.
+- [x] `POST /api/v1/notifications/read-all`
+  Примечание: 204, все непрочитанные. `TestNotificationsReadFlow`.
 
 ## 2) SSE
 

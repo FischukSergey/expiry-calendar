@@ -12,13 +12,14 @@ import (
 
 func docsAPI() *handler.API {
 	return handler.New(handler.Deps{
-		Health:     fakeHealth{},
-		Auth:       fakeAuth{},
-		Kinds:      nopKinds{},
-		Categories: nopCategories{},
-		Items:      nopItems{},
-		Spec:       duekeep.OpenAPISpec,
-		JWTSecret:  []byte("x"),
+		Health:        fakeHealth{},
+		Auth:          fakeAuth{},
+		Kinds:         nopKinds{},
+		Categories:    nopCategories{},
+		Items:         nopItems{},
+		Notifications: nopNotifications{},
+		Spec:          duekeep.OpenAPISpec,
+		JWTSecret:     []byte("x"),
 	})
 }
 
@@ -41,6 +42,9 @@ func TestOpenAPISpec(t *testing.T) {
 	}
 	if !strings.Contains(body, "/api/v1/items") || !strings.Contains(body, "/api/v1/audit") {
 		t.Fatalf("spec without items/audit: %s", body)
+	}
+	if !strings.Contains(body, "/api/v1/notifications") {
+		t.Fatalf("spec without notifications: %s", body)
 	}
 }
 

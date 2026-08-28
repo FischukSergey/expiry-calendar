@@ -33,13 +33,14 @@ func liveAPI(t *testing.T, users *memUsers) *handler.API {
 		BcryptCost: 4,
 	})
 	return handler.New(handler.Deps{
-		Health:     fakeHealth{},
-		Auth:       auth,
-		Kinds:      service.NewKind(newMemKinds()),
-		Categories: nopCategories{},
-		Items:      nopItems{},
-		JWTSecret:  []byte("handler-test-secret"),
-		RefreshTTL: 336 * time.Hour,
+		Health:        fakeHealth{},
+		Auth:          auth,
+		Kinds:         service.NewKind(newMemKinds()),
+		Categories:    nopCategories{},
+		Items:         nopItems{},
+		Notifications: nopNotifications{},
+		JWTSecret:     []byte("handler-test-secret"),
+		RefreshTTL:    336 * time.Hour,
 	})
 }
 

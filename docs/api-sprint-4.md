@@ -6,7 +6,9 @@
 
 ### `GET /api/v1/notifications`
 
-Auth. Query: `unread=true`, пагинация.
+Auth. Query: `unread=true`, пагинация `page` / `per_page` как у items.
+
+`200`: `{ "items": [ ... ], "page": 1, "per_page": 20, "total": 0 }`
 
 Элемент: `id`, `item_id`, `to_status`, `title`, `read_at`, `created_at`.
 

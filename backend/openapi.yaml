@@ -4,7 +4,7 @@ info:
   version: 0.2.0
   description: |
     Календарь истечений. Спека растёт вместе со спринтами, без кодогенерации.
-    Sprint 3: CRUD items, renew, bulk, audit.
+    Sprint 4: notifications, ticker. Sprint 3: CRUD items, renew, bulk, audit.
 servers:
   - url: /
     description: Тот же origin (frontend :80 или backend :8080)
@@ -21,6 +21,8 @@ tags:
     description: Записи истечения, продление, bulk
   - name: Audit
     description: Журнал мутаций (admin)
+  - name: Notifications
+    description: In-app лента переходов в expiring/expired
 paths:
   /healthz:
     get:
@@ -665,6 +667,54 @@ paths:
                 $ref: "#/components/schemas/AuditList"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /api/v1/notifications:
+    get:
+      tags: [Notifications]
+      summary: Лента уведомлений
+      operationId: listNotifications
+      parameters:
+        - in: query
+          name: unread
+          schema:
+            type: boolean
+          description: true — только без read_at
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Страница
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/notifications/read-all:
+    post:
+      tags: [Notifications]
+      summary: Пометить все прочитанными
+      operationId: readAllNotifications
+      responses:
+        "204":
+          description: Готово
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/notifications/{id}/read:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [Notifications]
+      summary: Пометить прочитанным
+      operationId: readNotification
+      responses:
+        "204":
+          description: Прочитано
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
 components:
   securitySchemes:
     bearerAuth:
@@ -1173,6 +1223,42 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AuditEntry"
+        page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+    Notification:
+      type: object
+      required: [id, item_id, to_status, title, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        item_id:
+          type: string
+          format: uuid
+        to_status:
+          type: string
+          enum: [expiring, expired]
+        title:
+          type: string
+        read_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+    NotificationList:
+      type: object
+      required: [items, page, per_page, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Notification"
         page:
           type: integer
         per_page:

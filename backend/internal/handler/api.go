@@ -12,29 +12,31 @@ import (
 
 // API — HTTP-вход приложения.
 type API struct {
-	health       HealthService
-	auth         AuthService
-	kinds        KindService
-	categories   CategoryService
-	items        ItemService
-	spec         []byte // сырой openapi.yaml, тот же duekeep.OpenAPISpec.
-	jwtSecret    []byte
-	cookieSecure bool
-	refreshTTL   time.Duration
+	health        HealthService
+	auth          AuthService
+	kinds         KindService
+	categories    CategoryService
+	items         ItemService
+	notifications NotificationService
+	spec          []byte // сырой openapi.yaml, тот же duekeep.OpenAPISpec.
+	jwtSecret     []byte
+	cookieSecure  bool
+	refreshTTL    time.Duration
 }
 
 // New собирает handlers.
 func New(d Deps) *API {
 	return &API{
-		health:       d.Health,
-		auth:         d.Auth,
-		kinds:        d.Kinds,
-		categories:   d.Categories,
-		items:        d.Items,
-		spec:         d.Spec,
-		jwtSecret:    d.JWTSecret,
-		cookieSecure: d.CookieSecure,
-		refreshTTL:   d.RefreshTTL,
+		health:        d.Health,
+		auth:          d.Auth,
+		kinds:         d.Kinds,
+		categories:    d.Categories,
+		items:         d.Items,
+		notifications: d.Notifications,
+		spec:          d.Spec,
+		jwtSecret:     d.JWTSecret,
+		cookieSecure:  d.CookieSecure,
+		refreshTTL:    d.RefreshTTL,
 	}
 }
 
@@ -64,6 +66,9 @@ func (a *API) Router() http.Handler {
 			r.Get("/categories", a.listCategories)
 			r.Get("/items", a.listItems)
 			r.Get("/items/{id}", a.getItem)
+			r.Get("/notifications", a.listNotifications)
+			r.Post("/notifications/read-all", a.readAllNotifications)
+			r.Post("/notifications/{id}/read", a.readNotification)
 			r.Group(func(r chi.Router) {
 				r.Use(middleware.RequireAdmin)
 				r.Post("/kinds", a.createKind)

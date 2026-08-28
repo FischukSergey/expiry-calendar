@@ -2,6 +2,13 @@
 
 Журнал создания Duekeep. Записи добавляются по ходу работы, не в конце.
 
+## 2026-08-28 — Sprint 4, раздел 1 (Статусы и уведомления)
+
+- Тикер в `cmd/server`: сразу `Tick`, затем каждые 60 с. Тот же `StatusAtWrite`, что при записи. `cancelled` / `archived` не трогает.
+- Миграция `009_notifications.sql`: unique `(item_id, to_status, день UTC)`. Повторный tick в тот же день не плодит строки.
+- API: `GET /notifications` (`unread`, пагинация как у items), `POST /{id}/read`, `POST /read-all`. Viewer и admin.
+- Тесты зовут `Tick` явно, без ожидания минуты. `task test` / `task lint` зелёные.
+
 ## 2026-08-19 — старт
 
 - Учебное задание: full-stack приложение с нуля (AI-процесс, Docker Compose, OpenAPI, CI).

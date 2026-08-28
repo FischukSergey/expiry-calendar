@@ -76,21 +76,26 @@ func run() error {
 	})
 	kindsRepo := repository.NewKinds(pool)
 	catsRepo := repository.NewCategories(pool)
+	itemsRepo := repository.NewItems(pool)
+	notesRepo := repository.NewNotifications(pool)
 	itemsSvc := service.NewItem(
-		repository.NewItems(pool), kindsRepo, catsRepo,
+		itemsRepo, kindsRepo, catsRepo,
 		repository.NewRenewals(pool), repository.NewAudit(pool), runTx, clk,
 	)
 	api := handler.New(handler.Deps{
-		Health:       service.NewHealth(repository.NewHealth(pool)),
-		Auth:         auth,
-		Kinds:        service.NewKind(kindsRepo),
-		Categories:   service.NewCategory(catsRepo),
-		Items:        itemsSvc,
-		Spec:         duekeep.OpenAPISpec,
-		JWTSecret:    []byte(cfg.JWTSecret),
-		CookieSecure: cfg.CookieSecure,
-		RefreshTTL:   cfg.RefreshTTL,
+		Health:        service.NewHealth(repository.NewHealth(pool)),
+		Auth:          auth,
+		Kinds:         service.NewKind(kindsRepo),
+		Categories:    service.NewCategory(catsRepo),
+		Items:         itemsSvc,
+		Notifications: service.NewNotification(notesRepo),
+		Spec:          duekeep.OpenAPISpec,
+		JWTSecret:     []byte(cfg.JWTSecret),
+		CookieSecure:  cfg.CookieSecure,
+		RefreshTTL:    cfg.RefreshTTL,
 	})
+	tkr := service.NewTicker(itemsRepo, notesRepo, runTx, clk)
+	go tkr.Run(ctx, 60*time.Second)
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           api.Router(),

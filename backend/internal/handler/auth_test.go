@@ -42,13 +42,14 @@ func (f fakeAuth) Me(context.Context, string) (model.PublicUser, error) {
 
 func testAPI(auth handler.AuthService) *handler.API {
 	return handler.New(handler.Deps{
-		Health:     fakeHealth{},
-		Auth:       auth,
-		Kinds:      nopKinds{},
-		Categories: nopCategories{},
-		Items:      nopItems{},
-		JWTSecret:  []byte("handler-test-secret"),
-		RefreshTTL: 336 * time.Hour,
+		Health:        fakeHealth{},
+		Auth:          auth,
+		Kinds:         nopKinds{},
+		Categories:    nopCategories{},
+		Items:         nopItems{},
+		Notifications: nopNotifications{},
+		JWTSecret:     []byte("handler-test-secret"),
+		RefreshTTL:    336 * time.Hour,
 	})
 }
 

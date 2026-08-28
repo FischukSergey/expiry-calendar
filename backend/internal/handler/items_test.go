@@ -35,13 +35,14 @@ func itemsAPI(t *testing.T) *handler.API {
 	clk := clock.Fixed{T: time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC)}
 	items := service.NewItem(newMemItems(), kinds, newMemCats(), newMemRenewals(), newMemAudit(), nopTx, clk)
 	return handler.New(handler.Deps{
-		Health:     fakeHealth{},
-		Auth:       fakeAuth{},
-		Kinds:      service.NewKind(kinds),
-		Categories: service.NewCategory(newMemCats()),
-		Items:      items,
-		JWTSecret:  []byte("handler-test-secret"),
-		RefreshTTL: 336 * time.Hour,
+		Health:        fakeHealth{},
+		Auth:          fakeAuth{},
+		Kinds:         service.NewKind(kinds),
+		Categories:    service.NewCategory(newMemCats()),
+		Items:         items,
+		Notifications: service.NewNotification(newMemNotifications()),
+		JWTSecret:     []byte("handler-test-secret"),
+		RefreshTTL:    336 * time.Hour,
 	})
 }
 

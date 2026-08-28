@@ -45,15 +45,23 @@ type ItemService interface {
 	ListAudit(ctx context.Context, page model.Page) (model.AuditList, error)
 }
 
+// NotificationService — лента и read / read-all.
+type NotificationService interface {
+	List(ctx context.Context, unread bool, page model.Page) (model.NotificationList, error)
+	MarkRead(ctx context.Context, id string) error
+	MarkAllRead(ctx context.Context) error
+}
+
 // Deps — зависимости HTTP-слоя. JWTSecret нужен middleware, не service повторно.
 type Deps struct {
-	Health       HealthService
-	Auth         AuthService
-	Kinds        KindService
-	Categories   CategoryService
-	Items        ItemService
-	Spec         []byte
-	JWTSecret    []byte
-	CookieSecure bool
-	RefreshTTL   time.Duration
+	Health        HealthService
+	Auth          AuthService
+	Kinds         KindService
+	Categories    CategoryService
+	Items         ItemService
+	Notifications NotificationService
+	Spec          []byte
+	JWTSecret     []byte
+	CookieSecure  bool
+	RefreshTTL    time.Duration
 }

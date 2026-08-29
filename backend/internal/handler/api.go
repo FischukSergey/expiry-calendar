@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"duekeep/internal/middleware"
+	"duekeep/internal/sse"
 )
 
 // API — HTTP-вход приложения.
@@ -18,6 +19,8 @@ type API struct {
 	categories    CategoryService
 	items         ItemService
 	notifications NotificationService
+	hub           *sse.Hub
+	ssePing       time.Duration
 	spec          []byte // сырой openapi.yaml, тот же duekeep.OpenAPISpec.
 	jwtSecret     []byte
 	cookieSecure  bool
@@ -33,6 +36,8 @@ func New(d Deps) *API {
 		categories:    d.Categories,
 		items:         d.Items,
 		notifications: d.Notifications,
+		hub:           cmpHub(d.Hub),
+		ssePing:       d.SSEPing,
 		spec:          d.Spec,
 		jwtSecret:     d.JWTSecret,
 		cookieSecure:  d.CookieSecure,
@@ -58,6 +63,7 @@ func (a *API) Router() http.Handler {
 		r.Post("/auth/login", a.login)
 		r.Post("/auth/refresh", a.refresh)
 		r.With(middleware.OptionalBearer(a.jwtSecret)).Post("/auth/logout", a.logout)
+		r.With(middleware.BearerOrQuery(a.jwtSecret)).Get("/events", a.events)
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.Bearer(a.jwtSecret))
 			r.Post("/auth/logout-all", a.logoutAll)
@@ -89,7 +95,7 @@ func (a *API) Router() http.Handler {
 	return r
 }
 
-// requestLog пишет method/path/status/ms. Секреты в query не ожидаем и не логируем.
+// requestLog пишет method/path/status/ms. Query (access_token) не логируем.
 func requestLog(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -113,4 +119,17 @@ type statusWriter struct {
 func (w *statusWriter) WriteHeader(status int) {
 	w.status = status
 	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w *statusWriter) Flush() {
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+func cmpHub(h *sse.Hub) *sse.Hub {
+	if h != nil {
+		return h
+	}
+	return sse.NewHub()
 }

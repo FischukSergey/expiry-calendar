@@ -23,6 +23,8 @@ tags:
     description: Журнал мутаций (admin)
   - name: Notifications
     description: In-app лента переходов в expiring/expired
+  - name: Events
+    description: SSE (вкладка открыта)
 paths:
   /healthz:
     get:
@@ -715,6 +717,32 @@ paths:
           $ref: "#/components/responses/NotFound"
         "422":
           $ref: "#/components/responses/Unprocessable"
+  /api/v1/events:
+    get:
+      tags: [Events]
+      summary: SSE поток уведомлений
+      operationId: streamEvents
+      parameters:
+        - in: query
+          name: access_token
+          schema:
+            type: string
+          description: Access JWT, если нет Authorization (ограничение EventSource)
+      responses:
+        "200":
+          description: text/event-stream, события notification и ping
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              example: |
+                event: ping
+                data: {}
+
+                event: notification
+                data: {"id":"...","item_id":"...","to_status":"expiring","title":"..."}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 components:
   securitySchemes:
     bearerAuth:

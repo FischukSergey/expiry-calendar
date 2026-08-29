@@ -66,19 +66,19 @@ type tickNotes struct {
 	rows []model.Notification
 }
 
-func (m *tickNotes) Insert(_ context.Context, n model.Notification) error {
+func (m *tickNotes) Insert(_ context.Context, n model.Notification) (model.Notification, bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	day := n.CreatedAt.UTC().Format(model.DateLayout)
 	for _, cur := range m.rows {
 		if cur.ItemID == n.ItemID && cur.ToStatus == n.ToStatus &&
 			cur.CreatedAt.UTC().Format(model.DateLayout) == day {
-			return nil
+			return model.Notification{}, false, nil
 		}
 	}
 	n.ID = uuid.NewString()
 	m.rows = append(m.rows, n)
-	return nil
+	return n, true, nil
 }
 
 func (m *tickNotes) List(context.Context, bool, model.Page) ([]model.Notification, int, error) {
@@ -100,7 +100,7 @@ func TestTickerMovesStatusAndNotifies(t *testing.T) {
 		Title: "Домен", Status: model.StatusActive,
 		ExpiresAt: "2026-09-10", NotifyBeforeDays: 30,
 	})
-	tkr := service.NewTicker(store, notes, nopTx, clock.Fixed{T: today})
+	tkr := service.NewTicker(store, notes, nopTx, clock.Fixed{T: today}, nil)
 	if err := tkr.Tick(t.Context()); err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +132,7 @@ func TestTickerSkipsCancelledArchived(t *testing.T) {
 	})
 	tkr := service.NewTicker(store, notes, nopTx, clock.Fixed{
 		T: time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC),
-	})
+	}, nil)
 	if err := tkr.Tick(t.Context()); err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +157,7 @@ func TestTickerExpiresAndUniqueDay(t *testing.T) {
 	})
 	tkr := service.NewTicker(store, notes, nopTx, clock.Fixed{
 		T: time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC),
-	})
+	}, nil)
 	if err := tkr.Tick(t.Context()); err != nil {
 		t.Fatal(err)
 	}
@@ -171,6 +171,49 @@ func TestTickerExpiresAndUniqueDay(t *testing.T) {
 
 func TestTickerRunDisabled(t *testing.T) {
 	t.Parallel()
-	tkr := service.NewTicker(newTickItems(), &tickNotes{}, nopTx, clock.Fixed{})
+	tkr := service.NewTicker(newTickItems(), &tickNotes{}, nopTx, clock.Fixed{}, nil)
 	tkr.Run(t.Context(), 0)
+}
+
+type recBus struct {
+	mu  sync.Mutex
+	got []model.Notification
+}
+
+func (r *recBus) Notify(n model.Notification) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.got = append(r.got, n)
+}
+
+func TestTickerPublishesToBus(t *testing.T) {
+	t.Parallel()
+	store := newTickItems()
+	notes := &tickNotes{}
+	bus := &recBus{}
+	store.put(model.Item{
+		Title: "Домен", Status: model.StatusActive,
+		ExpiresAt: "2026-09-10", NotifyBeforeDays: 30,
+	})
+	tkr := service.NewTicker(store, notes, nopTx, clock.Fixed{
+		T: time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC),
+	}, bus)
+	if err := tkr.Tick(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	bus.mu.Lock()
+	n := len(bus.got)
+	bus.mu.Unlock()
+	if n != 1 {
+		t.Fatalf("bus %d", n)
+	}
+	if err := tkr.Tick(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	bus.mu.Lock()
+	n = len(bus.got)
+	bus.mu.Unlock()
+	if n != 1 {
+		t.Fatalf("duplicate bus %d", n)
+	}
 }

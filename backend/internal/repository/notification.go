@@ -30,21 +30,24 @@ func (r *Notifications) q(ctx context.Context) db.Querier {
 	return db.QuerierFrom(ctx, r.pool)
 }
 
-// Insert пишет строку. Конфликт (item, to_status, день UTC) — не ошибка.
-func (r *Notifications) Insert(ctx context.Context, n model.Notification) error {
-	_, err := r.q(ctx).Exec(ctx, `
+// Insert пишет строку. Конфликт (item, to_status, день UTC) — false, не ошибка.
+func (r *Notifications) Insert(ctx context.Context, n model.Notification) (model.Notification, bool, error) {
+	created, err := scanNotification(r.q(ctx).QueryRow(ctx, `
 INSERT INTO notifications (item_id, to_status, title, created_at)
 VALUES ($1::uuid, $2, $3, $4)
-ON CONFLICT (item_id, to_status, ((created_at AT TIME ZONE 'UTC')::date)) DO NOTHING`,
-		n.ItemID, n.ToStatus, n.Title, n.CreatedAt)
+ON CONFLICT (item_id, to_status, ((created_at AT TIME ZONE 'UTC')::date)) DO NOTHING
+RETURNING `+notificationCols, n.ItemID, n.ToStatus, n.Title, n.CreatedAt))
+	if errors.Is(err, model.ErrNotFound) {
+		return model.Notification{}, false, nil
+	}
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return nil
+			return model.Notification{}, false, nil
 		}
-		return fmt.Errorf("insert notification: %w", err)
+		return model.Notification{}, false, fmt.Errorf("insert notification: %w", err)
 	}
-	return nil
+	return created, true, nil
 }
 
 // List новые сверху. unread — только без read_at.

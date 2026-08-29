@@ -46,6 +46,9 @@ func TestOpenAPISpec(t *testing.T) {
 	if !strings.Contains(body, "/api/v1/notifications") {
 		t.Fatalf("spec without notifications: %s", body)
 	}
+	if !strings.Contains(body, "/api/v1/events") {
+		t.Fatalf("spec without events: %s", body)
+	}
 }
 
 func TestDocsRedirect(t *testing.T) {

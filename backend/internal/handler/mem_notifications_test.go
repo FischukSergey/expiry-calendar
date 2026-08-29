@@ -20,14 +20,14 @@ func newMemNotifications() *memNotifications {
 	return &memNotifications{}
 }
 
-func (m *memNotifications) Insert(_ context.Context, n model.Notification) error {
+func (m *memNotifications) Insert(_ context.Context, n model.Notification) (model.Notification, bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	day := n.CreatedAt.UTC().Format(model.DateLayout)
 	for _, cur := range m.rows {
 		if cur.ItemID == n.ItemID && cur.ToStatus == n.ToStatus &&
 			cur.CreatedAt.UTC().Format(model.DateLayout) == day {
-			return nil
+			return model.Notification{}, false, nil
 		}
 	}
 	n.ID = uuid.NewString()
@@ -35,7 +35,7 @@ func (m *memNotifications) Insert(_ context.Context, n model.Notification) error
 		n.CreatedAt = time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC)
 	}
 	m.rows = append(m.rows, n)
-	return nil
+	return n, true, nil
 }
 
 func (m *memNotifications) List(_ context.Context, unread bool, page model.Page) ([]model.Notification, int, error) {

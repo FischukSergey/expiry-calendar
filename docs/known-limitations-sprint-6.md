@@ -9,4 +9,5 @@
 - нет офлайн-CRUD;
 - один инстанс backend (SSE in-memory);
 - access после logout жив до `exp` (15 мин);
-- Web Push ориентирован на Chromium + localhost.
+- Web Push ориентирован на Chromium + localhost;
+- после v1: интервал тикера и прочие не-секреты — файл конфига при старте; в `.env` только чувствительные данные (см. [Sprint 4](known-limitations-sprint-4.md)).

@@ -20,6 +20,7 @@ import (
 	"duekeep/internal/repository"
 	"duekeep/internal/seed"
 	"duekeep/internal/service"
+	"duekeep/internal/sse"
 	"duekeep/migrations"
 )
 
@@ -82,6 +83,7 @@ func run() error {
 		itemsRepo, kindsRepo, catsRepo,
 		repository.NewRenewals(pool), repository.NewAudit(pool), runTx, clk,
 	)
+	hub := sse.NewHub()
 	api := handler.New(handler.Deps{
 		Health:        service.NewHealth(repository.NewHealth(pool)),
 		Auth:          auth,
@@ -89,12 +91,13 @@ func run() error {
 		Categories:    service.NewCategory(catsRepo),
 		Items:         itemsSvc,
 		Notifications: service.NewNotification(notesRepo),
+		Hub:           hub,
 		Spec:          duekeep.OpenAPISpec,
 		JWTSecret:     []byte(cfg.JWTSecret),
 		CookieSecure:  cfg.CookieSecure,
 		RefreshTTL:    cfg.RefreshTTL,
 	})
-	tkr := service.NewTicker(itemsRepo, notesRepo, runTx, clk)
+	tkr := service.NewTicker(itemsRepo, notesRepo, runTx, clk, hub)
 	go tkr.Run(ctx, 60*time.Second)
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,

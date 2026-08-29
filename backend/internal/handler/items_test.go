@@ -14,7 +14,10 @@ import (
 	"duekeep/internal/service"
 )
 
-const otherKindID = "33333333-3333-3333-3333-333333333309"
+const (
+	otherKindID     = "33333333-3333-3333-3333-333333333309"
+	itemTitleDomain = "Домен"
+)
 
 func itemsAPI(t *testing.T) *handler.API {
 	t.Helper()
@@ -76,7 +79,8 @@ func TestAdminCreateGetItem(t *testing.T) {
 	api := itemsAPI(t)
 	tok := testJWT(t, string(model.RoleAdmin))
 	rec := httptest.NewRecorder()
-	body := bytes.NewBufferString(`{"title":"Домен","kind_id":"` + otherKindID + `","expires_at":"2027-01-01","attrs":{}}`)
+	body := bytes.NewBufferString(`{"title":"` + itemTitleDomain + `","kind_id":"` + otherKindID +
+		`","expires_at":"2027-01-01","attrs":{}}`)
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/items", body)
 	req.Header.Set("Authorization", "Bearer "+tok)
 	api.Router().ServeHTTP(rec, req)

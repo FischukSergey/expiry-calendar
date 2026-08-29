@@ -11,6 +11,7 @@ import (
 	"duekeep/internal/handler"
 	"duekeep/internal/model"
 	"duekeep/internal/service"
+	"duekeep/internal/sse"
 )
 
 func notifyAPI(t *testing.T) (*handler.API, *service.Ticker, *memItems) {
@@ -31,6 +32,7 @@ func notifyAPI(t *testing.T) (*handler.API, *service.Ticker, *memItems) {
 
 	store := newMemItems()
 	notes := newMemNotifications()
+	hub := sse.NewHub()
 	clk := clock.Fixed{T: time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC)}
 	items := service.NewItem(store, kinds, newMemCats(), newMemRenewals(), newMemAudit(), nopTx, clk)
 	api := handler.New(handler.Deps{
@@ -40,10 +42,11 @@ func notifyAPI(t *testing.T) (*handler.API, *service.Ticker, *memItems) {
 		Categories:    service.NewCategory(newMemCats()),
 		Items:         items,
 		Notifications: service.NewNotification(notes),
+		Hub:           hub,
 		JWTSecret:     []byte("handler-test-secret"),
 		RefreshTTL:    336 * time.Hour,
 	})
-	return api, service.NewTicker(store, notes, nopTx, clk), store
+	return api, service.NewTicker(store, notes, nopTx, clk, hub), store
 }
 
 func TestNotificationsReadFlow(t *testing.T) {
@@ -51,7 +54,7 @@ func TestNotificationsReadFlow(t *testing.T) {
 	api, tkr, store := notifyAPI(t)
 	tok := testJWT(t, string(model.RoleViewer))
 	created, err := store.Create(t.Context(), model.Item{
-		Title: "Домен", KindID: otherKindID, Status: model.StatusActive,
+		Title: itemTitleDomain, KindID: otherKindID, Status: model.StatusActive,
 		ExpiresAt: "2026-09-10", NotifyBeforeDays: 30, Tags: []string{}, Attrs: map[string]any{},
 	})
 	if err != nil {
@@ -68,7 +71,7 @@ func TestNotificationsReadFlow(t *testing.T) {
 	if list.Items[0].ItemID != created.ID || list.Items[0].ToStatus != model.StatusExpiring {
 		t.Fatalf("item %+v", list.Items[0])
 	}
-	if list.Items[0].ReadAt != nil || list.Items[0].Title != "Домен" {
+	if list.Items[0].ReadAt != nil || list.Items[0].Title != itemTitleDomain {
 		t.Fatalf("unread/title %+v", list.Items[0])
 	}
 

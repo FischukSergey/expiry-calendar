@@ -19,9 +19,12 @@
 
 ## 2) SSE
 
-- [ ] `GET /api/v1/events` (Bearer или `access_token`)
-- [ ] События `notification` и `ping`
-- [ ] Hub безопасен для горутин
+- [x] `GET /api/v1/events` (Bearer или `access_token`)
+  Примечание: `BearerOrQuery`. EventSource — `?access_token=`. Без токена 401. nginx `/api/v1/events` без буфера.
+- [x] События `notification` и `ping`
+  Примечание: сразу ping, дальше каждые 15 с. Тикер после INSERT шлёт notification. `TestEventsSeesTickerNotification`.
+- [x] Hub безопасен для горутин
+  Примечание: `sse.Hub` mutex; полный буфер клиента не стопорит Publish. `TestHubConcurrent`.
 
 ## 3) Web Push
 

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"duekeep/internal/model"
+	"duekeep/internal/sse"
 )
 
 // AuthService — сценарии токенов. Cookie собирает handler.
@@ -60,6 +61,8 @@ type Deps struct {
 	Categories    CategoryService
 	Items         ItemService
 	Notifications NotificationService
+	Hub           *sse.Hub
+	SSEPing       time.Duration // 0 → 15 с; в тестах можно укоротить.
 	Spec          []byte
 	JWTSecret     []byte
 	CookieSecure  bool

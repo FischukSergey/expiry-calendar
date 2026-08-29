@@ -24,7 +24,7 @@ Auth. Query: `unread=true`, пагинация `page` / `per_page` как у ite
 
 ### `GET /api/v1/events`
 
-Auth: заголовок или `?access_token=`.
+Auth: `Authorization: Bearer` или `?access_token=` (EventSource не умеет заголовки).
 
 ```text
 event: notification
@@ -34,7 +34,7 @@ event: ping
 data: {}
 ```
 
-`Content-Type: text/event-stream`.
+`Content-Type: text/event-stream`. Первый кадр — `ping`. Дальше ping каждые 15 с. Hub в памяти процесса.
 
 ## 3) Push
 

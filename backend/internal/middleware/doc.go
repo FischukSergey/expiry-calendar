@@ -1,2 +1,2 @@
-// Package middleware — Bearer JWT. request_id и ACL ролей — по мере появления ручек.
+// Package middleware — Bearer JWT и query access_token для SSE.
 package middleware

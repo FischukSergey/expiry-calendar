@@ -1,10 +1,11 @@
 openapi: 3.0.3
 info:
   title: Duekeep API
-  version: 0.2.0
-    description: |
-      Календарь истечений. Спека растёт вместе со спринтами, без кодогенерации.
-      Sprint 5: CSV import/export. Sprint 4: notifications, ticker, SSE, Web Push, dashboard, calendar. Sprint 3: CRUD items, renew, bulk, audit.
+  version: 1.0.0
+  description: |
+    Календарь истечений. Канон для проверяющего: GET /docs (Swagger UI).
+    Спека сверена со спринтами 1–5; новых полей в Sprint 6 нет.
+    Access: Authorization Bearer. Refresh: JSON body и/или cookie duekeep_refresh (body важнее).
 servers:
   - url: /
     description: Тот же origin (frontend :80 или backend :8080)
@@ -153,6 +154,8 @@ paths:
       summary: Новая пара по refresh (body важнее cookie)
       operationId: postAuthRefresh
       security: []
+      parameters:
+        - $ref: "#/components/parameters/RefreshCookie"
       requestBody:
         required: false
         content:
@@ -162,6 +165,11 @@ paths:
       responses:
         "200":
           description: Новая пара; старый refresh мёртв
+          headers:
+            Set-Cookie:
+              description: Новая duekeep_refresh; HttpOnly; Path=/api/v1/auth; SameSite=Lax
+              schema:
+                type: string
           content:
             application/json:
               schema:
@@ -178,6 +186,8 @@ paths:
       summary: Revoke текущего refresh (access и/или refresh)
       operationId: postAuthLogout
       security: []
+      parameters:
+        - $ref: "#/components/parameters/RefreshCookie"
       requestBody:
         required: false
         content:
@@ -969,6 +979,13 @@ components:
         minimum: 1
         maximum: 100
         default: 20
+    RefreshCookie:
+      name: duekeep_refresh
+      in: cookie
+      required: false
+      description: HttpOnly; Path=/api/v1/auth; SameSite=Lax. На локали без Secure.
+      schema:
+        type: string
   responses:
     Unauthorized:
       description: Нет или битый access
@@ -1016,6 +1033,7 @@ components:
       properties:
         refresh_token:
           type: string
+          description: Opaque refresh. Если поле непустое — важнее cookie duekeep_refresh.
     TokenPair:
       type: object
       required: [access_token, refresh_token, token_type, expires_in]

@@ -1,8 +1,10 @@
 package seed
 
 import (
+	"errors"
 	"fmt"
 	"slices"
+	"time"
 )
 
 // requiredKindSlugs — девять slug из ARCHITECTURE.md. ssl и warranty сюда не входят.
@@ -65,14 +67,21 @@ func CheckCatalog() error {
 		}
 	}
 
-	return checkItemSeeds()
+	if err := checkItemSeeds(); err != nil {
+		return err
+	}
+	return checkHistorySeeds()
 }
 
-// checkItemSeeds: несколько записей, уникальные id, kind/category из справочников, attrs по схеме.
+// checkItemSeeds: ≥50 записей FUNCTIONAL, уникальные id, kind/category, attrs по схеме.
 func checkItemSeeds() error {
+	if itemID(1) != itemRentID || itemID(2) != itemSubscriptionID ||
+		itemID(3) != itemDomainID || itemID(4) != itemInsuranceID {
+		return errors.New("stable item ids drifted")
+	}
 	items := itemSeeds()
-	if len(items) < 3 {
-		return fmt.Errorf("want at least 3 items, got %d", len(items))
+	if len(items) < 50 {
+		return fmt.Errorf("want at least 50 items, got %d", len(items))
 	}
 	ids := make(map[string]struct{}, len(items))
 	for _, it := range items {
@@ -100,6 +109,62 @@ func checkItemSeeds() error {
 		if err := checkItemAttrs(it); err != nil {
 			return err
 		}
+	}
+	today := time.Date(2026, 8, 29, 0, 0, 0, 0, time.UTC)
+	expired, expiring := 0, 0
+	for _, it := range items {
+		switch itemComputedStatus(today, it) {
+		case statusExpired:
+			expired++
+		case statusExpiring:
+			expiring++
+		}
+	}
+	if expired < 5 {
+		return fmt.Errorf("want at least 5 expired items, got %d", expired)
+	}
+	if expiring < 8 {
+		return fmt.Errorf("want at least 8 expiring items, got %d", expiring)
+	}
+	return nil
+}
+
+// checkHistorySeeds: ≥20 renewals, ≥15 audit, unread notifications на expired/expiring.
+func checkHistorySeeds() error {
+	if len(renewalSeeds()) < 20 {
+		return fmt.Errorf("want at least 20 renewals, got %d", len(renewalSeeds()))
+	}
+	for _, r := range renewalSeeds() {
+		if _, ok := itemByN(r.itemN); !ok {
+			return fmt.Errorf("renewal %d: unknown item %d", r.n, r.itemN)
+		}
+		if r.oldCost < 0 || r.newCost < 0 {
+			return fmt.Errorf("renewal %d: cost must be >= 0", r.n)
+		}
+	}
+	if len(auditSeeds()) < 15 {
+		return fmt.Errorf("want at least 15 audit, got %d", len(auditSeeds()))
+	}
+	for _, a := range auditSeeds() {
+		if _, ok := itemByN(a.itemN); !ok {
+			return fmt.Errorf("audit %d: unknown item %d", a.n, a.itemN)
+		}
+		switch a.action {
+		case actionCreate, actionRenew:
+		default:
+			return fmt.Errorf("audit %d: unexpected action %s", a.n, a.action)
+		}
+	}
+	unread := 0
+	today := time.Date(2026, 8, 29, 0, 0, 0, 0, time.UTC)
+	for _, it := range itemSeeds() {
+		st := itemComputedStatus(today, it)
+		if st == statusExpired || st == statusExpiring {
+			unread++
+		}
+	}
+	if unread < 1 {
+		return errors.New("want unread notifications, got 0")
 	}
 	return nil
 }

@@ -58,6 +58,22 @@ func TestOpenAPISpec(t *testing.T) {
 	if !strings.Contains(body, "/api/v1/dashboard") || !strings.Contains(body, "/api/v1/calendar") {
 		t.Fatalf("spec without overview: %s", body)
 	}
+	if !strings.Contains(body, "duekeep_refresh") || !strings.Contains(body, "bearerAuth") {
+		t.Fatalf("spec without refresh cookie / bearerAuth")
+	}
+	for _, path := range []string{
+		"/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/refresh",
+		"/api/v1/auth/logout", "/api/v1/auth/logout-all", "/api/v1/me",
+		"/api/v1/kinds", "/api/v1/categories",
+		"/api/v1/items", "/api/v1/items/bulk", "/api/v1/items/export", "/api/v1/items/import",
+		"/api/v1/notifications", "/api/v1/events",
+		"/api/v1/push/vapid-public", "/api/v1/push/subscribe",
+		"/api/v1/dashboard", "/api/v1/calendar", "/api/v1/audit",
+	} {
+		if !strings.Contains(body, path) {
+			t.Fatalf("spec missing %s", path)
+		}
+	}
 }
 
 func TestDocsRedirect(t *testing.T) {

@@ -2,6 +2,29 @@
 
 Журнал создания Duekeep. Записи добавляются по ходу работы, не в конце.
 
+## 2026-08-29 — Sprint 6 старт
+
+- Спринты 1–5 закрыты. Дыры плана (reuse refresh, CSV dry_run, calendar, push 410) уже покрыты тестами; CI lint+test+build+frontend на месте; `/docs` живой.
+- Не хватает объёма seed (4 items вместо 50+), renewals/audit/unread, сверки OpenAPI cookie refresh, README под сдачу.
+- Дальше: каталог seed, спека, README, прогон на чистом томе.
+
+## 2026-08-29 — Sprint 6, seed и OpenAPI
+
+- Каталог: 52 items (даты от Clock.Today), ≥5 expired, ≥8 expiring, 1 cancelled, 1 archived. 22 renewals, 24 audit, unread на expired/expiring. Повторный seed не плодит строки; даты items/renewals обновляет.
+- CheckCatalog требует объём FUNCTIONAL. OpenAPI 1.0.0: cookie duekeep_refresh на refresh/logout, body важнее cookie. README под сдачу.
+
+## 2026-08-29 — Sprint 6 follow-up (демо)
+
+- Смена `expires_at` в админке пишет notification и SSE: иначе тикер не видит переход (статус уже пересчитан при PATCH). `TestPatchExpiresNotifies`.
+- VAPID в `deploy/local` зафиксирован — подписки не сбрасываются после рестарта backend.
+
+## 2026-08-29 — Sprint 6 закрыт
+
+- Чистый том: `docker compose down -v && docker compose up --build`. db/backend/frontend healthy.
+- Живые цифры: 2 users, 9 kinds, 13 categories, 52 items (6 expired, 12 expiring), 22 renewals, 24 audit, 18 unread. Повторный up — те же счётчики.
+- `/healthz` ok, `/docs` Swagger, UI `:80`, viewer 403 на запись. Calendar текущего месяца не пустой, CSV export отдаёт фильтр.
+- `task lint` / `task test` зелёные (83 теста). Limitations v1 без изменений. Код спринта ещё не закоммичен.
+
 ## 2026-08-29 — Sprint 5 закрыт
 
 - §4: адаптив (сайдбар / табы, карточки списка, календарь, safe-area), loading/error/empty + «Повторить».

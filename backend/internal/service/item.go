@@ -59,6 +59,8 @@ type Item struct {
 	cats     CategoryStore
 	renewals RenewalStore
 	audit    AuditStore
+	notes    NotificationStore
+	bus      EventBus
 	tx       TxFunc
 	clk      clock.Clock
 }
@@ -74,6 +76,13 @@ func NewItem(
 	clk clock.Clock,
 ) *Item {
 	return &Item{items: items, kinds: kinds, cats: cats, renewals: renewals, audit: audit, tx: tx, clk: clk}
+}
+
+// SetNotify включает ленту и SSE/push при переходе в expiring/expired на записи.
+// Без вызова тикер остаётся единственным источником (тесты).
+func (s *Item) SetNotify(notes NotificationStore, bus EventBus) {
+	s.notes = notes
+	s.bus = bus
 }
 
 // List фильтрует и пагинирует. category_id включает потомков.
@@ -109,14 +118,23 @@ func (s *Item) Create(ctx context.Context, in model.Item, actorID string) (model
 		return model.Item{}, err
 	}
 	var created model.Item
+	var note model.Notification
+	var inserted bool
 	err = s.tx(ctx, func(ctx context.Context) error {
 		var cerr error
 		created, cerr = s.items.Create(ctx, it)
 		if cerr != nil {
 			return cerr
 		}
-		return s.audit.Create(ctx, auditEntry(actorID, model.AuditCreate, created.ID, nil, itemSnap(created)))
+		if err := s.audit.Create(ctx, auditEntry(actorID, model.AuditCreate, created.ID, nil, itemSnap(created))); err != nil {
+			return err
+		}
+		note, inserted, cerr = s.notifyTransition(ctx, "", created)
+		return cerr
 	})
+	if err == nil {
+		s.publishNote(note, inserted)
+	}
 	return created, err
 }
 
@@ -143,6 +161,7 @@ func (s *Item) Patch(ctx context.Context, id string, p model.ItemPatch, actorID 
 		return model.Item{}, err
 	}
 	before := itemSnap(cur)
+	prevStatus := cur.Status
 	applyItemPatch(&cur, p)
 	it, err := s.prepareWrite(ctx, cur)
 	if err != nil {
@@ -150,14 +169,23 @@ func (s *Item) Patch(ctx context.Context, id string, p model.ItemPatch, actorID 
 	}
 	it.ID = id
 	var updated model.Item
+	var note model.Notification
+	var inserted bool
 	err = s.tx(ctx, func(ctx context.Context) error {
 		var uerr error
 		updated, uerr = s.items.Update(ctx, it)
 		if uerr != nil {
 			return uerr
 		}
-		return s.audit.Create(ctx, auditEntry(actorID, model.AuditUpdate, id, before, itemSnap(updated)))
+		if err := s.audit.Create(ctx, auditEntry(actorID, model.AuditUpdate, id, before, itemSnap(updated))); err != nil {
+			return err
+		}
+		note, inserted, uerr = s.notifyTransition(ctx, prevStatus, updated)
+		return uerr
 	})
+	if err == nil {
+		s.publishNote(note, inserted)
+	}
 	return updated, err
 }
 
@@ -488,6 +516,31 @@ func normalizeFilter(f model.ItemFilter) (model.ItemFilter, error) {
 		return f, model.Validation("invalid order", map[string]any{fieldOrder: "asc|desc"})
 	}
 	return f, nil
+}
+
+// notifyTransition пишет unread, если статус стал expiring/expired. Повтор за день — false.
+func (s *Item) notifyTransition(ctx context.Context, prev string, it model.Item) (model.Notification, bool, error) {
+	if s.notes == nil {
+		return model.Notification{}, false, nil
+	}
+	if it.Status != model.StatusExpiring && it.Status != model.StatusExpired {
+		return model.Notification{}, false, nil
+	}
+	if prev == it.Status {
+		return model.Notification{}, false, nil
+	}
+	return s.notes.Insert(ctx, model.Notification{
+		ItemID:    it.ID,
+		ToStatus:  it.Status,
+		Title:     it.Title,
+		CreatedAt: s.clk.Now().UTC(),
+	})
+}
+
+func (s *Item) publishNote(n model.Notification, inserted bool) {
+	if inserted && s.bus != nil {
+		s.bus.Notify(n)
+	}
 }
 
 func parseDate(field, raw string) (time.Time, error) {

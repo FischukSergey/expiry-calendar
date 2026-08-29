@@ -4,7 +4,7 @@ info:
   version: 0.2.0
   description: |
     Календарь истечений. Спека растёт вместе со спринтами, без кодогенерации.
-    Sprint 3: CRUD items, renew, bulk, audit.
+    Sprint 4: notifications, ticker, SSE, Web Push, dashboard, calendar. Sprint 3: CRUD items, renew, bulk, audit.
 servers:
   - url: /
     description: Тот же origin (frontend :80 или backend :8080)
@@ -21,6 +21,14 @@ tags:
     description: Записи истечения, продление, bulk
   - name: Audit
     description: Журнал мутаций (admin)
+  - name: Notifications
+    description: In-app лента переходов в expiring/expired
+  - name: Events
+    description: SSE (вкладка открыта)
+  - name: Push
+    description: Web Push (VAPID), вкладка закрыта
+  - name: Overview
+    description: Дашборд и календарь (JSON)
 paths:
   /healthz:
     get:
@@ -665,6 +673,174 @@ paths:
                 $ref: "#/components/schemas/AuditList"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /api/v1/notifications:
+    get:
+      tags: [Notifications]
+      summary: Лента уведомлений
+      operationId: listNotifications
+      parameters:
+        - in: query
+          name: unread
+          schema:
+            type: boolean
+          description: true — только без read_at
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Страница
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/notifications/read-all:
+    post:
+      tags: [Notifications]
+      summary: Пометить все прочитанными
+      operationId: readAllNotifications
+      responses:
+        "204":
+          description: Готово
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/notifications/{id}/read:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [Notifications]
+      summary: Пометить прочитанным
+      operationId: readNotification
+      responses:
+        "204":
+          description: Прочитано
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/v1/events:
+    get:
+      tags: [Events]
+      summary: SSE поток уведомлений
+      operationId: streamEvents
+      parameters:
+        - in: query
+          name: access_token
+          schema:
+            type: string
+          description: Access JWT, если нет Authorization (ограничение EventSource)
+      responses:
+        "200":
+          description: text/event-stream, события notification и ping
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              example: |
+                event: ping
+                data: {}
+
+                event: notification
+                data: {"id":"...","item_id":"...","to_status":"expiring","title":"..."}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/push/vapid-public:
+    get:
+      tags: [Push]
+      summary: Публичный VAPID для pushManager.subscribe
+      operationId: getVapidPublic
+      responses:
+        "200":
+          description: Ключ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VAPIDPublic"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/push/subscribe:
+    post:
+      tags: [Push]
+      summary: Сохранить Web Push subscription
+      operationId: subscribePush
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushSubscribe"
+      responses:
+        "204":
+          description: Upsert по endpoint
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+    delete:
+      tags: [Push]
+      summary: Снять подписку по endpoint
+      operationId: unsubscribePush
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushUnsubscribe"
+      responses:
+        "204":
+          description: Снято (нет строки — тоже 204)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/v1/dashboard:
+    get:
+      tags: [Overview]
+      summary: KPI и series для графиков
+      operationId: getDashboard
+      responses:
+        "200":
+          description: Агрегаты; суммы по валютам отдельно
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/calendar:
+    get:
+      tags: [Overview]
+      summary: Истечения за календарный месяц
+      operationId: getCalendar
+      parameters:
+        - in: query
+          name: year
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 9999
+        - in: query
+          name: month
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+      responses:
+        "200":
+          description: Дни с записями; пустые дни можно не включать
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Calendar"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
 components:
   securitySchemes:
     bearerAuth:
@@ -1179,5 +1355,174 @@ components:
           type: integer
         total:
           type: integer
+    Notification:
+      type: object
+      required: [id, item_id, to_status, title, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        item_id:
+          type: string
+          format: uuid
+        to_status:
+          type: string
+          enum: [expiring, expired]
+        title:
+          type: string
+        read_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+    NotificationList:
+      type: object
+      required: [items, page, per_page, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Notification"
+        page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+    VAPIDPublic:
+      type: object
+      required: [public_key]
+      properties:
+        public_key:
+          type: string
+    PushSubscribe:
+      type: object
+      required: [endpoint, keys]
+      properties:
+        endpoint:
+          type: string
+          format: uri
+        keys:
+          type: object
+          required: [p256dh, auth]
+          properties:
+            p256dh:
+              type: string
+            auth:
+              type: string
+    PushUnsubscribe:
+      type: object
+      required: [endpoint]
+      properties:
+        endpoint:
+          type: string
+          format: uri
+    Dashboard:
+      type: object
+      required: [counts, upcoming_cost, expirations_by_month, cost_by_kind, soonest]
+      properties:
+        counts:
+          type: object
+          required: [active, expiring_7, expiring_30, expired]
+          properties:
+            active:
+              type: integer
+            expiring_7:
+              type: integer
+            expiring_30:
+              type: integer
+            expired:
+              type: integer
+        upcoming_cost:
+          type: array
+          items:
+            type: object
+            required: [currency, monthly, yearly]
+            properties:
+              currency:
+                type: string
+              monthly:
+                type: integer
+              yearly:
+                type: integer
+        expirations_by_month:
+          type: array
+          items:
+            type: object
+            required: [month, count]
+            properties:
+              month:
+                type: string
+                example: "2026-09"
+              count:
+                type: integer
+        cost_by_kind:
+          type: array
+          items:
+            type: object
+            required: [kind_id, currency, amount]
+            properties:
+              kind_id:
+                type: string
+                format: uuid
+              currency:
+                type: string
+              amount:
+                type: integer
+        soonest:
+          type: array
+          items:
+            $ref: "#/components/schemas/DashboardItem"
+    DashboardItem:
+      type: object
+      required: [id, title, expires_at, status, kind_id]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        expires_at:
+          type: string
+        status:
+          type: string
+        kind_id:
+          type: string
+          format: uuid
+    Calendar:
+      type: object
+      required: [year, month, days]
+      properties:
+        year:
+          type: integer
+        month:
+          type: integer
+        days:
+          type: array
+          items:
+            $ref: "#/components/schemas/CalendarDay"
+    CalendarDay:
+      type: object
+      required: [date, items]
+      properties:
+        date:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CalendarItem"
+    CalendarItem:
+      type: object
+      required: [id, title, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          type: string
 security:
   - bearerAuth: []

@@ -41,7 +41,11 @@ func TestHealthzOK(t *testing.T) {
 
 func TestHealthzUnavailable(t *testing.T) {
 	t.Parallel()
-	api := handler.New(handler.Deps{Health: fakeHealth{err: errors.New("down")}, Auth: fakeAuth{}, JWTSecret: []byte("x")})
+	api := handler.New(handler.Deps{
+		Health: fakeHealth{err: errors.New("down")}, Auth: fakeAuth{},
+		Kinds: nopKinds{}, Categories: nopCategories{}, Items: nopItems{},
+		Notifications: nopNotifications{}, JWTSecret: []byte("x"),
+	})
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/healthz", nil)
 	api.Router().ServeHTTP(rec, req)

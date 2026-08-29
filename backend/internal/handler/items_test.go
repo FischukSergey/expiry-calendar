@@ -14,34 +14,44 @@ import (
 	"duekeep/internal/service"
 )
 
-const otherKindID = "33333333-3333-3333-3333-333333333309"
+const (
+	otherKindID     = "33333333-3333-3333-3333-333333333309"
+	itemTitleDomain = "Домен"
+	fixtureUUID     = "11111111-1111-1111-1111-111111111111"
+	kindColorBlack  = "#000"
+	kindSlugOther   = "other"
+	kindNameOther   = "Прочее"
+	expiresSoon     = "2026-09-10"
+	currencyUSD     = "USD"
+)
 
 func itemsAPI(t *testing.T) *handler.API {
 	t.Helper()
 	kinds := newMemKinds()
 	_, err := kinds.Create(t.Context(), model.Kind{
-		Slug: "other", Name: "Прочее", Color: "#000", AttrSchema: []model.AttrField{},
+		Slug: kindSlugOther, Name: kindNameOther, Color: kindColorBlack, AttrSchema: []model.AttrField{},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	kinds.mu.Lock()
-	k := kinds.byID["11111111-1111-1111-1111-111111111111"]
+	k := kinds.byID[fixtureUUID]
 	k.ID = otherKindID
-	delete(kinds.byID, "11111111-1111-1111-1111-111111111111")
+	delete(kinds.byID, fixtureUUID)
 	kinds.byID[otherKindID] = k
 	kinds.mu.Unlock()
 
 	clk := clock.Fixed{T: time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC)}
 	items := service.NewItem(newMemItems(), kinds, newMemCats(), newMemRenewals(), newMemAudit(), nopTx, clk)
 	return handler.New(handler.Deps{
-		Health:     fakeHealth{},
-		Auth:       fakeAuth{},
-		Kinds:      service.NewKind(kinds),
-		Categories: service.NewCategory(newMemCats()),
-		Items:      items,
-		JWTSecret:  []byte("handler-test-secret"),
-		RefreshTTL: 336 * time.Hour,
+		Health:        fakeHealth{},
+		Auth:          fakeAuth{},
+		Kinds:         service.NewKind(kinds),
+		Categories:    service.NewCategory(newMemCats()),
+		Items:         items,
+		Notifications: service.NewNotification(newMemNotifications()),
+		JWTSecret:     []byte("handler-test-secret"),
+		RefreshTTL:    336 * time.Hour,
 	})
 }
 
@@ -75,7 +85,8 @@ func TestAdminCreateGetItem(t *testing.T) {
 	api := itemsAPI(t)
 	tok := testJWT(t, string(model.RoleAdmin))
 	rec := httptest.NewRecorder()
-	body := bytes.NewBufferString(`{"title":"Домен","kind_id":"` + otherKindID + `","expires_at":"2027-01-01","attrs":{}}`)
+	body := bytes.NewBufferString(`{"title":"` + itemTitleDomain + `","kind_id":"` + otherKindID +
+		`","expires_at":"2027-01-01","attrs":{}}`)
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/items", body)
 	req.Header.Set("Authorization", "Bearer "+tok)
 	api.Router().ServeHTTP(rec, req)

@@ -2,6 +2,47 @@
 
 Журнал создания Duekeep. Записи добавляются по ходу работы, не в конце.
 
+## 2026-08-29 — Sprint 4 закрыт
+
+- DoD: Tick меняет статус и пишет notification; SSE видит event; dashboard отдаёт series (6 месяцев, soonest).
+- HTTP: `TestTickerIntegrationStatusAndNotification`, `TestDashboardViewerTwoCurrencies` (RUB и USD не сливаются).
+- Контракт сверен с роутером и OpenAPI. Limitations: UI в Sprint 5, SSE один процесс, integration без Postgres.
+- `task test` / `task lint` зелёные. Код Sprint 4 ещё не закоммичен.
+
+## 2026-08-29 — Sprint 4, раздел 4 (Обзор)
+
+- `GET /dashboard`: counts, upcoming_cost по валютам без конвертации, 6 месяцев истечений, cost_by_kind, soonest (10).
+- `GET /calendar?year=&month=`: дни только с записями. cancelled/archived не входят.
+- Один `ListOpen`, агрегаты в service. `task test` / `task lint` зелёные.
+
+## 2026-08-29 — Sprint 4, раздел 3 (Web Push)
+
+- Миграция `010_push_subscriptions.sql`: unique `endpoint`, индекс по `user_id`.
+- API: `GET /push/vapid-public`, `POST`/`DELETE /push/subscribe` (auth, viewer). Upsert по endpoint; unsubscribe идемпотентен.
+- Тикер через `service.Fanout`: после INSERT — SSE и Web Push всем подпискам (данные общие). Payload как у SSE.
+- `410 Gone` от push-сервиса удаляет строку. `webpush-go`; VAPID из env, иначе генерация на процесс.
+- `task test` / `task lint` зелёные.
+
+## 2026-08-28 — долг после v1: конфиг
+
+- Тикер 60 с оставить до сдачи; после v1 сменить (домен — день, не минута).
+- Не-секреты (HTTP, TTL, интервал тикера, SSE ping и т.п.) — файл конфига при инициализации, не только env.
+- В `.env` только чувствительное: пароли, JWT, VAPID. Зафиксировано в `known-limitations-sprint-4.md` и sprint-6.
+
+## 2026-08-28 — Sprint 4, раздел 2 (SSE)
+
+- `GET /api/v1/events`: Bearer или `?access_token=`. `text/event-stream`, сразу `ping`, дальше каждые 15 с.
+- Hub в памяти, mutex; полный буфер клиента не блокирует тикер.
+- Тикер после успешного INSERT шлёт `event: notification`. Повтор в тот же день — без события.
+- nginx фронта: `/api/v1/events` без буфера (как в prod). `task test` / `task lint` зелёные.
+
+## 2026-08-28 — Sprint 4, раздел 1 (Статусы и уведомления)
+
+- Тикер в `cmd/server`: сразу `Tick`, затем каждые 60 с. Тот же `StatusAtWrite`, что при записи. `cancelled` / `archived` не трогает.
+- Миграция `009_notifications.sql`: unique `(item_id, to_status, день UTC)`. Повторный tick в тот же день не плодит строки.
+- API: `GET /notifications` (`unread`, пагинация как у items), `POST /{id}/read`, `POST /read-all`. Viewer и admin.
+- Тесты зовут `Tick` явно, без ожидания минуты. `task test` / `task lint` зелёные.
+
 ## 2026-08-19 — старт
 
 - Учебное задание: full-stack приложение с нуля (AI-процесс, Docker Compose, OpenAPI, CI).

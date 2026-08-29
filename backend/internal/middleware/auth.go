@@ -34,6 +34,28 @@ func Bearer(secret []byte) func(http.Handler) http.Handler {
 	}
 }
 
+// BearerOrQuery — access из Authorization или ?access_token= (EventSource без заголовков).
+func BearerOrQuery(secret []byte) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			raw, ok := bearerToken(r.Header.Get("Authorization"))
+			if !ok {
+				raw = strings.TrimSpace(r.URL.Query().Get("access_token"))
+			}
+			if raw == "" {
+				writeUnauthorized(w)
+				return
+			}
+			id, err := service.ParseAccess(secret, raw)
+			if err != nil {
+				writeUnauthorized(w)
+				return
+			}
+			next.ServeHTTP(w, r.WithContext(withIdentity(r.Context(), id)))
+		})
+	}
+}
+
 // OptionalBearer кладёт identity, если access валиден. Иначе не трогает запрос
 // (logout может идти только по refresh).
 func OptionalBearer(secret []byte) func(http.Handler) http.Handler {

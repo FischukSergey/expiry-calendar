@@ -286,3 +286,36 @@ func statusArg(s *string) string {
 	}
 	return *s
 }
+
+// ListOpen — записи, которые тикер может пересчитать (не cancelled/archived).
+func (r *Items) ListOpen(ctx context.Context) ([]model.Item, error) {
+	rows, err := r.q(ctx).Query(ctx, `SELECT `+itemCols+`
+FROM items
+WHERE status NOT IN ('cancelled', 'archived')
+ORDER BY id`)
+	if err != nil {
+		return nil, fmt.Errorf("list open items: %w", err)
+	}
+	defer rows.Close()
+	out := make([]model.Item, 0)
+	for rows.Next() {
+		it, err := scanItem(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, it)
+	}
+	return out, rows.Err()
+}
+
+// SetStatus пишет только status. cancelled/archived не обновляет (0 rows → ErrNotFound).
+func (r *Items) SetStatus(ctx context.Context, id, status string) (model.Item, error) {
+	it, err := r.scanOne(ctx, `
+UPDATE items SET status = $2, updated_at = now()
+WHERE id = $1::uuid AND status NOT IN ('cancelled', 'archived')
+RETURNING `+itemCols, id, status)
+	if err != nil {
+		return model.Item{}, err
+	}
+	return it, nil
+}

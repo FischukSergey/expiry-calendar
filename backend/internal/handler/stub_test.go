@@ -65,3 +65,13 @@ func (nopItems) Bulk(context.Context, model.BulkInput, string) (model.BulkResult
 func (nopItems) ListAudit(context.Context, model.Page) (model.AuditList, error) {
 	return model.AuditList{Items: []model.AuditEntry{}}, nil
 }
+
+type nopNotifications struct{}
+
+func (nopNotifications) List(context.Context, bool, model.Page) (model.NotificationList, error) {
+	return model.NotificationList{Items: []model.Notification{}}, nil
+}
+
+func (nopNotifications) MarkRead(context.Context, string) error { return model.ErrNotFound }
+
+func (nopNotifications) MarkAllRead(context.Context) error { return nil }

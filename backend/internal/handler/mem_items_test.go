@@ -90,6 +90,35 @@ func (m *memItems) List(_ context.Context, f model.ItemFilter, page model.Page) 
 	return out[start:end], total, nil
 }
 
+func (m *memItems) ListOpen(_ context.Context) ([]model.Item, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]model.Item, 0)
+	for _, it := range m.byID {
+		if it.Status == model.StatusCancelled || it.Status == model.StatusArchived {
+			continue
+		}
+		out = append(out, it)
+	}
+	slices.SortFunc(out, func(a, b model.Item) int {
+		return strings.Compare(a.ID, b.ID)
+	})
+	return out, nil
+}
+
+func (m *memItems) SetStatus(_ context.Context, id, status string) (model.Item, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	it, ok := m.byID[id]
+	if !ok || it.Status == model.StatusCancelled || it.Status == model.StatusArchived {
+		return model.Item{}, model.ErrNotFound
+	}
+	it.Status = status
+	it.UpdatedAt = time.Date(2026, 8, 26, 13, 0, 0, 0, time.UTC)
+	m.byID[id] = it
+	return it, nil
+}
+
 func (m *memItems) BulkUpdate(_ context.Context, ids []string, categoryID *string, status *string) (int, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

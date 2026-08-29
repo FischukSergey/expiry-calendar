@@ -6,7 +6,9 @@
 
 ### `GET /api/v1/notifications`
 
-Auth. Query: `unread=true`, пагинация.
+Auth. Query: `unread=true`, пагинация `page` / `per_page` как у items.
+
+`200`: `{ "items": [ ... ], "page": 1, "per_page": 20, "total": 0 }`
 
 Элемент: `id`, `item_id`, `to_status`, `title`, `read_at`, `created_at`.
 
@@ -22,7 +24,7 @@ Auth. Query: `unread=true`, пагинация.
 
 ### `GET /api/v1/events`
 
-Auth: заголовок или `?access_token=`.
+Auth: `Authorization: Bearer` или `?access_token=` (EventSource не умеет заголовки).
 
 ```text
 event: notification
@@ -32,7 +34,7 @@ event: ping
 data: {}
 ```
 
-`Content-Type: text/event-stream`.
+`Content-Type: text/event-stream`. Первый кадр — `ping`. Дальше ping каждые 15 с. Hub в памяти процесса.
 
 ## 3) Push
 
@@ -53,7 +55,9 @@ data: {}
 
 ### `DELETE /api/v1/push/subscribe`
 
-`{ "endpoint": "https://..." }` → `204`.
+`{ "endpoint": "https://..." }` → `204`. Нет строки — тоже `204`.
+
+Тикер после INSERT в `notifications` шлёт тот же JSON, что SSE (`id`, `item_id`, `to_status`, `title`), всем строкам `push_subscriptions`. Ответ `410 Gone` — строку удаляем.
 
 ## 4) Dashboard
 
@@ -72,6 +76,8 @@ data: {}
 `expiring_7` / `expiring_30` — по фактической дате, не только по полю `status`.
 
 `soonest` — до 10 items (краткая карточка: id, title, expires_at, status, kind_id).
+
+`cancelled` / `archived` не входят. `upcoming_cost` — run-rate active/expiring: monthly×12 и yearly/12 (целое), `one_time` не входит. `expirations_by_month` — текущий месяц UTC и следующие 5. `cost_by_kind` — сумма `cost_amount` как записана, без периода.
 
 ## 5) Calendar
 

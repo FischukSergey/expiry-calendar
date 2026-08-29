@@ -1,2 +1,2 @@
-// Package sse — in-memory hub клиентов. Подключение в Sprint 4.
+// Package sse — in-memory hub клиентов. Одна реплика; пропущенные события не буфер.
 package sse

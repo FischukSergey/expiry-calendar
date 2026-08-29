@@ -18,7 +18,9 @@ type API struct {
 	kinds         KindService
 	categories    CategoryService
 	items         ItemService
+	overview      OverviewService
 	notifications NotificationService
+	push          PushService
 	hub           *sse.Hub
 	ssePing       time.Duration
 	spec          []byte // сырой openapi.yaml, тот же duekeep.OpenAPISpec.
@@ -35,7 +37,9 @@ func New(d Deps) *API {
 		kinds:         d.Kinds,
 		categories:    d.Categories,
 		items:         d.Items,
+		overview:      d.Overview,
 		notifications: d.Notifications,
+		push:          d.Push,
 		hub:           cmpHub(d.Hub),
 		ssePing:       d.SSEPing,
 		spec:          d.Spec,
@@ -72,9 +76,14 @@ func (a *API) Router() http.Handler {
 			r.Get("/categories", a.listCategories)
 			r.Get("/items", a.listItems)
 			r.Get("/items/{id}", a.getItem)
+			r.Get("/dashboard", a.dashboard)
+			r.Get("/calendar", a.calendar)
 			r.Get("/notifications", a.listNotifications)
 			r.Post("/notifications/read-all", a.readAllNotifications)
 			r.Post("/notifications/{id}/read", a.readNotification)
+			r.Get("/push/vapid-public", a.vapidPublic)
+			r.Post("/push/subscribe", a.pushSubscribe)
+			r.Delete("/push/subscribe", a.pushUnsubscribe)
 			r.Group(func(r chi.Router) {
 				r.Use(middleware.RequireAdmin)
 				r.Post("/kinds", a.createKind)

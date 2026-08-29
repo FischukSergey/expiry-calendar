@@ -28,20 +28,31 @@
 
 ## 3) Web Push
 
-- [ ] `GET /api/v1/push/vapid-public`
-- [ ] `POST /api/v1/push/subscribe`
-- [ ] `DELETE /api/v1/push/subscribe`
-- [ ] Рассылка из тикера
-- [ ] 410 → удаление подписки
+- [x] `GET /api/v1/push/vapid-public`
+  Примечание: auth, `{ "public_key": "..." }`. Пустые `VAPID_*` — пара на процесс, в логе warn.
+- [x] `POST /api/v1/push/subscribe`
+  Примечание: 204, upsert по `endpoint`. Viewer 200. `TestPushSubscribeUpsertAndDelete`.
+- [x] `DELETE /api/v1/push/subscribe`
+  Примечание: `{ "endpoint" }` → 204; нет строки — тоже 204.
+- [x] Рассылка из тикера
+  Примечание: `Fanout` после INSERT шлёт SSE и Web Push всем подпискам. Payload как у SSE.
+- [x] 410 → удаление подписки
+  Примечание: `Broadcast` при 410 удаляет строку. `TestPushTickerBroadcastAnd410`, `TestWebPushSenderSees410`.
 
 ## 4) Обзор
 
-- [ ] `GET /api/v1/dashboard` (counts, upcoming_cost по валютам, expirations_by_month, cost_by_kind, soonest)
-- [ ] `GET /api/v1/calendar?year=&month=`
+- [x] `GET /api/v1/dashboard` (counts, upcoming_cost по валютам, expirations_by_month, cost_by_kind, soonest)
+  Примечание: один `ListOpen`. Валюты отдельно. `expiring_7/30` по дате. Viewer 200. `TestDashboardViewerTwoCurrencies`.
+- [x] `GET /api/v1/calendar?year=&month=`
+  Примечание: пустые дни опущены. year/month обязательны, иначе 422. `TestCalendarQueryAndEmptyMonth`.
 
 ## 5) Тесты и DoD
 
-- [ ] Integration тикера
-- [ ] Dashboard две валюты без конвертации
-- [ ] [`api-sprint-4.md`](api-sprint-4.md)
-- [ ] [`known-limitations-sprint-4.md`](known-limitations-sprint-4.md)
+- [x] Integration тикера
+  Примечание: `TestTickerIntegrationStatusAndNotification` — Tick → status expiring, GET /notifications, series дашборда. SSE: `TestEventsSeesTickerNotification`.
+- [x] Dashboard две валюты без конвертации
+  Примечание: `TestDashboardViewerTwoCurrencies` — RUB monthly 200/2400 и USD yearly 36/3 отдельно.
+- [x] [`api-sprint-4.md`](api-sprint-4.md)
+  Примечание: ручки notifications/events/push/dashboard/calendar совпадают с хендлерами и `openapi.yaml`.
+- [x] [`known-limitations-sprint-4.md`](known-limitations-sprint-4.md)
+  Примечание: один процесс SSE, нет UI, VAPID на процесс, нет Postgres в `task test:integration`.

@@ -55,7 +55,9 @@ data: {}
 
 ### `DELETE /api/v1/push/subscribe`
 
-`{ "endpoint": "https://..." }` → `204`.
+`{ "endpoint": "https://..." }` → `204`. Нет строки — тоже `204`.
+
+Тикер после INSERT в `notifications` шлёт тот же JSON, что SSE (`id`, `item_id`, `to_status`, `title`), всем строкам `push_subscriptions`. Ответ `410 Gone` — строку удаляем.
 
 ## 4) Dashboard
 
@@ -74,6 +76,8 @@ data: {}
 `expiring_7` / `expiring_30` — по фактической дате, не только по полю `status`.
 
 `soonest` — до 10 items (краткая карточка: id, title, expires_at, status, kind_id).
+
+`cancelled` / `archived` не входят. `upcoming_cost` — run-rate active/expiring: monthly×12 и yearly/12 (целое), `one_time` не входит. `expirations_by_month` — текущий месяц UTC и следующие 5. `cost_by_kind` — сумма `cost_amount` как записана, без периода.
 
 ## 5) Calendar
 

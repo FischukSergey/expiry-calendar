@@ -46,11 +46,24 @@ type ItemService interface {
 	ListAudit(ctx context.Context, page model.Page) (model.AuditList, error)
 }
 
+// OverviewService — дашборд и календарь.
+type OverviewService interface {
+	Dashboard(ctx context.Context) (model.Dashboard, error)
+	Calendar(ctx context.Context, year, month int) (model.Calendar, error)
+}
+
 // NotificationService — лента и read / read-all.
 type NotificationService interface {
 	List(ctx context.Context, unread bool, page model.Page) (model.NotificationList, error)
 	MarkRead(ctx context.Context, id string) error
 	MarkAllRead(ctx context.Context) error
+}
+
+// PushService — VAPID и подписки Web Push.
+type PushService interface {
+	PublicKey() string
+	Subscribe(ctx context.Context, userID string, in model.PushSubscribe, userAgent string) error
+	Unsubscribe(ctx context.Context, endpoint string) error
 }
 
 // Deps — зависимости HTTP-слоя. JWTSecret нужен middleware, не service повторно.
@@ -60,7 +73,9 @@ type Deps struct {
 	Kinds         KindService
 	Categories    CategoryService
 	Items         ItemService
+	Overview      OverviewService
 	Notifications NotificationService
+	Push          PushService
 	Hub           *sse.Hub
 	SSEPing       time.Duration // 0 → 15 с; в тестах можно укоротить.
 	Spec          []byte

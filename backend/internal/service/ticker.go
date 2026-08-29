@@ -24,7 +24,7 @@ type NotificationStore interface {
 	MarkAllRead(ctx context.Context) error
 }
 
-// EventBus — SSE (и позже push). nil в тестах, где шина не нужна.
+// EventBus — SSE и Web Push (Fanout). nil в тестах, где шина не нужна.
 type EventBus interface {
 	Notify(n model.Notification)
 }

@@ -158,7 +158,7 @@ func (m *memKinds) ByID(_ context.Context, id string) (model.Kind, error) {
 func (m *memKinds) Create(_ context.Context, k model.Kind) (model.Kind, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	k.ID = "11111111-1111-1111-1111-111111111111"
+	k.ID = fixtureUUID
 	m.byID[k.ID] = k
 	return k, nil
 }

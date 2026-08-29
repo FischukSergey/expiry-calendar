@@ -10,8 +10,11 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
+
+	webpush "github.com/SherClockHolmes/webpush-go"
 
 	duekeep "duekeep"
 	"duekeep/internal/clock"
@@ -46,6 +49,7 @@ func run() error {
 		"jwt_access_ttl", cfg.AccessTTL.String(),
 		"jwt_refresh_ttl", cfg.RefreshTTL.String(),
 		"cookie_secure", cfg.CookieSecure,
+		"vapid_generated", cfg.VAPIDGenerated,
 	)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -79,25 +83,31 @@ func run() error {
 	catsRepo := repository.NewCategories(pool)
 	itemsRepo := repository.NewItems(pool)
 	notesRepo := repository.NewNotifications(pool)
+	pushRepo := repository.NewPushSubscriptions(pool)
 	itemsSvc := service.NewItem(
 		itemsRepo, kindsRepo, catsRepo,
 		repository.NewRenewals(pool), repository.NewAudit(pool), runTx, clk,
 	)
+	overview := service.NewOverview(itemsRepo, clk)
 	hub := sse.NewHub()
+	sender := service.NewWebPushSender(cfg.VAPIDPublic, cfg.VAPIDPrivate, cfg.VAPIDSubject)
+	pushSvc := service.NewPush(pushRepo, sender, cfg.VAPIDPublic)
 	api := handler.New(handler.Deps{
 		Health:        service.NewHealth(repository.NewHealth(pool)),
 		Auth:          auth,
 		Kinds:         service.NewKind(kindsRepo),
 		Categories:    service.NewCategory(catsRepo),
 		Items:         itemsSvc,
+		Overview:      overview,
 		Notifications: service.NewNotification(notesRepo),
+		Push:          pushSvc,
 		Hub:           hub,
 		Spec:          duekeep.OpenAPISpec,
 		JWTSecret:     []byte(cfg.JWTSecret),
 		CookieSecure:  cfg.CookieSecure,
 		RefreshTTL:    cfg.RefreshTTL,
 	})
-	tkr := service.NewTicker(itemsRepo, notesRepo, runTx, clk, hub)
+	tkr := service.NewTicker(itemsRepo, notesRepo, runTx, clk, &service.Fanout{SSE: hub, Push: pushSvc})
 	go tkr.Run(ctx, 60*time.Second)
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
@@ -127,12 +137,16 @@ func run() error {
 
 // config — env процесса. JWT_SECRET без порога длины: в local compose 19 символов.
 type config struct {
-	HTTPAddr     string
-	DatabaseURL  string
-	JWTSecret    string
-	AccessTTL    time.Duration
-	RefreshTTL   time.Duration
-	CookieSecure bool
+	HTTPAddr       string
+	DatabaseURL    string
+	JWTSecret      string
+	AccessTTL      time.Duration
+	RefreshTTL     time.Duration
+	CookieSecure   bool
+	VAPIDPublic    string
+	VAPIDPrivate   string
+	VAPIDSubject   string
+	VAPIDGenerated bool // ключи не из env: подписки не переживут рестарт.
 }
 
 // loadConfig: HTTP_ADDR, DATABASE_URL, JWT_SECRET обязателен; TTL с дефолтами 15m / 336h.
@@ -145,13 +159,29 @@ func loadConfig() (config, error) {
 	if err != nil {
 		return config{}, errors.New("JWT_REFRESH_TTL is invalid")
 	}
+	vapidPublic := strings.TrimSpace(os.Getenv("VAPID_PUBLIC"))
+	vapidPrivate := strings.TrimSpace(os.Getenv("VAPID_PRIVATE"))
+	generated := false
+	if vapidPublic == "" || vapidPrivate == "" {
+		priv, pub, genErr := webpush.GenerateVAPIDKeys()
+		if genErr != nil {
+			return config{}, errors.New("VAPID generate failed")
+		}
+		vapidPrivate, vapidPublic = priv, pub
+		generated = true
+		slog.Warn("vapid keys generated for this process; set VAPID_PUBLIC/VAPID_PRIVATE to keep subscriptions after restart")
+	}
 	cfg := config{
-		HTTPAddr:     cmp.Or(os.Getenv("HTTP_ADDR"), ":8080"),
-		DatabaseURL:  os.Getenv("DATABASE_URL"),
-		JWTSecret:    os.Getenv("JWT_SECRET"),
-		AccessTTL:    accessTTL,
-		RefreshTTL:   refreshTTL,
-		CookieSecure: os.Getenv("COOKIE_SECURE") == "true",
+		HTTPAddr:       cmp.Or(os.Getenv("HTTP_ADDR"), ":8080"),
+		DatabaseURL:    os.Getenv("DATABASE_URL"),
+		JWTSecret:      os.Getenv("JWT_SECRET"),
+		AccessTTL:      accessTTL,
+		RefreshTTL:     refreshTTL,
+		CookieSecure:   os.Getenv("COOKIE_SECURE") == "true",
+		VAPIDPublic:    vapidPublic,
+		VAPIDPrivate:   vapidPrivate,
+		VAPIDSubject:   cmp.Or(strings.TrimSpace(os.Getenv("VAPID_SUBJECT")), "dev@duekeep.local"),
+		VAPIDGenerated: generated,
 	}
 	if cfg.DatabaseURL == "" {
 		return config{}, errors.New("DATABASE_URL is required")

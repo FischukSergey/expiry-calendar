@@ -17,21 +17,27 @@ import (
 const (
 	otherKindID     = "33333333-3333-3333-3333-333333333309"
 	itemTitleDomain = "Домен"
+	fixtureUUID     = "11111111-1111-1111-1111-111111111111"
+	kindColorBlack  = "#000"
+	kindSlugOther   = "other"
+	kindNameOther   = "Прочее"
+	expiresSoon     = "2026-09-10"
+	currencyUSD     = "USD"
 )
 
 func itemsAPI(t *testing.T) *handler.API {
 	t.Helper()
 	kinds := newMemKinds()
 	_, err := kinds.Create(t.Context(), model.Kind{
-		Slug: "other", Name: "Прочее", Color: "#000", AttrSchema: []model.AttrField{},
+		Slug: kindSlugOther, Name: kindNameOther, Color: kindColorBlack, AttrSchema: []model.AttrField{},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	kinds.mu.Lock()
-	k := kinds.byID["11111111-1111-1111-1111-111111111111"]
+	k := kinds.byID[fixtureUUID]
 	k.ID = otherKindID
-	delete(kinds.byID, "11111111-1111-1111-1111-111111111111")
+	delete(kinds.byID, fixtureUUID)
 	kinds.byID[otherKindID] = k
 	kinds.mu.Unlock()
 

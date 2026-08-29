@@ -18,15 +18,15 @@ func notifyAPI(t *testing.T) (*handler.API, *service.Ticker, *memItems) {
 	t.Helper()
 	kinds := newMemKinds()
 	_, err := kinds.Create(t.Context(), model.Kind{
-		Slug: "other", Name: "Прочее", Color: "#000", AttrSchema: []model.AttrField{},
+		Slug: kindSlugOther, Name: kindNameOther, Color: kindColorBlack, AttrSchema: []model.AttrField{},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	kinds.mu.Lock()
-	k := kinds.byID["11111111-1111-1111-1111-111111111111"]
+	k := kinds.byID[fixtureUUID]
 	k.ID = otherKindID
-	delete(kinds.byID, "11111111-1111-1111-1111-111111111111")
+	delete(kinds.byID, fixtureUUID)
 	kinds.byID[otherKindID] = k
 	kinds.mu.Unlock()
 
@@ -41,6 +41,7 @@ func notifyAPI(t *testing.T) (*handler.API, *service.Ticker, *memItems) {
 		Kinds:         service.NewKind(kinds),
 		Categories:    service.NewCategory(newMemCats()),
 		Items:         items,
+		Overview:      service.NewOverview(store, clk),
 		Notifications: service.NewNotification(notes),
 		Hub:           hub,
 		JWTSecret:     []byte("handler-test-secret"),
@@ -55,7 +56,7 @@ func TestNotificationsReadFlow(t *testing.T) {
 	tok := testJWT(t, string(model.RoleViewer))
 	created, err := store.Create(t.Context(), model.Item{
 		Title: itemTitleDomain, KindID: otherKindID, Status: model.StatusActive,
-		ExpiresAt: "2026-09-10", NotifyBeforeDays: 30, Tags: []string{}, Attrs: map[string]any{},
+		ExpiresAt: expiresSoon, NotifyBeforeDays: 30, Tags: []string{}, Attrs: map[string]any{},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -105,6 +106,50 @@ func TestNotificationsReadFlow(t *testing.T) {
 	adminJSON(t, api, tok, http.MethodPost, "/api/v1/notifications/read-all", "", http.StatusNoContent)
 	if listNotifications(t, api, tok, "unread=true").Total != 0 {
 		t.Fatal("read-all left unread")
+	}
+}
+
+func TestTickerIntegrationStatusAndNotification(t *testing.T) {
+	t.Parallel()
+	api, tkr, store := notifyAPI(t)
+	tok := testJWT(t, string(model.RoleViewer))
+	created, err := store.Create(t.Context(), model.Item{
+		Title: itemTitleDomain, KindID: otherKindID, Status: model.StatusActive,
+		ExpiresAt: expiresSoon, NotifyBeforeDays: 30, Tags: []string{}, Attrs: map[string]any{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tkr.Tick(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.ByID(t.Context(), created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != model.StatusExpiring {
+		t.Fatalf("status %s", got.Status)
+	}
+	list := listNotifications(t, api, tok, "")
+	if list.Total != 1 || list.Items[0].ToStatus != model.StatusExpiring || list.Items[0].ItemID != created.ID {
+		t.Fatalf("notes %+v", list)
+	}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/dashboard", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	api.Router().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("dashboard %d %s", rec.Code, rec.Body.String())
+	}
+	var dash model.Dashboard
+	if err := json.NewDecoder(rec.Body).Decode(&dash); err != nil {
+		t.Fatal(err)
+	}
+	if len(dash.ExpirationsByMonth) != 6 || len(dash.Soonest) != 1 {
+		t.Fatalf("series %+v", dash)
+	}
+	if dash.Soonest[0].ID != created.ID || dash.Soonest[0].Status != model.StatusExpiring {
+		t.Fatalf("soonest %+v", dash.Soonest)
 	}
 }
 

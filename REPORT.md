@@ -2,6 +2,27 @@
 
 Журнал создания Duekeep. Записи добавляются по ходу работы, не в конце.
 
+## 2026-08-29 — Sprint 4 закрыт
+
+- DoD: Tick меняет статус и пишет notification; SSE видит event; dashboard отдаёт series (6 месяцев, soonest).
+- HTTP: `TestTickerIntegrationStatusAndNotification`, `TestDashboardViewerTwoCurrencies` (RUB и USD не сливаются).
+- Контракт сверен с роутером и OpenAPI. Limitations: UI в Sprint 5, SSE один процесс, integration без Postgres.
+- `task test` / `task lint` зелёные. Код Sprint 4 ещё не закоммичен.
+
+## 2026-08-29 — Sprint 4, раздел 4 (Обзор)
+
+- `GET /dashboard`: counts, upcoming_cost по валютам без конвертации, 6 месяцев истечений, cost_by_kind, soonest (10).
+- `GET /calendar?year=&month=`: дни только с записями. cancelled/archived не входят.
+- Один `ListOpen`, агрегаты в service. `task test` / `task lint` зелёные.
+
+## 2026-08-29 — Sprint 4, раздел 3 (Web Push)
+
+- Миграция `010_push_subscriptions.sql`: unique `endpoint`, индекс по `user_id`.
+- API: `GET /push/vapid-public`, `POST`/`DELETE /push/subscribe` (auth, viewer). Upsert по endpoint; unsubscribe идемпотентен.
+- Тикер через `service.Fanout`: после INSERT — SSE и Web Push всем подпискам (данные общие). Payload как у SSE.
+- `410 Gone` от push-сервиса удаляет строку. `webpush-go`; VAPID из env, иначе генерация на процесс.
+- `task test` / `task lint` зелёные.
+
 ## 2026-08-28 — долг после v1: конфиг
 
 - Тикер 60 с оставить до сдачи; после v1 сменить (домен — день, не минута).

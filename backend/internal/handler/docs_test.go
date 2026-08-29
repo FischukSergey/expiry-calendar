@@ -49,6 +49,12 @@ func TestOpenAPISpec(t *testing.T) {
 	if !strings.Contains(body, "/api/v1/events") {
 		t.Fatalf("spec without events: %s", body)
 	}
+	if !strings.Contains(body, "/api/v1/push/vapid-public") || !strings.Contains(body, "/api/v1/push/subscribe") {
+		t.Fatalf("spec without push: %s", body)
+	}
+	if !strings.Contains(body, "/api/v1/dashboard") || !strings.Contains(body, "/api/v1/calendar") {
+		t.Fatalf("spec without overview: %s", body)
+	}
 }
 
 func TestDocsRedirect(t *testing.T) {

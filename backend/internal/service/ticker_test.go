@@ -13,6 +13,12 @@ import (
 	"duekeep/internal/service"
 )
 
+const (
+	itemTitleDomain = "Домен"
+	expiresPast     = "2026-08-01"
+	calendarDay     = "2026-08-21"
+)
+
 type tickItems struct {
 	mu   sync.Mutex
 	byID map[string]model.Item
@@ -97,7 +103,7 @@ func TestTickerMovesStatusAndNotifies(t *testing.T) {
 	notes := &tickNotes{}
 	today := time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC)
 	active := store.put(model.Item{
-		Title: "Домен", Status: model.StatusActive,
+		Title: itemTitleDomain, Status: model.StatusActive,
 		ExpiresAt: "2026-09-10", NotifyBeforeDays: 30,
 	})
 	tkr := service.NewTicker(store, notes, nopTx, clock.Fixed{T: today}, nil)
@@ -124,11 +130,11 @@ func TestTickerSkipsCancelledArchived(t *testing.T) {
 	notes := &tickNotes{}
 	cancelled := store.put(model.Item{
 		Title: "Отмена", Status: model.StatusCancelled,
-		ExpiresAt: "2026-08-01", NotifyBeforeDays: 30,
+		ExpiresAt: expiresPast, NotifyBeforeDays: 30,
 	})
 	archived := store.put(model.Item{
 		Title: "Архив", Status: model.StatusArchived,
-		ExpiresAt: "2026-08-01", NotifyBeforeDays: 30,
+		ExpiresAt: expiresPast, NotifyBeforeDays: 30,
 	})
 	tkr := service.NewTicker(store, notes, nopTx, clock.Fixed{
 		T: time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC),
@@ -192,7 +198,7 @@ func TestTickerPublishesToBus(t *testing.T) {
 	notes := &tickNotes{}
 	bus := &recBus{}
 	store.put(model.Item{
-		Title: "Домен", Status: model.StatusActive,
+		Title: itemTitleDomain, Status: model.StatusActive,
 		ExpiresAt: "2026-09-10", NotifyBeforeDays: 30,
 	})
 	tkr := service.NewTicker(store, notes, nopTx, clock.Fixed{

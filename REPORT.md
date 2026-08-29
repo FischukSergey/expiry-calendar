@@ -2,6 +2,19 @@
 
 Журнал создания Duekeep. Записи добавляются по ходу работы, не в конце.
 
+## 2026-08-29 — Sprint 5 закрыт
+
+- §4: адаптив (сайдбар / табы, карточки списка, календарь, safe-area), loading/error/empty + «Повторить».
+- Контракт CSV сверен с роутером и OpenAPI. Limitations: нет офлайн-CRUD, seed 50+ и полная сверка спеки — Sprint 6.
+- DoD: login/dashboard/список/карточка/календарь/CSV; viewer без кнопок записи; PWA-артефакты на localhost. `task lint` / `task test` зелёные.
+
+## 2026-08-29 — Sprint 5, раздел 3 (Realtime и PWA)
+
+- После логина: EventSource на `/events?access_token=`. Событие `notification` инвалидирует уведомления, список, дашборд, календарь. Истёкший access — refresh и новое соединение.
+- Пуши: разрешение Notification, VAPID, subscribe; выход снимает подписку. SW показывает системное уведомление, клик открывает карточку.
+- PWA: `vite-plugin-pwa` injectManifest, manifest Duekeep standalone, иконки 192/512, Workbox network-first для HTML/API (без SSE), офлайн-заглушка «нет сети».
+- `beforeinstallprompt` — баннер «Установить» и кнопка в профиле. `task lint` / сборка зелёные.
+
 ## 2026-08-29 — Sprint 5, раздел 2 (Экраны)
 
 - SPA: React Router, TanStack Query, react-hook-form + zod, Recharts. Тёмная тема как у заглушки Sprint 1.

@@ -22,7 +22,9 @@ export function AuditPage() {
     <div>
       <PageTitle title="Журнал аудита" subtitle="Только admin. Снимки без url и подсказок аккаунта." />
       {list.isPending ? <PageState title="Загрузка журнала…" /> : null}
-      {list.isError ? <PageState title="Ошибка журнала" hint={list.error.message} /> : null}
+      {list.isError ? (
+        <PageState title="Ошибка журнала" hint={list.error.message} onRetry={() => void list.refetch()} />
+      ) : null}
       {list.data && list.data.items.length === 0 ? <PageState title="Пока пусто" /> : null}
 
       <ul className="space-y-2">

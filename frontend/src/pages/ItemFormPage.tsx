@@ -182,7 +182,7 @@ export function ItemFormPage() {
     return <PageState title="Загрузка формы…" />
   }
   if (isEdit && card.isError) {
-    return <PageState title="Запись не найдена" hint={card.error.message} />
+    return <PageState title="Запись не найдена" hint={card.error.message} onRetry={() => void card.refetch()} />
   }
 
   const flatCats = flattenCategories(cats.data?.items ?? [])

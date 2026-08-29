@@ -68,15 +68,24 @@ export function PageState({
   title,
   hint,
   action,
+  onRetry,
 }: {
   title: string
   hint?: string
   action?: ReactNode
+  onRetry?: () => void
 }) {
   return (
-    <div className="rounded-xl border border-dashed border-slate-700 px-6 py-16 text-center">
+    <div className="rounded-xl border border-dashed border-slate-700 px-4 py-12 text-center sm:px-6 sm:py-16">
       <p className="text-lg font-medium text-slate-100">{title}</p>
       {hint ? <p className="mt-2 text-sm text-slate-400">{hint}</p> : null}
+      {onRetry ? (
+        <div className="mt-4">
+          <Button type="button" variant="outline" onClick={onRetry}>
+            Повторить
+          </Button>
+        </div>
+      ) : null}
       {action ? <div className="mt-4">{action}</div> : null}
     </div>
   )

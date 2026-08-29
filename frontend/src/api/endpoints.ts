@@ -142,3 +142,15 @@ export function readAllNotifications(): Promise<void> {
 export function listAudit(page: number, perPage: number): Promise<AuditList> {
   return api<AuditList>('/api/v1/audit', { query: { page, per_page: perPage } })
 }
+
+export function getVapidPublic(): Promise<{ public_key: string }> {
+  return api<{ public_key: string }>('/api/v1/push/vapid-public')
+}
+
+export function subscribePush(body: { endpoint: string; keys: { p256dh: string; auth: string } }): Promise<void> {
+  return api<void>('/api/v1/push/subscribe', { method: 'POST', body })
+}
+
+export function unsubscribePush(endpoint: string): Promise<void> {
+  return api<void>('/api/v1/push/subscribe', { method: 'DELETE', body: { endpoint } })
+}

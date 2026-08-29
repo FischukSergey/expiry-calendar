@@ -52,7 +52,7 @@ export function ItemCardPage() {
     return <PageState title="Загрузка карточки…" />
   }
   if (card.isError) {
-    return <PageState title="Запись не найдена" hint={card.error.message} />
+    return <PageState title="Запись не найдена" hint={card.error.message} onRetry={() => void card.refetch()} />
   }
 
   const it = card.data.item

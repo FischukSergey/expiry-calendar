@@ -37,15 +37,32 @@
 
 ## 3) Realtime и PWA
 
-- [ ] SSE после логина
-- [ ] Разрешение пушей + subscribe
-- [ ] Manifest + иконки
-- [ ] Service worker, офлайн-заглушка
-- [ ] Подсказка установки
+- [x] SSE после логина
+  Примечание: EventSource `?access_token=`; на notification инвалидация ленты/списка/дашборда/календаря; после refresh — новое соединение.
+- [x] Разрешение пушей + subscribe
+  Примечание: после входа `Notification` + `pushManager.subscribe` + `POST /push/subscribe`. Профиль: разрешить / отписаться.
+- [x] Manifest + иконки
+  Примечание: Duekeep, standalone, 192/512 PNG.
+- [x] Service worker, офлайн-заглушка
+  Примечание: injectManifest + Workbox; HTML/API network-first; SSE не кэшируем; `offline.html`. Клик пуша → `/items/:id`.
+- [x] Подсказка установки
+  Примечание: `beforeinstallprompt` — баннер в layout и кнопка в профиле.
 
 ## 4) Качество
 
-- [ ] Адаптив desktop/mobile
-- [ ] Loading / error / empty
-- [ ] [`api-sprint-5.md`](api-sprint-5.md)
-- [ ] [`known-limitations-sprint-5.md`](known-limitations-sprint-5.md)
+- [x] Адаптив desktop/mobile
+  Примечание: сайдбар / нижние табы + safe-area; список карточками на узком экране; календарь компактный; таблицы с горизонтальным скроллом.
+- [x] Loading / error / empty
+  Примечание: `PageState` на экранах; ошибка — «Повторить»; импорт без файла и пустые списки.
+- [x] [`api-sprint-5.md`](api-sprint-5.md)
+  Примечание: export/import сверены с хендлерами и OpenAPI (`exportItems`, `importItems`).
+- [x] [`known-limitations-sprint-5.md`](known-limitations-sprint-5.md)
+  Примечание: нет офлайн-CRUD, seed 50+ в Sprint 6, нет UI kinds/bulk.
+
+## 5) DoD
+
+- [x] Демо-сценарий без Swagger
+  Примечание: login → dashboard (RUB+USD) → список/карточка → calendar → export CSV → import dry_run. Viewer: чтение 200, мутации 403, кнопок записи в UI нет.
+- [x] PWA на localhost
+  Примечание: manifest, sw.js no-cache, иконки 192/512, offline.html. Установка — Chrome, часто со второго захода.
+- [x] `task lint` / `task test` зелёные

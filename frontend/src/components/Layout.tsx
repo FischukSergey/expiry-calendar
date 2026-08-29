@@ -3,6 +3,9 @@ import { useQuery } from '@tanstack/react-query'
 
 import { listNotifications } from '../api/endpoints.ts'
 import { useAuth } from '../hooks/useAuth.ts'
+import { usePush } from '../hooks/usePush.ts'
+import { useSSE } from '../hooks/useSSE.ts'
+import { InstallBanner } from './InstallBanner.tsx'
 
 type NavItem = { to: string; label: string; admin?: boolean; badge?: boolean }
 
@@ -33,6 +36,8 @@ function linkClass(active: boolean): string {
 
 export function Layout() {
   const { user, isAdmin } = useAuth()
+  useSSE()
+  usePush()
   const unread = useQuery({
     queryKey: ['notifications', 'unread-count'],
     queryFn: () => listNotifications({ unread: true, page: 1, per_page: 1 }),
@@ -68,7 +73,8 @@ export function Layout() {
         </NavLink>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col pb-16 lg:pb-0">
+      <div className="flex min-w-0 flex-1 flex-col pb-[calc(4.25rem+env(safe-area-inset-bottom))] lg:pb-0">
+        <InstallBanner />
         <header className="flex items-center justify-between border-b border-slate-800 px-4 py-3 lg:hidden">
           <span className="text-sm font-semibold tracking-wide">Duekeep</span>
           <NavLink to="/notifications" className="relative text-sm text-slate-300">
@@ -85,7 +91,7 @@ export function Layout() {
         </main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-5 border-t border-slate-800 bg-slate-950/95 px-1 py-1 backdrop-blur lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-5 border-t border-slate-800 bg-slate-950/95 px-1 py-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden">
         {mobileTabs.map((item) => (
           <NavLink
             key={item.to}

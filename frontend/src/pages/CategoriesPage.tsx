@@ -34,7 +34,7 @@ export function CategoriesPage() {
     return <PageState title="Загрузка категорий…" />
   }
   if (cats.isError) {
-    return <PageState title="Ошибка категорий" hint={cats.error.message} />
+    return <PageState title="Ошибка категорий" hint={cats.error.message} onRetry={() => void cats.refetch()} />
   }
 
   return (
@@ -76,6 +76,7 @@ export function CategoriesPage() {
         </form>
       ) : null}
 
+      {cats.data.items.length === 0 ? <PageState title="Категорий нет" /> : null}
       <ul className="space-y-2">
         {cats.data.items.map((node) => (
           <TreeNode

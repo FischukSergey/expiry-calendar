@@ -2,7 +2,7 @@
 
 Календарь истечений: домены, подписки, аренда, договоры, страховки.
 
-Backend Sprint 1: `GET /healthz`. Swagger: `http://localhost:8080/docs` (через UI — `http://localhost/docs`). Frontend: заглушка на `http://localhost` (nginx проксирует `/api`, `/healthz`, `/docs`).
+UI: `http://localhost`. Swagger: `http://localhost/docs` или `:8080/docs`. nginx проксирует `/api`, `/healthz`, `/docs`.
 
 Демо-аккаунты (только локальный стенд, не прод-секреты):
 
@@ -36,4 +36,4 @@ task test            # go test -race
 
 ## Статус
 
-Sprint 1 закрыт (каркас). Дальше — Sprint 2 (auth и справочники).
+Sprint 5 закрыт (экраны, CSV, PWA). Дальше — [Sprint 6](docs/sprint-6-plan.md) (сдача, полный seed, сверка OpenAPI).

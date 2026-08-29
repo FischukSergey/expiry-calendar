@@ -85,22 +85,25 @@ export function CalendarPage() {
       />
 
       {cal.isPending ? <PageState title="Загрузка месяца…" /> : null}
-      {cal.isError ? <PageState title="Ошибка календаря" hint={cal.error.message} /> : null}
+      {cal.isError ? (
+        <PageState title="Ошибка календаря" hint={cal.error.message} onRetry={() => void cal.refetch()} />
+      ) : null}
 
       {cal.data ? (
         <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
           <div className="rounded-xl border border-slate-800 p-3">
-            <div className="grid grid-cols-7 text-center text-xs text-slate-500">
+            <div className="grid grid-cols-7 text-center text-[10px] text-slate-500 sm:text-xs">
               {weekdays.map((d) => (
-                <div key={d} className="py-2">
-                  {d}
+                <div key={d} className="py-1 sm:py-2">
+                  <span className="sm:hidden">{d.slice(0, 1)}</span>
+                  <span className="hidden sm:inline">{d}</span>
                 </div>
               ))}
             </div>
-            <div className="grid grid-cols-7 gap-1">
+            <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
               {cells(year, month).map((day, i) => {
                 if (!day) {
-                  return <div key={`e-${i}`} className="min-h-16" />
+                  return <div key={`e-${i}`} className="min-h-10 sm:min-h-16" />
                 }
                 const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
                 const items = byDate.get(date) ?? []
@@ -110,7 +113,7 @@ export function CalendarPage() {
                     key={date}
                     type="button"
                     onClick={() => setSelected(items.length ? date : null)}
-                    className={`min-h-16 rounded-lg border p-1 text-left text-sm ${
+                    className={`min-h-10 rounded-lg border p-0.5 text-left text-xs sm:min-h-16 sm:p-1 sm:text-sm ${
                       active ? 'border-teal-500 bg-teal-500/10' : 'border-transparent hover:bg-slate-900'
                     }`}
                   >

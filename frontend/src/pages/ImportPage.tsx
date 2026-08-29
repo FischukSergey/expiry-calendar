@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../api/client.ts'
 import { importItems, listKinds } from '../api/endpoints.ts'
 import type { CSVImportPreview, CSVImportResult } from '../api/types.ts'
-import { Button, ErrorBanner, Field, PageTitle, Select } from '../components/ui.tsx'
+import { Button, ErrorBanner, Field, PageState, PageTitle, Select } from '../components/ui.tsx'
 import { csvFields, parseCSVHeaders } from '../lib/format.ts'
 
 function isPreview(v: CSVImportPreview | CSVImportResult): v is CSVImportPreview {
@@ -109,6 +109,8 @@ export function ImportPage() {
             onChange={(e) => void onFile(e.target.files?.[0] ?? null)}
           />
         </Field>
+
+        {!file ? <PageState title="Файл не выбран" hint="CSV с заголовком в первой строке" /> : null}
 
         {headers.length > 0 ? (
           <div className="grid gap-3 sm:grid-cols-2">

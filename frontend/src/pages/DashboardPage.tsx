@@ -31,7 +31,7 @@ export function DashboardPage() {
     return <PageState title="Загрузка обзора…" />
   }
   if (dash.isError) {
-    return <PageState title="Не удалось загрузить дашборд" hint={dash.error.message} />
+    return <PageState title="Не удалось загрузить дашборд" hint={dash.error.message} onRetry={() => void dash.refetch()} />
   }
 
   const data = dash.data
@@ -63,6 +63,9 @@ export function DashboardPage() {
       </div>
 
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        {data.upcoming_cost.length === 0 ? (
+          <p className="text-sm text-slate-500">Нет регулярных расходов в открытых записях</p>
+        ) : null}
         {data.upcoming_cost.map((row) => (
           <div key={row.currency} className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
             <p className="text-xs tracking-wide text-slate-400 uppercase">Расход · {row.currency}</p>
@@ -132,8 +135,8 @@ export function DashboardPage() {
         {data.soonest.length === 0 ? (
           <PageState title="Нет открытых записей" />
         ) : (
-          <div className="overflow-hidden rounded-xl border border-slate-800">
-            <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto rounded-xl border border-slate-800">
+            <table className="w-full min-w-[480px] text-left text-sm">
               <thead className="bg-slate-900 text-xs tracking-wide text-slate-400 uppercase">
                 <tr>
                   <th className="px-3 py-2 font-medium">Запись</th>

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { getMe, login as loginReq, logout as logoutReq, logoutAll as logoutAllReq, register as registerReq } from '../api/endpoints.ts'
 import { refreshSession, setAccessToken, setOnAuthLost } from '../api/client.ts'
 import type { PublicUser } from '../api/types.ts'
+import { disablePush } from '../hooks/usePush.ts'
 import { AuthContext, type AuthContextValue } from './context.ts'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -60,6 +61,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
+      await disablePush()
+    } catch {
+      /* подписки может не быть */
+    }
+    try {
       await logoutReq()
     } finally {
       setAccessToken(null)
@@ -68,6 +74,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const logoutAll = useCallback(async () => {
+    try {
+      await disablePush()
+    } catch {
+      /* подписки может не быть */
+    }
     try {
       await logoutAllReq()
     } finally {

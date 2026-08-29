@@ -17,6 +17,7 @@ export class ApiError extends Error {
 let accessToken: string | null = null
 let refreshInFlight: Promise<boolean> | null = null
 let onAuthLost: (() => void) | null = null
+const accessListeners = new Set<(token: string | null) => void>()
 
 export function setOnAuthLost(fn: (() => void) | null): void {
   onAuthLost = fn
@@ -26,8 +27,21 @@ export function getAccessToken(): string | null {
   return accessToken
 }
 
+export function subscribeAccess(fn: (token: string | null) => void): () => void {
+  accessListeners.add(fn)
+  return () => {
+    accessListeners.delete(fn)
+  }
+}
+
 export function setAccessToken(token: string | null): void {
+  if (accessToken === token) {
+    return
+  }
   accessToken = token
+  for (const fn of accessListeners) {
+    fn(token)
+  }
 }
 
 function isAuthPath(path: string): boolean {
@@ -47,14 +61,14 @@ export async function refreshSession(): Promise<boolean> {
         body: '{}',
       })
       if (!res.ok) {
-        accessToken = null
+        setAccessToken(null)
         return false
       }
       const pair = (await res.json()) as TokenPair
-      accessToken = pair.access_token
+      setAccessToken(pair.access_token)
       return true
     } catch {
-      accessToken = null
+      setAccessToken(null)
       return false
     } finally {
       refreshInFlight = null

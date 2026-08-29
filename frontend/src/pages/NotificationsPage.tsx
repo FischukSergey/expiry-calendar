@@ -53,7 +53,9 @@ export function NotificationsPage() {
       />
 
       {list.isPending ? <PageState title="Загрузка ленты…" /> : null}
-      {list.isError ? <PageState title="Ошибка ленты" hint={list.error.message} /> : null}
+      {list.isError ? (
+        <PageState title="Ошибка ленты" hint={list.error.message} onRetry={() => void list.refetch()} />
+      ) : null}
       {list.data && list.data.items.length === 0 ? <PageState title="Пусто" hint="Новых событий нет" /> : null}
 
       <ul className="space-y-2">

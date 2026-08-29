@@ -2,9 +2,9 @@ openapi: 3.0.3
 info:
   title: Duekeep API
   version: 0.2.0
-  description: |
-    Календарь истечений. Спека растёт вместе со спринтами, без кодогенерации.
-    Sprint 4: notifications, ticker, SSE, Web Push, dashboard, calendar. Sprint 3: CRUD items, renew, bulk, audit.
+    description: |
+      Календарь истечений. Спека растёт вместе со спринтами, без кодогенерации.
+      Sprint 5: CSV import/export. Sprint 4: notifications, ticker, SSE, Web Push, dashboard, calendar. Sprint 3: CRUD items, renew, bulk, audit.
 servers:
   - url: /
     description: Тот же origin (frontend :80 или backend :8080)
@@ -18,7 +18,7 @@ tags:
   - name: Catalog
     description: Общие справочники kinds и categories (не per-user)
   - name: Items
-    description: Записи истечения, продление, bulk
+    description: Записи истечения, продление, bulk, CSV
   - name: Audit
     description: Журнал мутаций (admin)
   - name: Notifications
@@ -576,6 +576,105 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BulkResult"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+  /api/v1/items/export:
+    get:
+      tags: [Items]
+      summary: Экспорт CSV текущего фильтра
+      operationId: exportItems
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: kind_id
+          schema: { type: string, format: uuid }
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [active, expiring, expired, cancelled, archived]
+        - in: query
+          name: category_id
+          schema: { type: string, format: uuid }
+        - in: query
+          name: vendor
+          schema: { type: string }
+        - in: query
+          name: expires_from
+          schema: { type: string, format: date }
+        - in: query
+          name: expires_to
+          schema: { type: string, format: date }
+        - in: query
+          name: cost_from
+          schema: { type: integer }
+        - in: query
+          name: cost_to
+          schema: { type: integer }
+        - in: query
+          name: billing_period
+          schema:
+            type: string
+            enum: [one_time, monthly, yearly]
+        - in: query
+          name: tag
+          schema: { type: string }
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [expires_at, cost_amount, title, updated_at]
+        - in: query
+          name: order
+          schema:
+            type: string
+            enum: [asc, desc]
+      responses:
+        "200":
+          description: text/csv, до 10_000 строк
+          content:
+            text/csv:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/items/import:
+    post:
+      tags: [Items]
+      summary: Импорт CSV (admin)
+      operationId: importItems
+      parameters:
+        - in: query
+          name: dry_run
+          schema:
+            type: boolean
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, mapping]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                mapping:
+                  type: string
+                  description: JSON объект поле → колонка CSV, включая attrs.*
+      responses:
+        "200":
+          description: dry_run — превью; иначе {created}
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/CSVImportPreview"
+                  - $ref: "#/components/schemas/CSVImportResult"
         "403":
           $ref: "#/components/responses/Forbidden"
         "422":
@@ -1289,6 +1388,36 @@ components:
       required: [updated]
       properties:
         updated:
+          type: integer
+    CSVImportError:
+      type: object
+      required: [line, message]
+      properties:
+        line:
+          type: integer
+        message:
+          type: string
+    CSVImportPreview:
+      type: object
+      required: [rows, valid, errors, preview]
+      properties:
+        rows:
+          type: integer
+        valid:
+          type: integer
+        errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/CSVImportError"
+        preview:
+          type: array
+          items:
+            type: object
+    CSVImportResult:
+      type: object
+      required: [created]
+      properties:
+        created:
           type: integer
     Renewal:
       type: object

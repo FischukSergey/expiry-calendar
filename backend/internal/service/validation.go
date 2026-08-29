@@ -5,6 +5,7 @@ const (
 	fieldName      = "name"
 	fieldParentID  = "parent_id"
 	fieldKey       = "key"
+	fieldWant      = "want"
 	detailRequired = "required"
 	detailMinZero  = ">= 0"
 	detailUUID     = "uuid"

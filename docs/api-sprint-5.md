@@ -6,9 +6,9 @@
 
 ### `GET /api/v1/items/export`
 
-Auth (viewer и admin). Те же query, что `GET /items`, без пагинации (или с разумным max, например 10_000).
+Auth (viewer и admin). Те же query, что `GET /items`, без `page`/`per_page`. Потолок 10_000 строк.
 
-`200` `text/csv`. Колонки: `id`, `title`, `kind_slug`, `status`, `expires_at`, `cost_amount`, `currency`, `vendor`, `billing_period`, `category_name`, `tags`, плюс известные `attrs.*` из schema видов в выгрузке.
+`200` `text/csv; charset=utf-8`. Колонки: `id`, `title`, `kind_slug`, `status`, `expires_at`, `cost_amount`, `currency`, `vendor`, `billing_period`, `category_name`, `tags`, плюс известные `attrs.*` из schema видов в выгрузке.
 
 ## 2) Import
 
@@ -34,7 +34,9 @@ Admin. `multipart/form-data`:
 
 ### `POST /api/v1/items/import`
 
-Тот же multipart без dry_run или `dry_run=false`. Транзакция, audit `items.import`.
+Тот же multipart без dry_run или `dry_run=false`. Транзакция, audit `items.import` (`action=import`, `entity=item`, after = `{created, ids}`).
+
+Потолок строк — 5_000 (иначе `422`). Пустой файл / неизвестная колонка маппинга — `422`.
 
 `200`: `{ "created": 8 }` или `422` если есть ошибки валидации (ничего не пишем).
 

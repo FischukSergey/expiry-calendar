@@ -43,6 +43,9 @@ func TestOpenAPISpec(t *testing.T) {
 	if !strings.Contains(body, "/api/v1/items") || !strings.Contains(body, "/api/v1/audit") {
 		t.Fatalf("spec without items/audit: %s", body)
 	}
+	if !strings.Contains(body, "/api/v1/items/export") || !strings.Contains(body, "/api/v1/items/import") {
+		t.Fatalf("spec without csv: %s", body)
+	}
 	if !strings.Contains(body, "/api/v1/notifications") {
 		t.Fatalf("spec without notifications: %s", body)
 	}

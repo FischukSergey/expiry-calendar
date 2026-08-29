@@ -2,6 +2,12 @@
 
 Журнал создания Duekeep. Записи добавляются по ходу работы, не в конце.
 
+## 2026-08-29 — Sprint 5, раздел 1 (CSV API)
+
+- `GET /items/export`: тот же фильтр, что список; без пагинации, max 10_000; колонки + `attrs.*` из schema видов в выгрузке. Viewer можно.
+- `POST /items/import`: multipart `file` + JSON `mapping` (поле → колонка, включая `attrs.*`). `dry_run=true` — превью без записи; запись — одна транзакция и audit `import`. Ошибки строк — 422, ничего не пишем. Потолок 5_000.
+- Хендлер тонкий; маппинг и coerce attrs — unit в `service`. `task test` / `task lint` зелёные.
+
 ## 2026-08-29 — Sprint 4 закрыт
 
 - DoD: Tick меняет статус и пишет notification; SSE видит event; dashboard отдаёт series (6 месяцев, soonest).

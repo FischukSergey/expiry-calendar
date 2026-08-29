@@ -44,6 +44,14 @@ type ItemService interface {
 	Renew(ctx context.Context, id string, in model.RenewInput, actorID string) (model.Item, error)
 	Bulk(ctx context.Context, in model.BulkInput, actorID string) (model.BulkResult, error)
 	ListAudit(ctx context.Context, page model.Page) (model.AuditList, error)
+	Export(ctx context.Context, f model.ItemFilter) ([]byte, error)
+	Import(
+		ctx context.Context,
+		csvData []byte,
+		mapping map[string]string,
+		dryRun bool,
+		actorID string,
+	) (model.CSVImportPreview, model.CSVImportResult, error)
 }
 
 // OverviewService — дашборд и календарь.

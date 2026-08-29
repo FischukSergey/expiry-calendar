@@ -4,10 +4,14 @@
 
 ## 1) CSV API
 
-- [ ] `GET /api/v1/items/export` (фильтр как у списка)
-- [ ] `POST /api/v1/items/import?dry_run=true`
-- [ ] `POST /api/v1/items/import` пишет пачку + audit
-- [ ] Маппинг колонок, включая `attrs.*`
+- [x] `GET /api/v1/items/export` (фильтр как у списка)
+  Примечание: те же query, без page/per_page; потолок 10_000. Viewer 200, `text/csv`. `TestExportFilterAndAttrs`.
+- [x] `POST /api/v1/items/import?dry_run=true`
+  Примечание: multipart `file`+`mapping`; не пишет БД и audit. `TestImportDryRunDoesNotWrite`.
+- [x] `POST /api/v1/items/import` пишет пачку + audit
+  Примечание: одна транзакция; любая ошибка строки → 422, ничего не пишем. Audit `import`. `TestImportWritesBatchAndAudit`.
+- [x] Маппинг колонок, включая `attrs.*`
+  Примечание: ключ поля → имя колонки CSV. `NormalizeCSVMapping`, импорт `attrs.registrar`.
 
 ## 2) Экраны
 

@@ -14,7 +14,7 @@
 
 - Канон для проверяющего: `GET http://localhost:8080/docs` (Swagger UI). UI и `GET /openapi.yaml` подключены сразу после Sprint 1; в этом спринте сверяем спеку со всеми ручками 1–5.
 - `backend/openapi.yaml` не имеет права расходиться с markdown выше. При конфликте сначала правим оба, потом код.
-- Схема auth в OpenAPI: `bearerAuth`. Для refresh описать cookie и body.
+- Схема auth в OpenAPI: `bearerAuth`. Refresh: cookie `duekeep_refresh` и опциональный body; непустое тело важнее cookie. Set-Cookie на login/refresh.
 
 ## 2) `GET /docs`
 
@@ -31,3 +31,5 @@ Anon. HTML Swagger UI.
 - менять коды ошибок.
 
 Можно: описания, примеры, недостающие 4xx в spec.
+
+Дополнение дашборда (без переименования полей): у `expirations_by_month` добавлен `amounts` — сумма `cost_amount` по валютам за месяц срока. `count` сохранён.

@@ -40,6 +40,12 @@ const (
 	AuditDelete     = "delete"
 	AuditRenew      = "renew"
 	AuditBulk       = "bulk"
+	AuditImport     = "import"
+
+	// MaxCSVExport — потолок GET /items/export (без пагинации списка).
+	MaxCSVExport = 10_000
+	// MaxCSVImport — потолок строк POST /items/import; сверх — 422.
+	MaxCSVImport = 5_000
 )
 
 // Item — запись истечения. Даты started_at/expires_at — DateLayout.
@@ -148,6 +154,33 @@ type BulkInput struct {
 // BulkResult — ответ bulk.
 type BulkResult struct {
 	Updated int `json:"updated"`
+}
+
+// CSVImportError — ошибка строки импорта (line — номер в файле, 1 = заголовок).
+type CSVImportError struct {
+	Line    int    `json:"line"`
+	Message string `json:"message"`
+}
+
+// CSVPreviewRow — краткая строка dry_run, без url/account_hint.
+type CSVPreviewRow struct {
+	Title     string         `json:"title"`
+	KindSlug  string         `json:"kind_slug"`
+	ExpiresAt string         `json:"expires_at"`
+	Attrs     map[string]any `json:"attrs,omitempty"`
+}
+
+// CSVImportPreview — ответ POST /items/import?dry_run=true.
+type CSVImportPreview struct {
+	Rows    int              `json:"rows"`
+	Valid   int              `json:"valid"`
+	Errors  []CSVImportError `json:"errors"`
+	Preview []CSVPreviewRow  `json:"preview"`
+}
+
+// CSVImportResult — ответ успешной записи импорта.
+type CSVImportResult struct {
+	Created int `json:"created"`
 }
 
 // Renewal — строка истории продления.

@@ -66,6 +66,18 @@ func (nopItems) ListAudit(context.Context, model.Page) (model.AuditList, error) 
 	return model.AuditList{Items: []model.AuditEntry{}}, nil
 }
 
+func (nopItems) Export(context.Context, model.ItemFilter) ([]byte, error) {
+	return []byte("id,title\n"), nil
+}
+
+func (nopItems) Import(
+	context.Context, []byte, map[string]string, bool, string,
+) (model.CSVImportPreview, model.CSVImportResult, error) {
+	return model.CSVImportPreview{
+		Errors: []model.CSVImportError{}, Preview: []model.CSVPreviewRow{},
+	}, model.CSVImportResult{}, nil
+}
+
 type nopNotifications struct{}
 
 func (nopNotifications) List(context.Context, bool, model.Page) (model.NotificationList, error) {

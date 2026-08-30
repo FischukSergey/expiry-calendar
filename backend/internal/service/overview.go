@@ -51,8 +51,10 @@ func (s *Overview) Dashboard(ctx context.Context) (model.Dashboard, error) {
 		Soonest:            []model.DashboardItem{},
 	}
 	monthIdx := map[string]int{}
+	monthMoney := make([]map[string]int, len(out.ExpirationsByMonth))
 	for i, row := range out.ExpirationsByMonth {
 		monthIdx[row.Month] = i
+		monthMoney[i] = map[string]int{}
 	}
 	costByCur := map[string]*model.UpcomingCost{}
 	kindCost := map[string]*model.KindCost{}
@@ -77,6 +79,7 @@ func (s *Overview) Dashboard(ctx context.Context) (model.Dashboard, error) {
 		}
 		if i, ok := monthIdx[expires.Format(monthLayout)]; ok {
 			out.ExpirationsByMonth[i].Count++
+			monthMoney[i][it.Currency] += it.CostAmount
 		}
 		brief = append(brief, model.DashboardItem{
 			ID: it.ID, Title: it.Title, ExpiresAt: it.ExpiresAt, Status: it.Status, KindID: it.KindID,
@@ -93,6 +96,9 @@ func (s *Overview) Dashboard(ctx context.Context) (model.Dashboard, error) {
 		kindCost[key] = &model.KindCost{KindID: it.KindID, Currency: it.Currency, Amount: it.CostAmount}
 	}
 
+	for i := range out.ExpirationsByMonth {
+		out.ExpirationsByMonth[i].Amounts = sortedCurrencyAmounts(monthMoney[i])
+	}
 	out.UpcomingCost = sortedUpcoming(costByCur)
 	out.CostByKind = sortedKindCost(kindCost)
 	slices.SortFunc(brief, func(a, b model.DashboardItem) int {
@@ -153,9 +159,23 @@ func emptyMonths(today time.Time, n int) []model.MonthCount {
 	out := make([]model.MonthCount, n)
 	cur := clock.DateUTC(1, today.Month(), today.Year())
 	for i := range n {
-		out[i] = model.MonthCount{Month: cur.Format(monthLayout)}
+		out[i] = model.MonthCount{Month: cur.Format(monthLayout), Amounts: []model.CurrencyAmount{}}
 		cur = cur.AddDate(0, 1, 0)
 	}
+	return out
+}
+
+func sortedCurrencyAmounts(byCur map[string]int) []model.CurrencyAmount {
+	out := make([]model.CurrencyAmount, 0, len(byCur))
+	for cur, amt := range byCur {
+		if amt == 0 {
+			continue
+		}
+		out = append(out, model.CurrencyAmount{Currency: cur, Amount: amt})
+	}
+	slices.SortFunc(out, func(a, b model.CurrencyAmount) int {
+		return cmp.Compare(a.Currency, b.Currency)
+	})
 	return out
 }
 

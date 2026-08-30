@@ -161,6 +161,7 @@ func TestViewerForbiddenItemMutations(t *testing.T) {
 		{http.MethodDelete, "/api/v1/items/" + it.ID, ""},
 		{http.MethodPost, "/api/v1/items/" + it.ID + "/renew", `{"new_expires_at":"2028-01-01"}`},
 		{http.MethodPost, "/api/v1/items/bulk", `{"ids":["` + it.ID + `"],"status":"archived"}`},
+		{http.MethodPost, "/api/v1/items/import", ""},
 	} {
 		rec := httptest.NewRecorder()
 		var req *http.Request

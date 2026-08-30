@@ -107,7 +107,9 @@ func run() error {
 		CookieSecure:  cfg.CookieSecure,
 		RefreshTTL:    cfg.RefreshTTL,
 	})
-	tkr := service.NewTicker(itemsRepo, notesRepo, runTx, clk, &service.Fanout{SSE: hub, Push: pushSvc})
+	bus := &service.Fanout{SSE: hub, Push: pushSvc}
+	itemsSvc.SetNotify(notesRepo, bus)
+	tkr := service.NewTicker(itemsRepo, notesRepo, runTx, clk, bus)
 	go tkr.Run(ctx, 60*time.Second)
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,

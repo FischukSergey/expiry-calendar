@@ -1,14 +1,16 @@
 # API контракты Sprint 5
 
-Новое — только CSV. Остальное: [`api-sprint-4.md`](api-sprint-4.md).
+Новое — только CSV. Остальное: [`api-sprint-4.md`](api-sprint-4.md). Пути есть в `backend/openapi.yaml` (`exportItems`, `importItems`).
 
 ## 1) Export
 
 ### `GET /api/v1/items/export`
 
-Auth (viewer и admin). Те же query, что `GET /items`, без пагинации (или с разумным max, например 10_000).
+Auth (viewer и admin). Те же query, что `GET /items`, без `page`/`per_page`. Потолок 10_000 строк.
 
-`200` `text/csv`. Колонки: `id`, `title`, `kind_slug`, `status`, `expires_at`, `cost_amount`, `currency`, `vendor`, `billing_period`, `category_name`, `tags`, плюс известные `attrs.*` из schema видов в выгрузке.
+`200` `text/csv; charset=utf-8`, `Content-Disposition: attachment; filename="items.csv"`.
+
+Колонки: `id`, `title`, `kind_slug`, `status`, `expires_at`, `cost_amount`, `currency`, `vendor`, `billing_period`, `category_name`, `tags`, плюс известные `attrs.*` из schema видов в выгрузке.
 
 ## 2) Import
 
@@ -17,7 +19,9 @@ Auth (viewer и admin). Те же query, что `GET /items`, без пагин�
 Admin. `multipart/form-data`:
 
 - `file` — CSV
-- `mapping` — JSON: `{ "title": "Name", "kind_slug": "Type", "expires_at": "Until", "attrs.registrar": "Reg" }`
+- `mapping` — JSON: ключ поля → имя колонки. Допустимые поля: `title`, `kind_slug`, `expires_at`, `cost_amount`, `currency`, `vendor`, `billing_period`, `category_name`, `tags`, плюс `attrs.<key>` из schema выбранного вида.
+
+Пример: `{ "title": "Name", "kind_slug": "Type", "expires_at": "Until", "attrs.registrar": "Reg" }`
 
 `200`:
 
@@ -30,13 +34,15 @@ Admin. `multipart/form-data`:
 }
 ```
 
-Не пишет в БД.
+`preview` — до 20 валидных строк. Не пишет в БД и audit.
 
 ### `POST /api/v1/items/import`
 
-Тот же multipart без dry_run или `dry_run=false`. Транзакция, audit `items.import`.
+Тот же multipart без `dry_run` или `dry_run=false`. Одна транзакция, audit `action=import`, `entity=item`, after = `{created, ids}`.
 
-`200`: `{ "created": 8 }` или `422` если есть ошибки валидации (ничего не пишем).
+Потолок строк — 5_000 (иначе `422`). Пустой файл / неизвестная колонка или поле маппинга — `422`.
+
+`200`: `{ "created": 8 }` или `422` если есть ошибки валидации строк (ничего не пишем).
 
 ## 3) UI не является API
 

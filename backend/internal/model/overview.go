@@ -24,10 +24,17 @@ type UpcomingCost struct {
 	Yearly   int    `json:"yearly"`
 }
 
-// MonthCount — сколько истечений в календарном месяце UTC.
+// MonthCount — сроки в календарном месяце UTC: число записей и суммы по валютам.
 type MonthCount struct {
-	Month string `json:"month"`
-	Count int    `json:"count"`
+	Month   string           `json:"month"`
+	Count   int              `json:"count"`
+	Amounts []CurrencyAmount `json:"amounts"`
+}
+
+// CurrencyAmount — сумма cost_amount в одной валюте, без конвертации.
+type CurrencyAmount struct {
+	Currency string `json:"currency"`
+	Amount   int    `json:"amount"`
 }
 
 // KindCost — сумма cost_amount по типу и валюте (как записано, без периода).

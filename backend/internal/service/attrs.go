@@ -19,7 +19,7 @@ func ValidateAttrs(schema []model.AttrField, attrs map[string]any) error {
 			return model.Validation("unknown attr", map[string]any{fieldKey: key})
 		}
 		if !attrValueOK(f.Type, val) {
-			return model.Validation("invalid attr type", map[string]any{fieldKey: key, "want": f.Type})
+			return model.Validation("invalid attr type", map[string]any{fieldKey: key, fieldWant: f.Type})
 		}
 	}
 	for _, f := range schema {

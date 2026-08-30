@@ -29,6 +29,15 @@ func Run(ctx context.Context, pool *pgxpool.Pool, clk clock.Clock) error {
 	if err := seedItems(ctx, pool, clk); err != nil {
 		return fmt.Errorf("seed items: %w", err)
 	}
+	if err := seedRenewals(ctx, pool, clk); err != nil {
+		return fmt.Errorf("seed renewals: %w", err)
+	}
+	if err := seedAudit(ctx, pool, clk); err != nil {
+		return fmt.Errorf("seed audit: %w", err)
+	}
+	if err := seedNotifications(ctx, pool, clk); err != nil {
+		return fmt.Errorf("seed notifications: %w", err)
+	}
 	slog.InfoContext(ctx, "seed completed")
 	return nil
 }
@@ -86,7 +95,7 @@ ON CONFLICT (id) DO NOTHING`
 	return nil
 }
 
-// seedItems пишет несколько записей. Конфликт по id — обновляет даты и статус, не плодит строки.
+// seedItems пишет каталог. Конфликт по id — обновляет даты и статус, не плодит строки.
 func seedItems(ctx context.Context, pool *pgxpool.Pool, clk clock.Clock) error {
 	const q = `
 INSERT INTO items (
@@ -111,7 +120,7 @@ ON CONFLICT (id) DO UPDATE SET
 			return fmt.Errorf("unknown kind slug %s", it.kindSlug)
 		}
 		started, expires := itemDates(today, it.startDays, it.expireDays)
-		status := StatusAtWrite(today, expires, it.notifyDays)
+		status := itemComputedStatus(today, it)
 		attrs, err := marshalAttrs(it.attrs)
 		if err != nil {
 			return fmt.Errorf("attrs %s: %w", it.title, err)
@@ -125,4 +134,116 @@ ON CONFLICT (id) DO UPDATE SET
 		}
 	}
 	return nil
+}
+
+// seedRenewals пишет историю продлений. Конфликт по id — даты относительно today.
+func seedRenewals(ctx context.Context, pool *pgxpool.Pool, clk clock.Clock) error {
+	const q = `
+INSERT INTO renewals (
+    id, item_id, actor_id, old_expires_at, new_expires_at, old_cost, new_cost, comment, created_at
+) VALUES (
+    $1::uuid, $2::uuid, $3::uuid, $4, $5, $6, $7, $8, now()
+)
+ON CONFLICT (id) DO UPDATE SET
+    old_expires_at = EXCLUDED.old_expires_at,
+    new_expires_at = EXCLUDED.new_expires_at,
+    old_cost = EXCLUDED.old_cost,
+    new_cost = EXCLUDED.new_cost,
+    comment = EXCLUDED.comment`
+
+	today := clock.Today(clk)
+	for _, r := range renewalSeeds() {
+		it, ok := itemByN(r.itemN)
+		if !ok {
+			return fmt.Errorf("renewal %d: unknown item %d", r.n, r.itemN)
+		}
+		oldExp := today.AddDate(0, 0, r.oldExpire)
+		newExp := today.AddDate(0, 0, r.newExpire)
+		if _, err := pool.Exec(ctx, q,
+			renewalID(r.n), it.id, adminID, oldExp, newExp, r.oldCost, r.newCost, r.comment,
+		); err != nil {
+			return fmt.Errorf("insert renewal %d: %w", r.n, err)
+		}
+	}
+	return nil
+}
+
+// seedAudit пишет журнал. Конфликт по id — пропуск (снимок не освежаем).
+func seedAudit(ctx context.Context, pool *pgxpool.Pool, clk clock.Clock) error {
+	const q = `
+INSERT INTO audit_log (id, actor_id, action, entity, entity_id, before_json, after_json, created_at)
+VALUES ($1::uuid, $2::uuid, $3, 'item', $4::uuid, $5, $6, now())
+ON CONFLICT (id) DO NOTHING`
+
+	today := clock.Today(clk)
+	for _, a := range auditSeeds() {
+		it, ok := itemByN(a.itemN)
+		if !ok {
+			return fmt.Errorf("audit %d: unknown item %d", a.n, a.itemN)
+		}
+		after, err := seedAuditAfter(today, it)
+		if err != nil {
+			return fmt.Errorf("audit snap %s: %w", it.title, err)
+		}
+		var before []byte
+		if a.action == actionRenew {
+			rs := renewalSeeds()
+			if a.renewN < 1 || a.renewN > len(rs) {
+				return fmt.Errorf("audit %d: bad renewal %d", a.n, a.renewN)
+			}
+			old := rs[a.renewN-1]
+			before, err = json.Marshal(map[string]any{
+				"id":          it.id,
+				"title":       it.title,
+				"kind_id":     kindIDBySlug(it.kindSlug),
+				"expires_at":  dateOnly(today.AddDate(0, 0, old.oldExpire)),
+				"cost_amount": old.oldCost,
+			})
+			if err != nil {
+				return fmt.Errorf("audit before %s: %w", it.title, err)
+			}
+		}
+		if _, err := pool.Exec(ctx, q, auditID(a.n), adminID, a.action, it.id, before, after); err != nil {
+			return fmt.Errorf("insert audit %d: %w", a.n, err)
+		}
+	}
+	return nil
+}
+
+// seedNotifications пишет unread для expired/expiring. Конфликт по id — снова unread.
+func seedNotifications(ctx context.Context, pool *pgxpool.Pool, clk clock.Clock) error {
+	const q = `
+INSERT INTO notifications (id, item_id, to_status, title, read_at, created_at)
+VALUES ($1::uuid, $2::uuid, $3, $4, NULL, now())
+ON CONFLICT (id) DO UPDATE SET
+    title = EXCLUDED.title,
+    to_status = EXCLUDED.to_status,
+    item_id = EXCLUDED.item_id,
+    created_at = EXCLUDED.created_at,
+    read_at = NULL`
+
+	today := clock.Today(clk)
+	for _, it := range itemSeeds() {
+		st := itemComputedStatus(today, it)
+		if st != statusExpired && st != statusExpiring {
+			continue
+		}
+		n := itemNFromID(it.id)
+		if n < 1 {
+			return fmt.Errorf("notification: bad item id %s", it.id)
+		}
+		if _, err := pool.Exec(ctx, q, noteID(n), it.id, st, it.title); err != nil {
+			return fmt.Errorf("insert notification %s: %w", it.title, err)
+		}
+	}
+	return nil
+}
+
+func itemNFromID(id string) int {
+	var n int
+	_, err := fmt.Sscanf(id, "55555555-5555-5555-5555-5555555555%d", &n)
+	if err != nil {
+		return 0
+	}
+	return n
 }

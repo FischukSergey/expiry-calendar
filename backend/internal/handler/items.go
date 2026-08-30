@@ -2,12 +2,20 @@ package handler
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 
 	"duekeep/internal/middleware"
 	"duekeep/internal/model"
 	"duekeep/internal/service"
+)
+
+const (
+	maxCSVUpload = 2 << 20
+	detailInt    = "int"
 )
 
 type itemWrite struct {
@@ -67,35 +75,82 @@ func (a *API) listItems(w http.ResponseWriter, r *http.Request) {
 		writeDomainError(w, err)
 		return
 	}
-	var costFrom, costTo *int
-	if v := q.Get("cost_from"); v != "" {
-		n, err := strconv.Atoi(v)
-		if err != nil {
-			writeError(w, http.StatusUnprocessableEntity, "validation_error", "invalid cost_from")
-			return
-		}
-		costFrom = &n
+	f, err := itemFilterFromQuery(q)
+	if err != nil {
+		writeDomainError(w, err)
+		return
 	}
-	if v := q.Get("cost_to"); v != "" {
-		n, err := strconv.Atoi(v)
-		if err != nil {
-			writeError(w, http.StatusUnprocessableEntity, "validation_error", "invalid cost_to")
-			return
-		}
-		costTo = &n
-	}
-	out, err := a.items.List(r.Context(), model.ItemFilter{
-		Q: q.Get("q"), KindID: q.Get("kind_id"), Status: q.Get("status"),
-		CategoryID: q.Get("category_id"), Vendor: q.Get("vendor"),
-		ExpiresFrom: q.Get("expires_from"), ExpiresTo: q.Get("expires_to"),
-		CostFrom: costFrom, CostTo: costTo, BillingPeriod: q.Get("billing_period"),
-		Tag: q.Get("tag"), Sort: q.Get("sort"), Order: q.Get("order"),
-	}, page)
+	out, err := a.items.List(r.Context(), f, page)
 	if err != nil {
 		writeDomainError(w, err)
 		return
 	}
 	writeBytes(w, http.StatusOK, out)
+}
+
+func (a *API) exportItems(w http.ResponseWriter, r *http.Request) {
+	f, err := itemFilterFromQuery(r.URL.Query())
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	body, err := a.items.Export(r.Context(), f)
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="items.csv"`)
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(body) //nolint:gosec // G705: text/csv, не HTML.
+}
+
+func (a *API) importItems(w http.ResponseWriter, r *http.Request) {
+	dryRun, err := parseDryRun(r.URL.Query().Get("dry_run"))
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxCSVUpload)
+	if err := r.ParseMultipartForm(maxCSVUpload); err != nil { //nolint:gosec // G120: тело уже ограничено MaxBytesReader.
+		writeError(w, http.StatusUnprocessableEntity, "validation_error", "invalid multipart")
+		return
+	}
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "validation_error", "file required")
+		return
+	}
+	defer func() { _ = file.Close() }()
+	csvData, err := io.ReadAll(io.LimitReader(file, maxCSVUpload+1))
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "validation_error", "invalid file")
+		return
+	}
+	if len(csvData) > maxCSVUpload {
+		writeError(w, http.StatusUnprocessableEntity, "validation_error", "file too large")
+		return
+	}
+	var mapping map[string]string
+	rawMap := r.FormValue("mapping")
+	if rawMap == "" {
+		writeError(w, http.StatusUnprocessableEntity, "validation_error", "mapping required")
+		return
+	}
+	if err := json.Unmarshal([]byte(rawMap), &mapping); err != nil || mapping == nil {
+		writeError(w, http.StatusUnprocessableEntity, "validation_error", "invalid mapping")
+		return
+	}
+	preview, created, err := a.items.Import(r.Context(), csvData, mapping, dryRun, middleware.UserID(r.Context()))
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	if dryRun {
+		writeBytes(w, http.StatusOK, preview)
+		return
+	}
+	writeBytes(w, http.StatusOK, created)
 }
 
 func (a *API) createItem(w http.ResponseWriter, r *http.Request) {
@@ -276,19 +331,55 @@ func itemPatchFromBody(body itemPatchBody) (model.ItemPatch, error) {
 	return p, nil
 }
 
+func itemFilterFromQuery(q url.Values) (model.ItemFilter, error) {
+	var costFrom, costTo *int
+	if v := q.Get("cost_from"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return model.ItemFilter{}, model.Validation("invalid cost_from", map[string]any{"cost_from": detailInt})
+		}
+		costFrom = &n
+	}
+	if v := q.Get("cost_to"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return model.ItemFilter{}, model.Validation("invalid cost_to", map[string]any{"cost_to": detailInt})
+		}
+		costTo = &n
+	}
+	return model.ItemFilter{
+		Q: q.Get("q"), KindID: q.Get("kind_id"), Status: q.Get("status"),
+		CategoryID: q.Get("category_id"), Vendor: q.Get("vendor"),
+		ExpiresFrom: q.Get("expires_from"), ExpiresTo: q.Get("expires_to"),
+		CostFrom: costFrom, CostTo: costTo, BillingPeriod: q.Get("billing_period"),
+		Tag: q.Get("tag"), Sort: q.Get("sort"), Order: q.Get("order"),
+	}, nil
+}
+
+func parseDryRun(raw string) (bool, error) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "", "false", "0":
+		return false, nil
+	case "true", "1":
+		return true, nil
+	default:
+		return false, model.Validation("invalid dry_run", map[string]any{"dry_run": "true|false"})
+	}
+}
+
 func queryPage(pageRaw, perRaw string) (model.Page, error) {
 	page, per := 0, 0
 	var err error
 	if pageRaw != "" {
 		page, err = strconv.Atoi(pageRaw)
 		if err != nil {
-			return model.Page{}, model.Validation("invalid page", map[string]any{"page": "int"})
+			return model.Page{}, model.Validation("invalid page", map[string]any{"page": detailInt})
 		}
 	}
 	if perRaw != "" {
 		per, err = strconv.Atoi(perRaw)
 		if err != nil {
-			return model.Page{}, model.Validation("invalid per_page", map[string]any{"per_page": "int"})
+			return model.Page{}, model.Validation("invalid per_page", map[string]any{"per_page": detailInt})
 		}
 	}
 	return service.NormalizePage(page, per)

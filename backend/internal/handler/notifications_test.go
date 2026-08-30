@@ -35,6 +35,7 @@ func notifyAPI(t *testing.T) (*handler.API, *service.Ticker, *memItems) {
 	hub := sse.NewHub()
 	clk := clock.Fixed{T: time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC)}
 	items := service.NewItem(store, kinds, newMemCats(), newMemRenewals(), newMemAudit(), nopTx, clk)
+	items.SetNotify(notes, hub)
 	api := handler.New(handler.Deps{
 		Health:        fakeHealth{},
 		Auth:          fakeAuth{},
@@ -150,6 +151,28 @@ func TestTickerIntegrationStatusAndNotification(t *testing.T) {
 	}
 	if dash.Soonest[0].ID != created.ID || dash.Soonest[0].Status != model.StatusExpiring {
 		t.Fatalf("soonest %+v", dash.Soonest)
+	}
+}
+
+func TestPatchExpiresNotifies(t *testing.T) {
+	t.Parallel()
+	api, _, _ := notifyAPI(t)
+	tok := testJWT(t, string(model.RoleAdmin))
+	rec := adminJSON(t, api, tok, http.MethodPost, "/api/v1/items",
+		`{"title":"`+itemTitleDomain+`","kind_id":"`+otherKindID+`","expires_at":"2027-01-01"}`,
+		http.StatusCreated)
+	var it model.Item
+	if err := json.NewDecoder(rec.Body).Decode(&it); err != nil {
+		t.Fatal(err)
+	}
+	if listNotifications(t, api, tok, "unread=true").Total != 0 {
+		t.Fatal("active create must not notify")
+	}
+	adminJSON(t, api, tok, http.MethodPatch, "/api/v1/items/"+it.ID,
+		`{"expires_at":"2026-08-20"}`, http.StatusOK)
+	list := listNotifications(t, api, tok, "unread=true")
+	if list.Total != 1 || list.Items[0].ItemID != it.ID || list.Items[0].ToStatus != model.StatusExpired {
+		t.Fatalf("after patch %+v", list)
 	}
 }
 

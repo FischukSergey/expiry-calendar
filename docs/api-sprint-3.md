@@ -70,7 +70,7 @@ Admin. `{ "ids": ["..."], "category_id": "...", "status": "archived" }` — хо
 
 Admin. Пагинация как у items. Элемент: `id`, `actor_id`, `action`, `entity`, `entity_id`, `before_json`, `after_json`, `created_at`.
 
-`action`: `create` | `update` | `delete` | `renew` | `bulk`. `entity` = `item`.
+`action`: `create` | `update` | `delete` | `renew` | `bulk` | `import`. `entity` = `item`.
 
 `before_json` / `after_json` — краткий снимок: `id`, `title`, `kind_id`, `category_id`, `status`, `expires_at`, `cost_amount`, `attrs`. Нет `url`, `account_hint`, паролей. Create: before пустой; delete: after пустой; bulk: after = `{ids, category_id, status, updated}`.
 

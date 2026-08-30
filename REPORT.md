@@ -2,6 +2,71 @@
 
 Журнал создания Duekeep. Записи добавляются по ходу работы, не в конце.
 
+## 2026-08-30 — дашборд: суммы по месяцам
+
+- Столбцы «Сроки оплаты» заменены на «Суммы оплаты по месяцам».
+- API: у `expirations_by_month` добавлен `amounts` (сумма `cost_amount` по валютам, без конвертации). `count` сохранён.
+
+## 2026-08-29 — Sprint 6 старт
+
+- Спринты 1–5 закрыты. Дыры плана (reuse refresh, CSV dry_run, calendar, push 410) уже покрыты тестами; CI lint+test+build+frontend на месте; `/docs` живой.
+- Не хватает объёма seed (4 items вместо 50+), renewals/audit/unread, сверки OpenAPI cookie refresh, README под сдачу.
+- Дальше: каталог seed, спека, README, прогон на чистом томе.
+
+## 2026-08-29 — Sprint 6, seed и OpenAPI
+
+- Каталог: 52 items (даты от Clock.Today), ≥5 expired, ≥8 expiring, 1 cancelled, 1 archived. 22 renewals, 24 audit, unread на expired/expiring. Повторный seed не плодит строки; даты items/renewals обновляет.
+- CheckCatalog требует объём FUNCTIONAL. OpenAPI 1.0.0: cookie duekeep_refresh на refresh/logout, body важнее cookie. README под сдачу.
+
+## 2026-08-30 — правки формулировок формы
+
+- Обязательные поля на «Новая запись» со звёздочкой (название, тип, срок оплаты).
+- Тип записи и раздел разделены подсказками; при выборе типа подставляется раздел. В списке колонка раздела убрана.
+- «Начало» → «Начало периода». «Истекает/истекло» в UI → «срок оплаты» / «скоро срок» / «просрочено».
+
+## 2026-08-29 — фикс логина
+
+- TextInput/Select/TextArea не пробрасывали ref (React 18). register не видел поля → Zod «expected string, received undefined» на заполненной форме. Теперь forwardRef.
+
+## 2026-08-29 — Sprint 6 follow-up (демо)
+
+- Смена `expires_at` в админке пишет notification и SSE: иначе тикер не видит переход (статус уже пересчитан при PATCH). `TestPatchExpiresNotifies`.
+- VAPID в `deploy/local` зафиксирован — подписки не сбрасываются после рестарта backend.
+
+## 2026-08-29 — Sprint 6 закрыт
+
+- Чистый том: `docker compose down -v && docker compose up --build`. db/backend/frontend healthy.
+- Живые цифры: 2 users, 9 kinds, 13 categories, 52 items (6 expired, 12 expiring), 22 renewals, 24 audit, 18 unread. Повторный up — те же счётчики.
+- `/healthz` ok, `/docs` Swagger, UI `:80`, viewer 403 на запись. Calendar текущего месяца не пустой, CSV export отдаёт фильтр.
+- `task lint` / `task test` зелёные (83 теста). Limitations v1 без изменений. Код спринта ещё не закоммичен.
+
+## 2026-08-29 — Sprint 5 закрыт
+
+- §4: адаптив (сайдбар / табы, карточки списка, календарь, safe-area), loading/error/empty + «Повторить».
+- Контракт CSV сверен с роутером и OpenAPI. Limitations: нет офлайн-CRUD, seed 50+ и полная сверка спеки — Sprint 6.
+- DoD: login/dashboard/список/карточка/календарь/CSV; viewer без кнопок записи; PWA-артефакты на localhost. `task lint` / `task test` зелёные.
+
+## 2026-08-29 — Sprint 5, раздел 3 (Realtime и PWA)
+
+- После логина: EventSource на `/events?access_token=`. Событие `notification` инвалидирует уведомления, список, дашборд, календарь. Истёкший access — refresh и новое соединение.
+- Пуши: разрешение Notification, VAPID, subscribe; выход снимает подписку. SW показывает системное уведомление, клик открывает карточку.
+- PWA: `vite-plugin-pwa` injectManifest, manifest Duekeep standalone, иконки 192/512, Workbox network-first для HTML/API (без SSE), офлайн-заглушка «нет сети».
+- `beforeinstallprompt` — баннер «Установить» и кнопка в профиле. `task lint` / сборка зелёные.
+
+## 2026-08-29 — Sprint 5, раздел 2 (Экраны)
+
+- SPA: React Router, TanStack Query, react-hook-form + zod, Recharts. Тёмная тема как у заглушки Sprint 1.
+- Access в памяти; refresh/logout с `credentials: 'include'`; на 401 — один refresh и повтор. Холодный старт — refresh по cookie.
+- Экраны: вход/регистрация, дашборд, список (фильтры в URL + экспорт), форма + attrs, карточка/renew/история, календарь, категории, уведомления, аудит, импорт CSV, профиль.
+- Viewer не видит кнопок записи; импорт/аудит/форма закрыты маршрутом.
+- SSE, пуши и PWA — раздел 3. `npm run lint` / `typecheck` зелёные.
+
+## 2026-08-29 — Sprint 5, раздел 1 (CSV API)
+
+- `GET /items/export`: тот же фильтр, что список; без пагинации, max 10_000; колонки + `attrs.*` из schema видов в выгрузке. Viewer можно.
+- `POST /items/import`: multipart `file` + JSON `mapping` (поле → колонка, включая `attrs.*`). `dry_run=true` — превью без записи; запись — одна транзакция и audit `import`. Ошибки строк — 422, ничего не пишем. Потолок 5_000.
+- Хендлер тонкий; маппинг и coerce attrs — unit в `service`. `task test` / `task lint` зелёные.
+
 ## 2026-08-29 — Sprint 4 закрыт
 
 - DoD: Tick меняет статус и пишет notification; SSE видит event; dashboard отдаёт series (6 месяцев, soonest).

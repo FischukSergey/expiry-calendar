@@ -97,7 +97,7 @@ task test            # go test -race
 - Журнал: [REPORT.md](REPORT.md)
 - Прод и секреты: [deploy/README.md](deploy/README.md)
 
-На VPS — `.env` из [`.env.example`](.env.example), `chmod 600`, `task prod:up`. `.env` в git не класть.
+На VPS (`duekeep.ru`, `159.194.252.6`) — `.env` из [`.env.example`](.env.example), `chmod 600`, `task prod:up`. Хост и DNS: [deploy/README.md](deploy/README.md). `.env` в git не класть.
 
 ## Статус
 

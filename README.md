@@ -4,9 +4,20 @@
 
 Преподаватель клонирует репозиторий и поднимает стек одной командой.
 
+Сдача v1 (защита): тег [`v1.0.0`](https://github.com/FischukSergey/expiry-calendar/releases/tag/v1.0.0). Если `main` уже ушёл дальше — `git checkout v1.0.0` перед запуском.
+
 ## Запуск
 
-Нужны Docker и Docker Compose. Из корня репозитория:
+Нужны Docker и Docker Compose.
+
+```bash
+git clone https://github.com/FischukSergey/expiry-calendar.git
+cd expiry-calendar
+git checkout v1.0.0
+docker compose down -v && docker compose up --build
+```
+
+Уже в корне репозитория на теге сдачи:
 
 ```bash
 docker compose down -v && docker compose up --build
@@ -90,4 +101,4 @@ task test            # go test -race
 
 ## Статус
 
-Sprint 6 — сдача v1. После v1 изоляция данных: [Sprint 7](docs/sprint-7-plan.md).
+Сдача v1 — тег [`v1.0.0`](https://github.com/FischukSergey/expiry-calendar/releases/tag/v1.0.0) (Sprint 6). `main` после сдачи — развитие. Изоляция данных: [Sprint 7](docs/sprint-7-plan.md).

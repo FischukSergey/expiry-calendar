@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react'
+import { forwardRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 import { Link } from 'react-router-dom'
 
 import type { Status } from '../api/types.ts'
@@ -23,27 +23,54 @@ export function Button({
   return <button className={`${btnBase} ${styles[variant]} ${className}`} {...props} />
 }
 
-export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={fieldClass} {...props} />
-}
+export const TextInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
+  function TextInput(props, ref) {
+    return <input ref={ref} className={fieldClass} {...props} />
+  },
+)
 
-export function TextArea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea className={`${fieldClass} min-h-24`} {...props} />
-}
+export const TextArea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(
+  function TextArea(props, ref) {
+    return <textarea ref={ref} className={`${fieldClass} min-h-24`} {...props} />
+  },
+)
 
-export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select className={fieldClass} {...props} />
-}
+export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(
+  function Select(props, ref) {
+    return <select ref={ref} className={fieldClass} {...props} />
+  },
+)
 
 export function Label({ children }: { children: ReactNode }) {
   return <label className="mb-1 block text-xs font-medium tracking-wide text-slate-400 uppercase">{children}</label>
 }
 
-export function Field({ label, children }: { label: string; children: ReactNode }) {
+export function Field({
+  label,
+  required,
+  hint,
+  error,
+  children,
+}: {
+  label: string
+  required?: boolean
+  hint?: string
+  error?: string
+  children: ReactNode
+}) {
   return (
     <div>
-      <Label>{label}</Label>
+      <Label>
+        {label}
+        {required ? (
+          <span className="ml-0.5 text-rose-400" aria-hidden="true">
+            *
+          </span>
+        ) : null}
+      </Label>
       {children}
+      {error ? <p className="mt-1 text-xs text-rose-300">{error}</p> : null}
+      {!error && hint ? <p className="mt-1 text-xs text-slate-500">{hint}</p> : null}
     </div>
   )
 }

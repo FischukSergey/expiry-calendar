@@ -9,12 +9,12 @@ import { ApiError } from '../api/client.ts'
 import { createItem, getItem, listCategories, listKinds, patchItem } from '../api/endpoints.ts'
 import type { AttrField, BillingPeriod, ItemWrite } from '../api/types.ts'
 import { Button, ErrorBanner, Field, PageState, PageTitle, Select, TextArea, TextInput } from '../components/ui.tsx'
-import { flattenCategories } from '../lib/format.ts'
+import { flattenCategories, suggestCategoryId } from '../lib/format.ts'
 
 const schema = z.object({
   title: z.string().min(1, 'Название обязательно'),
   kind_id: z.string().min(1, 'Выберите тип'),
-  expires_at: z.string().min(1, 'Дата истечения обязательна'),
+  expires_at: z.string().min(1, 'Укажите срок оплаты'),
   description: z.string(),
   category_id: z.string(),
   vendor: z.string(),
@@ -107,6 +107,18 @@ export function ItemFormPage() {
     () => kinds.data?.items.find((k) => k.id === kindId)?.attr_schema ?? [],
     [kinds.data, kindId],
   )
+  const flatCats = flattenCategories(cats.data?.items ?? [])
+
+  useEffect(() => {
+    if (isEdit || !kindId) {
+      return
+    }
+    const slug = kinds.data?.items.find((k) => k.id === kindId)?.slug
+    if (!slug) {
+      return
+    }
+    form.setValue('category_id', suggestCategoryId(slug, flattenCategories(cats.data?.items ?? [])))
+  }, [cats.data, form, isEdit, kindId, kinds.data])
 
   useEffect(() => {
     if (!card.data) {
@@ -185,18 +197,21 @@ export function ItemFormPage() {
     return <PageState title="Запись не найдена" hint={card.error.message} onRetry={() => void card.refetch()} />
   }
 
-  const flatCats = flattenCategories(cats.data?.items ?? [])
-
   return (
     <div>
-      <PageTitle title={isEdit ? 'Редактирование' : 'Новая запись'} />
+      <PageTitle title={isEdit ? 'Редактирование' : 'Новая запись'} subtitle="Поля со звёздочкой обязательны" />
       <form onSubmit={onSubmit} className="space-y-6">
         {formError ? <ErrorBanner message={formError} /> : null}
         <div className="grid gap-4 lg:grid-cols-2">
-          <Field label="Название">
+          <Field label="Название" required error={form.formState.errors.title?.message}>
             <TextInput {...form.register('title')} />
           </Field>
-          <Field label="Тип">
+          <Field
+            label="Тип записи"
+            required
+            hint="Что это за платёж: домен, подписка, налог. От типа зависят доп. поля."
+            error={form.formState.errors.kind_id?.message}
+          >
             <Select {...form.register('kind_id')}>
               <option value="">Выберите</option>
               {(kinds.data?.items ?? []).map((k) => (
@@ -206,15 +221,18 @@ export function ItemFormPage() {
               ))}
             </Select>
           </Field>
-          <Field label="Истекает">
+          <Field label="Срок оплаты" required error={form.formState.errors.expires_at?.message}>
             <TextInput type="date" {...form.register('expires_at')} />
           </Field>
-          <Field label="Начало">
+          <Field label="Начало периода" hint="С какого дня идёт текущий период (покупка, договор). Необязательно.">
             <TextInput type="date" {...form.register('started_at')} />
           </Field>
-          <Field label="Категория">
+          <Field
+            label="Раздел"
+            hint="Папка в дереве «Категории». Подставляется по типу, можно сменить."
+          >
             <Select {...form.register('category_id')}>
-              <option value="">Нет</option>
+              <option value="">Без раздела</option>
               {flatCats.map((c) => (
                 <option key={c.id} value={c.id}>
                   {'· '.repeat(c.depth)}
@@ -279,7 +297,7 @@ export function ItemFormPage() {
             <h2 className="mb-3 text-sm font-medium text-slate-300">Поля типа</h2>
             <div className="grid gap-4 lg:grid-cols-2">
               {schemaFields.map((f) => (
-                <Field key={f.key} label={f.label}>
+                <Field key={f.key} label={f.label} required={f.required}>
                   {f.type === 'boolean' ? (
                     <Select
                       value={attrs[f.key] ?? 'false'}

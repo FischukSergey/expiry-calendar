@@ -67,7 +67,7 @@ data: {}
 {
   "counts": { "active": 0, "expiring_7": 0, "expiring_30": 0, "expired": 0 },
   "upcoming_cost": [{ "currency": "RUB", "monthly": 0, "yearly": 0 }],
-  "expirations_by_month": [{ "month": "2026-09", "count": 0 }],
+  "expirations_by_month": [{ "month": "2026-09", "count": 0, "amounts": [] }],
   "cost_by_kind": [{ "kind_id": "...", "currency": "RUB", "amount": 0 }],
   "soonest": []
 }
@@ -77,7 +77,7 @@ data: {}
 
 `soonest` — до 10 items (краткая карточка: id, title, expires_at, status, kind_id).
 
-`cancelled` / `archived` не входят. `upcoming_cost` — run-rate active/expiring: monthly×12 и yearly/12 (целое), `one_time` не входит. `expirations_by_month` — текущий месяц UTC и следующие 5. `cost_by_kind` — сумма `cost_amount` как записана, без периода.
+`cancelled` / `archived` не входят. `upcoming_cost` — run-rate active/expiring: monthly×12 и yearly/12 (целое), `one_time` не входит. `expirations_by_month` — текущий месяц UTC и следующие 5; `count` — число записей со сроком в месяце, `amounts` — сумма `cost_amount` по валютам (без конвертации). `cost_by_kind` — сумма `cost_amount` как записана, без периода.
 
 ## 5) Calendar
 

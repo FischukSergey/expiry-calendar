@@ -58,13 +58,13 @@ export function ItemCardPage() {
   const it = card.data.item
   const kind = kinds.data?.items.find((k) => k.id === it.kind_id)
   const rows: { label: string; value: string }[] = [
-    { label: 'Тип', value: kind?.name ?? '—' },
-    { label: 'Категория', value: findCategoryName(cats.data?.items ?? [], it.category_id) },
+    { label: 'Тип записи', value: kind?.name ?? '—' },
+    { label: 'Раздел', value: findCategoryName(cats.data?.items ?? [], it.category_id) },
     { label: 'Поставщик', value: it.vendor || '—' },
     { label: 'Сумма', value: formatMoney(it.cost_amount, it.currency) },
     { label: 'Период', value: billingLabel[it.billing_period] },
-    { label: 'Начало', value: formatDate(it.started_at ?? '') },
-    { label: 'Истекает', value: formatDate(it.expires_at) },
+    { label: 'Начало периода', value: formatDate(it.started_at ?? '') },
+    { label: 'Срок оплаты', value: formatDate(it.expires_at) },
     { label: 'Напомнить за', value: `${it.notify_before_days} дн.` },
     { label: 'Теги', value: it.tags.length ? it.tags.join(', ') : '—' },
     { label: 'URL', value: it.url || '—' },
@@ -132,7 +132,7 @@ export function ItemCardPage() {
           <h2 className="mb-3 text-sm font-medium text-slate-300">Продление</h2>
           {renewError ? <ErrorBanner message={renewError} /> : null}
           <div className="mt-3 grid gap-3 sm:grid-cols-3">
-            <Field label="Новая дата">
+            <Field label="Новый срок оплаты">
               <TextInput type="date" value={expires} onChange={(e) => setExpires(e.target.value)} />
             </Field>
             <Field label="Новая сумма">

@@ -83,6 +83,22 @@ func TestDashboardTwoCurrenciesAndSkipsCancelled(t *testing.T) {
 	if got.ExpirationsByMonth[0].Count != 2 || got.ExpirationsByMonth[1].Count != 1 {
 		t.Fatalf("month counts %+v", got.ExpirationsByMonth)
 	}
+	if monthAmount(got.ExpirationsByMonth[0], model.CurrencyRUB) != 50 ||
+		monthAmount(got.ExpirationsByMonth[0], "USD") != 120 {
+		t.Fatalf("aug amounts %+v", got.ExpirationsByMonth[0].Amounts)
+	}
+	if monthAmount(got.ExpirationsByMonth[1], model.CurrencyRUB) != 100 {
+		t.Fatalf("sep amounts %+v", got.ExpirationsByMonth[1].Amounts)
+	}
+}
+
+func monthAmount(row model.MonthCount, currency string) int {
+	for _, a := range row.Amounts {
+		if a.Currency == currency {
+			return a.Amount
+		}
+	}
+	return 0
 }
 
 func TestCalendarMonthAndEmptyDays(t *testing.T) {

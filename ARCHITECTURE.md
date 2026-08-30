@@ -439,13 +439,13 @@ Swagger: `bearerAuth`. Login → скопировать access в Authorize. Ref
 
 Фильтры `GET /items`: `q` (title, vendor, tags), `kind_id`, `status`, `category_id` (включая потомков), `vendor`, `expires_from`, `expires_to`, `cost_from`, `cost_to`, `billing_period`, `tag`, `sort` (`expires_at`, `cost_amount`, `title`, `updated_at`), `order` (`asc`/`desc`).
 
-`GET /dashboard` отдаёт суммы **отдельными объектами по валюте**, без конвертации:
+`GET /dashboard` отдаёт суммы **отдельными объектами по валюте**, без конвертации. У `expirations_by_month` поле `count` — число записей, `amounts` — сумма `cost_amount` за месяц срока:
 
 ```json
 {
   "counts": { "active": 0, "expiring_7": 0, "expiring_30": 0, "expired": 0 },
   "upcoming_cost": [{ "currency": "RUB", "monthly": 0, "yearly": 0 }],
-  "expirations_by_month": [{ "month": "2026-09", "count": 0 }],
+  "expirations_by_month": [{ "month": "2026-09", "count": 0, "amounts": [] }],
   "cost_by_kind": [{ "kind_id": "...", "currency": "RUB", "amount": 0 }],
   "soonest": []
 }

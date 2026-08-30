@@ -6,7 +6,7 @@ import { exportItems, listCategories, listItems, listKinds } from '../api/endpoi
 import type { ItemFilter, Status } from '../api/types.ts'
 import { Button, Field, PageState, PageTitle, Select, StatusBadge, TextInput } from '../components/ui.tsx'
 import { useAuth } from '../hooks/useAuth.ts'
-import { billingLabel, findCategoryName, flattenCategories, formatDate, formatMoney, statusLabel } from '../lib/format.ts'
+import { billingLabel, flattenCategories, formatDate, formatMoney, statusLabel } from '../lib/format.ts'
 
 function readFilter(params: URLSearchParams): ItemFilter {
   const page = Number(params.get('page') ?? '1')
@@ -108,7 +108,7 @@ export function ItemsPage() {
             ))}
           </Select>
         </Field>
-        <Field label="Тип">
+        <Field label="Тип записи" hint="Вид платежа">
           <Select value={filter.kind_id ?? ''} onChange={(e) => setField('kind_id', e.target.value)}>
             <option value="">Все</option>
             {(kinds.data?.items ?? []).map((k) => (
@@ -118,7 +118,7 @@ export function ItemsPage() {
             ))}
           </Select>
         </Field>
-        <Field label="Категория">
+        <Field label="Раздел" hint="Папка в дереве">
           <Select value={filter.category_id ?? ''} onChange={(e) => setField('category_id', e.target.value)}>
             <option value="">Все</option>
             {flatCats.map((c) => (
@@ -137,10 +137,10 @@ export function ItemsPage() {
             <option value="yearly">{billingLabel.yearly}</option>
           </Select>
         </Field>
-        <Field label="С">
+        <Field label="Срок с">
           <TextInput type="date" value={filter.expires_from ?? ''} onChange={(e) => setField('expires_from', e.target.value)} />
         </Field>
-        <Field label="По">
+        <Field label="Срок по">
           <TextInput type="date" value={filter.expires_to ?? ''} onChange={(e) => setField('expires_to', e.target.value)} />
         </Field>
         <Field label="Сортировка">
@@ -155,8 +155,8 @@ export function ItemsPage() {
               setParams(next)
             }}
           >
-            <option value="expires_at:asc">Дата ↑</option>
-            <option value="expires_at:desc">Дата ↓</option>
+            <option value="expires_at:asc">Срок оплаты ↑</option>
+            <option value="expires_at:desc">Срок оплаты ↓</option>
             <option value="title:asc">Название</option>
             <option value="cost_amount:desc">Сумма ↓</option>
             <option value="updated_at:desc">Обновлено</option>
@@ -206,8 +206,7 @@ export function ItemsPage() {
                 <tr>
                   <th className="px-3 py-2 font-medium">Запись</th>
                   <th className="px-3 py-2 font-medium">Тип</th>
-                  <th className="px-3 py-2 font-medium">Категория</th>
-                  <th className="px-3 py-2 font-medium">Истекает</th>
+                  <th className="px-3 py-2 font-medium">Срок оплаты</th>
                   <th className="px-3 py-2 font-medium">Сумма</th>
                   <th className="px-3 py-2 font-medium">Статус</th>
                 </tr>
@@ -222,7 +221,6 @@ export function ItemsPage() {
                       {it.vendor ? <p className="text-xs text-slate-500">{it.vendor}</p> : null}
                     </td>
                     <td className="px-3 py-2 text-slate-300">{kindById.get(it.kind_id)?.name ?? '—'}</td>
-                    <td className="px-3 py-2 text-slate-400">{findCategoryName(cats.data?.items ?? [], it.category_id)}</td>
                     <td className="px-3 py-2">{formatDate(it.expires_at)}</td>
                     <td className="px-3 py-2">{formatMoney(it.cost_amount, it.currency)}</td>
                     <td className="px-3 py-2">

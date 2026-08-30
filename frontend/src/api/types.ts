@@ -133,7 +133,7 @@ export type Dashboard = {
     expired: number
   }
   upcoming_cost: { currency: string; monthly: number; yearly: number }[]
-  expirations_by_month: { month: string; count: number }[]
+  expirations_by_month: { month: string; count: number; amounts: { currency: string; amount: number }[] }[]
   cost_by_kind: { kind_id: string; currency: string; amount: number }[]
   soonest: { id: string; title: string; expires_at: string; status: Status; kind_id: string }[]
 }

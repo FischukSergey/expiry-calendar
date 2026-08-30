@@ -16,7 +16,7 @@ export default defineConfig({
       manifest: {
         name: 'Duekeep',
         short_name: 'Duekeep',
-        description: 'Календарь истечений',
+        description: 'Календарь сроков оплаты',
         lang: 'ru',
         display: 'standalone',
         start_url: '/',

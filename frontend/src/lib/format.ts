@@ -2,10 +2,30 @@ import type { BillingPeriod, Category, Status } from '../api/types.ts'
 
 export const statusLabel: Record<Status, string> = {
   active: 'Активно',
-  expiring: 'Истекает',
-  expired: 'Истекло',
+  expiring: 'Скоро срок',
+  expired: 'Просрочено',
   cancelled: 'Отменено',
   archived: 'Архив',
+}
+
+/** Лист дерева «Категории», который обычно совпадает с типом записи. */
+const kindDefaultCategory: Record<string, string> = {
+  domain: 'Домены',
+  subscription: 'Подписки',
+  license: 'Лицензии',
+  tax: 'Налоги',
+  rent: 'Аренда',
+  contract: 'Договоры',
+  insurance: 'Страховки',
+  vehicle: 'Авто',
+}
+
+export function suggestCategoryId(kindSlug: string, cats: FlatCategory[]): string {
+  const name = kindDefaultCategory[kindSlug]
+  if (!name) {
+    return ''
+  }
+  return cats.find((c) => c.name === name)?.id ?? ''
 }
 
 export const billingLabel: Record<BillingPeriod, string> = {
@@ -91,11 +111,11 @@ export function parseCSVHeaders(text: string): string[] {
 export const csvFields: { key: string; label: string }[] = [
   { key: 'title', label: 'Название' },
   { key: 'kind_slug', label: 'Тип (slug)' },
-  { key: 'expires_at', label: 'Истекает' },
+  { key: 'expires_at', label: 'Срок оплаты' },
   { key: 'cost_amount', label: 'Сумма' },
   { key: 'currency', label: 'Валюта' },
   { key: 'vendor', label: 'Поставщик' },
   { key: 'billing_period', label: 'Период' },
-  { key: 'category_name', label: 'Категория' },
+  { key: 'category_name', label: 'Раздел' },
   { key: 'tags', label: 'Теги' },
 ]

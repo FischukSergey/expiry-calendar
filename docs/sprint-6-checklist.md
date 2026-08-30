@@ -30,14 +30,14 @@
 
 - [x] README: запуск, логины, порты, `/docs`, PWA, пуши
 - [x] REPORT дополнен по ходу спринта
-- [x] [`api-sprint-6.md`](api-sprint-6.md) — сводка «без новых полей»
+- [x] [`api-sprint-6.md`](api-sprint-6.md) — без переименований; у `expirations_by_month` добавлен `amounts`
 
 ## 4) Демо преподавателя
 
 - [x] Вход admin и viewer
   Примечание: login 200; viewer GET items 200, POST 403.
 - [x] Дашборд с цифрами и графиками
-  Примечание: counts ненулевые, upcoming_cost RUB+USD. Графики — экран Sprint 5.
+  Примечание: counts ненулевые, upcoming_cost RUB+USD. Столбцы — суммы оплаты по месяцам (`amounts`).
 - [x] Фильтр, карточка, create/edit, renew
   Примечание: API smoke create/patch/renew/delete; карточка с renewals.
 - [x] Календарь

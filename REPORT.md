@@ -2,6 +2,11 @@
 
 Журнал создания Duekeep. Записи добавляются по ходу работы, не в конце.
 
+## 2026-08-30 — дашборд: суммы по месяцам
+
+- Столбцы «Сроки оплаты» заменены на «Суммы оплаты по месяцам».
+- API: у `expirations_by_month` добавлен `amounts` (сумма `cost_amount` по валютам, без конвертации). `count` сохранён.
+
 ## 2026-08-29 — Sprint 6 старт
 
 - Спринты 1–5 закрыты. Дыры плана (reuse refresh, CSV dry_run, calendar, push 410) уже покрыты тестами; CI lint+test+build+frontend на месте; `/docs` живой.
@@ -12,6 +17,16 @@
 
 - Каталог: 52 items (даты от Clock.Today), ≥5 expired, ≥8 expiring, 1 cancelled, 1 archived. 22 renewals, 24 audit, unread на expired/expiring. Повторный seed не плодит строки; даты items/renewals обновляет.
 - CheckCatalog требует объём FUNCTIONAL. OpenAPI 1.0.0: cookie duekeep_refresh на refresh/logout, body важнее cookie. README под сдачу.
+
+## 2026-08-30 — правки формулировок формы
+
+- Обязательные поля на «Новая запись» со звёздочкой (название, тип, срок оплаты).
+- Тип записи и раздел разделены подсказками; при выборе типа подставляется раздел. В списке колонка раздела убрана.
+- «Начало» → «Начало периода». «Истекает/истекло» в UI → «срок оплаты» / «скоро срок» / «просрочено».
+
+## 2026-08-29 — фикс логина
+
+- TextInput/Select/TextArea не пробрасывали ref (React 18). register не видел поля → Zod «expected string, received undefined» на заполненной форме. Теперь forwardRef.
 
 ## 2026-08-29 — Sprint 6 follow-up (демо)
 

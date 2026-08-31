@@ -4,7 +4,9 @@ info:
   version: 1.0.0
   description: |
     Календарь истечений. Канон для проверяющего: GET /docs (Swagger UI).
-    Спека сверена со спринтами 1–5; новых полей в Sprint 6 нет.
+    Спека сверена со спринтами 1–6. Sprint 7: register → admin и свои категории (без seed-items);
+    items/categories/audit/dashboard/calendar/notifications — только свой owner_id (в JSON не отдаём).
+    Нет org_id, инвайтов и ручек /org.
     Access: Authorization Bearer. Refresh: JSON body и/или cookie duekeep_refresh (body важнее).
 servers:
   - url: /
@@ -17,7 +19,7 @@ tags:
   - name: Auth
     description: Регистрация, вход, refresh, logout, /me
   - name: Catalog
-    description: Общие справочники kinds и categories (не per-user)
+    description: kinds — общий справочник; categories — только свои (owner_id)
   - name: Items
     description: Записи истечения, продление, bulk, CSV
   - name: Audit
@@ -87,7 +89,9 @@ paths:
   /api/v1/auth/register:
     post:
       tags: [Auth]
-      summary: Регистрация viewer + пара токенов
+      summary: Регистрация admin + пара токенов
+      description: |
+        Роль admin, копия дефолтных категорий (свои UUID), без seed-items и без invite_token.
       operationId: postAuthRegister
       security: []
       requestBody:
@@ -98,7 +102,7 @@ paths:
               $ref: "#/components/schemas/EmailPassword"
       responses:
         "201":
-          description: Пара токенов, роль viewer
+          description: Пара токенов, роль admin
           headers:
             Set-Cookie:
               schema:
@@ -221,10 +225,11 @@ paths:
     get:
       tags: [Auth]
       summary: Текущий пользователь
+      description: id, email, role. Полей org_id / org_name нет.
       operationId: getMe
       responses:
         "200":
-          description: id, email, role
+          description: id, email, role без org
           content:
             application/json:
               schema:
@@ -365,7 +370,7 @@ paths:
   /api/v1/categories:
     get:
       tags: [Catalog]
-      summary: Дерево категорий (корни в items)
+      summary: Дерево своих категорий (корни в items)
       operationId: getCategories
       responses:
         "200":
@@ -486,7 +491,7 @@ paths:
   /api/v1/items:
     get:
       tags: [Items]
-      summary: Список записей
+      summary: Список своих записей
       operationId: listItems
       parameters:
         - in: query
@@ -593,7 +598,7 @@ paths:
   /api/v1/items/export:
     get:
       tags: [Items]
-      summary: Экспорт CSV текущего фильтра
+      summary: Экспорт CSV своих записей (фильтр как у списка)
       operationId: exportItems
       parameters:
         - in: query
@@ -694,7 +699,7 @@ paths:
       - $ref: "#/components/parameters/ID"
     get:
       tags: [Items]
-      summary: Карточка и renewals
+      summary: Своя карточка и renewals; чужой id → 404
       operationId: getItem
       responses:
         "200":
@@ -768,7 +773,7 @@ paths:
   /api/v1/audit:
     get:
       tags: [Audit]
-      summary: Журнал (admin)
+      summary: Свой журнал (admin)
       operationId: listAudit
       parameters:
         - $ref: "#/components/parameters/Page"
@@ -785,7 +790,7 @@ paths:
   /api/v1/notifications:
     get:
       tags: [Notifications]
-      summary: Лента уведомлений
+      summary: Своя лента уведомлений
       operationId: listNotifications
       parameters:
         - in: query
@@ -807,7 +812,7 @@ paths:
   /api/v1/notifications/read-all:
     post:
       tags: [Notifications]
-      summary: Пометить все прочитанными
+      summary: Пометить свои непрочитанные
       operationId: readAllNotifications
       responses:
         "204":
@@ -833,7 +838,7 @@ paths:
   /api/v1/events:
     get:
       tags: [Events]
-      summary: SSE поток уведомлений
+      summary: SSE: только свои notification
       operationId: streamEvents
       parameters:
         - in: query
@@ -908,7 +913,7 @@ paths:
   /api/v1/dashboard:
     get:
       tags: [Overview]
-      summary: KPI и series для графиков
+      summary: KPI и series по своим записям
       operationId: getDashboard
       responses:
         "200":
@@ -922,7 +927,7 @@ paths:
   /api/v1/calendar:
     get:
       tags: [Overview]
-      summary: Истечения за календарный месяц
+      summary: Свои истечения за календарный месяц
       operationId: getCalendar
       parameters:
         - in: query
@@ -1021,6 +1026,7 @@ components:
           example: ok
     EmailPassword:
       type: object
+      description: Login и register. Поля invite_token нет.
       required: [email, password]
       properties:
         email:
@@ -1050,7 +1056,9 @@ components:
           example: 900
     PublicUser:
       type: object
+      description: GET /me. org_id и org_name не входят в контракт.
       required: [id, email, role]
+      additionalProperties: false
       properties:
         id:
           type: string
@@ -1195,6 +1203,7 @@ components:
           $ref: "#/components/schemas/APIError"
     Item:
       type: object
+      description: owner_id в ответе нет; сервер фильтрует по sub.
       required: [id, title, kind_id, expires_at, status, attrs]
       properties:
         id:

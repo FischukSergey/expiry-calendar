@@ -19,7 +19,7 @@ Duekeep отвечает на вопрос: *что истечёт в ближа
 
 v1: одна инсталляция, общий набор данных (семья / home lab). Пользователи отличаются ролью, не владением записями.
 
-Дальше продукт идёт в многопользовательский режим (несколько клиентов, свои пространства, мобильное приложение). Поэтому auth сразу **JWT + refresh**, а не серверная cookie-сессия: токены не привязаны к одному браузеру, в claims уже есть `sub` и `role`, позже добавится `org_id` без смены протокола.
+Дальше продукт идёт в многопользовательский режим (несколько клиентов, свои данные). Поэтому auth сразу **JWT + refresh**, а не серверная cookie-сессия: токены не привязаны к одному браузеру, в claims есть `sub` и `role`. Владение записями после v1 — `owner_id` = `sub` ([Sprint 7](docs/sprint-7-plan.md)), не `org_id`.
 
 ---
 
@@ -86,7 +86,7 @@ flowchart LR
 Один бинарь, две петли:
 
 1. HTTP-сервер: REST, OpenAPI, SSE.
-2. Тикер статусов (раз в 60 с): пересчёт `active` / `expiring` / `expired`, создание уведомлений, рассылка в SSE.
+2. Тикер статусов (`TICKER_EVERY`, по умолчанию 12 ч; Tick при старте): пересчёт `active` / `expiring` / `expired` по календарному дню UTC, уведомления и SSE только владельцу.
 
 Часы и тикер выключаются в тестах через интерфейс `Clock`.
 
@@ -351,7 +351,7 @@ Claims access (v1):
 }
 ```
 
-Позже в тот же JWT добавится `org_id` (или `workspace_id`). Таблицы `items` тогда получат `org_id` — протокол login/refresh не меняется.
+Sprint 7 не добавляет `org_id` в JWT. Предметные таблицы получают `owner_id` (= `sub`); протокол login/refresh не меняется. Org / шаринг — не этот релиз.
 
 ### Поток
 
@@ -408,7 +408,7 @@ Swagger: `bearerAuth`. Login → скопировать access в Authorize. Ref
 
 | Метод | Путь | Кто | Назначение |
 |---|---|---|---|
-| POST | `/auth/register` | anon | регистрация viewer + пара токенов |
+| POST | `/auth/register` | anon | регистрация admin + пара токенов |
 | POST | `/auth/login` | anon | access + refresh |
 | POST | `/auth/refresh` | anon | новая пара по refresh (cookie или body) |
 | POST | `/auth/logout` | access или refresh | revoke текущего refresh |
@@ -625,13 +625,14 @@ CI (GitHub Actions):
 | [4](docs/sprint-4-plan.md) | тикер, notifications, SSE, Web Push, dashboard, calendar | |
 | [5](docs/sprint-5-plan.md) | CSV, экраны, PWA | |
 | [6](docs/sprint-6-plan.md) | OpenAPI `/docs`, тесты ≥ 10, полный seed, сдача | |
-| [7](docs/sprint-7-plan.md) | После v1: org, изоляция данных, инвайт viewer | |
+| [7](docs/sprint-7-plan.md) | После v1: свои данные (`owner_id`), без org и viewer | |
+| [8](docs/sprint-8-plan.md) | CD на VPS: Actions → SSH → compose --build | |
 
 Правило: handler не меняет контракт спринта без правки `docs/api-sprint-N.md`.
 
 Спринты 4 и 5 можно частично перекрывать (API обзора раньше UI). Не перескакивать 2→5.
 
-**Не делать раньше времени (в спринты 1–6):** вложения, почта, Telegram, iCal, конвертация валют, фильтр по JSONB, `org_id` на записях, второй инстанс backend. Изоляция — [Sprint 7](docs/sprint-7-plan.md).
+**Не делать раньше времени (в спринты 1–6):** вложения, почта, Telegram, iCal, конвертация валют, фильтр по JSONB, `org_id` на записях, второй инстанс backend. Свои данные (`owner_id`) — [Sprint 7](docs/sprint-7-plan.md). Org и шаринг не входят.
 
 ---
 

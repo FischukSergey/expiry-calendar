@@ -67,9 +67,9 @@ func (s *Push) Unsubscribe(ctx context.Context, endpoint string) error {
 	return s.store.DeleteByEndpoint(ctx, endpoint)
 }
 
-// Broadcast шлёт всем подпискам. 410 — удаляем строку. Ошибка одного endpoint не стопорит остальных.
+// Broadcast шлёт подпискам владельца item. 410 — удаляем строку. Ошибка одного endpoint не стопорит остальных.
 func (s *Push) Broadcast(ctx context.Context, n model.Notification) error {
-	if s.sender == nil {
+	if s.sender == nil || n.OwnerID == "" {
 		return nil
 	}
 	subs, err := s.store.List(ctx)
@@ -86,6 +86,9 @@ func (s *Push) Broadcast(ctx context.Context, n model.Notification) error {
 		return err
 	}
 	for _, sub := range subs {
+		if sub.UserID != n.OwnerID {
+			continue
+		}
 		status, sendErr := s.sender.Send(ctx, sub, payload)
 		if sendErr != nil {
 			slog.ErrorContext(ctx, "push send", "err", sendErr)

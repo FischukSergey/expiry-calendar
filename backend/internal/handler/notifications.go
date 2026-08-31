@@ -1,6 +1,10 @@
 package handler
 
-import "net/http"
+import (
+	"net/http"
+
+	"duekeep/internal/middleware"
+)
 
 func (a *API) listNotifications(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
@@ -9,7 +13,7 @@ func (a *API) listNotifications(w http.ResponseWriter, r *http.Request) {
 		writeDomainError(w, err)
 		return
 	}
-	out, err := a.notifications.List(r.Context(), q.Get("unread") == "true", page)
+	out, err := a.notifications.List(r.Context(), middleware.UserID(r.Context()), q.Get("unread") == "true", page)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -22,7 +26,7 @@ func (a *API) readNotification(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := a.notifications.MarkRead(r.Context(), id); err != nil {
+	if err := a.notifications.MarkRead(r.Context(), id, middleware.UserID(r.Context())); err != nil {
 		writeDomainError(w, err)
 		return
 	}
@@ -30,7 +34,7 @@ func (a *API) readNotification(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) readAllNotifications(w http.ResponseWriter, r *http.Request) {
-	if err := a.notifications.MarkAllRead(r.Context()); err != nil {
+	if err := a.notifications.MarkAllRead(r.Context(), middleware.UserID(r.Context())); err != nil {
 		writeDomainError(w, err)
 		return
 	}

@@ -21,9 +21,9 @@ const (
 	monthsPerYear    = 12
 )
 
-// OverviewStore — открытые записи (не cancelled/archived). Один ListOpen, без N+1.
+// OverviewStore — открытые записи владельца (не cancelled/archived). Один SELECT, без N+1.
 type OverviewStore interface {
-	ListOpen(ctx context.Context) ([]model.Item, error)
+	ListOpenByOwner(ctx context.Context, ownerID string) ([]model.Item, error)
 }
 
 // Overview — дашборд и календарь. Агрегаты в памяти после одного SELECT.
@@ -37,9 +37,9 @@ func NewOverview(items OverviewStore, clk clock.Clock) *Overview {
 	return &Overview{items: items, clk: clk}
 }
 
-// Dashboard — GET /dashboard. cancelled/archived не входят (ListOpen).
-func (s *Overview) Dashboard(ctx context.Context) (model.Dashboard, error) {
-	items, err := s.items.ListOpen(ctx)
+// Dashboard — GET /dashboard. Только свои открытые записи.
+func (s *Overview) Dashboard(ctx context.Context, ownerID string) (model.Dashboard, error) {
+	items, err := s.items.ListOpenByOwner(ctx, ownerID)
 	if err != nil {
 		return model.Dashboard{}, err
 	}
@@ -111,15 +111,15 @@ func (s *Overview) Dashboard(ctx context.Context) (model.Dashboard, error) {
 	return out, nil
 }
 
-// Calendar — GET /calendar. year 1..9999, month 1..12. Пустые дни опускаем.
-func (s *Overview) Calendar(ctx context.Context, year, month int) (model.Calendar, error) {
+// Calendar — GET /calendar. year 1..9999, month 1..12. Только свои; пустые дни опускаем.
+func (s *Overview) Calendar(ctx context.Context, year, month int, ownerID string) (model.Calendar, error) {
 	if year < 1 || year > 9999 {
 		return model.Calendar{}, model.Validation("invalid year", map[string]any{fieldYear: "1..9999"})
 	}
 	if month < 1 || month > 12 {
 		return model.Calendar{}, model.Validation("invalid month", map[string]any{fieldMonth: "1..12"})
 	}
-	items, err := s.items.ListOpen(ctx)
+	items, err := s.items.ListOpenByOwner(ctx, ownerID)
 	if err != nil {
 		return model.Calendar{}, err
 	}

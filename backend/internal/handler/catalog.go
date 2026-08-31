@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"duekeep/internal/middleware"
 	"duekeep/internal/model"
 )
 
@@ -99,7 +100,7 @@ func (a *API) deleteKind(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) listCategories(w http.ResponseWriter, r *http.Request) {
-	items, err := a.categories.List(r.Context())
+	items, err := a.categories.List(r.Context(), middleware.UserID(r.Context()))
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -116,7 +117,7 @@ func (a *API) createCategory(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity, "validation_error", "invalid json")
 		return
 	}
-	c, err := a.categories.Create(r.Context(), body.ParentID, body.Name, body.SortOrder)
+	c, err := a.categories.Create(r.Context(), body.ParentID, body.Name, body.SortOrder, middleware.UserID(r.Context()))
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -146,7 +147,7 @@ func (a *API) patchCategory(w http.ResponseWriter, r *http.Request) {
 			p.ParentID = &parent
 		}
 	}
-	c, err := a.categories.Patch(r.Context(), id, p)
+	c, err := a.categories.Patch(r.Context(), id, p, middleware.UserID(r.Context()))
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -159,7 +160,7 @@ func (a *API) deleteCategory(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := a.categories.Delete(r.Context(), id); err != nil {
+	if err := a.categories.Delete(r.Context(), id, middleware.UserID(r.Context())); err != nil {
 		writeDomainError(w, err)
 		return
 	}

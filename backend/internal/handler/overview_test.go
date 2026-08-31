@@ -46,14 +46,14 @@ func TestDashboardViewerTwoCurrencies(t *testing.T) {
 	t.Parallel()
 	api, store := overviewAPI(t)
 	if _, err := store.Create(t.Context(), model.Item{
-		Title: itemTitleDomain, KindID: otherKindID, Status: model.StatusActive,
+		OwnerID: fixtureUUID, Title: itemTitleDomain, KindID: otherKindID, Status: model.StatusActive,
 		ExpiresAt: expiresSoon, CostAmount: 200, Currency: model.CurrencyRUB,
 		BillingPeriod: model.BillingMonthly, Tags: []string{}, Attrs: map[string]any{},
 	}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := store.Create(t.Context(), model.Item{
-		Title: "SaaS", KindID: otherKindID, Status: model.StatusActive,
+		OwnerID: fixtureUUID, Title: "SaaS", KindID: otherKindID, Status: model.StatusActive,
 		ExpiresAt: "2026-12-01", CostAmount: 36, Currency: currencyUSD,
 		BillingPeriod: model.BillingYearly, Tags: []string{}, Attrs: map[string]any{},
 	}); err != nil {
@@ -87,7 +87,7 @@ func TestCalendarQueryAndEmptyMonth(t *testing.T) {
 	t.Parallel()
 	api, store := overviewAPI(t)
 	if _, err := store.Create(t.Context(), model.Item{
-		Title: itemTitleDomain, KindID: otherKindID, Status: model.StatusExpiring,
+		OwnerID: fixtureUUID, Title: itemTitleDomain, KindID: otherKindID, Status: model.StatusExpiring,
 		ExpiresAt: "2026-08-21", Tags: []string{}, Attrs: map[string]any{},
 	}); err != nil {
 		t.Fatal(err)
@@ -117,4 +117,31 @@ func TestCalendarQueryAndEmptyMonth(t *testing.T) {
 	}
 	adminJSON(t, api, tok, http.MethodGet, "/api/v1/calendar?year=2026&month=13", "", http.StatusUnprocessableEntity)
 	adminJSON(t, api, tok, http.MethodGet, "/api/v1/calendar", "", http.StatusUnprocessableEntity)
+}
+
+func TestDashboardOwnerIsolation(t *testing.T) {
+	t.Parallel()
+	api, store := overviewAPI(t)
+	if _, err := store.Create(t.Context(), model.Item{
+		OwnerID: fixtureUUID, Title: itemTitleDomain, KindID: otherKindID, Status: model.StatusActive,
+		ExpiresAt: expiresSoon, CostAmount: 200, Currency: model.CurrencyRUB,
+		BillingPeriod: model.BillingMonthly, Tags: []string{}, Attrs: map[string]any{},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	other := testJWTSub(t, string(model.RoleAdmin), "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/dashboard", nil)
+	req.Header.Set("Authorization", "Bearer "+other)
+	api.Router().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d %s", rec.Code, rec.Body.String())
+	}
+	var out model.Dashboard
+	if err := json.NewDecoder(rec.Body).Decode(&out); err != nil {
+		t.Fatal(err)
+	}
+	if out.Counts.Active != 0 || len(out.Soonest) != 0 {
+		t.Fatalf("leaked %+v", out)
+	}
 }

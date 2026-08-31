@@ -21,7 +21,7 @@ type userSeed struct {
 	role     string
 }
 
-// userSeeds — ровно два аккаунта: admin пишет, viewer читает общий контур v1.
+// userSeeds — локальный стенд: admin с каталогом 50+, viewer без шаринга (пустой список).
 var userSeeds = []userSeed{
 	{id: adminID, email: adminEmail, password: adminPassword, role: "admin"},
 	{id: viewerID, email: viewerEmail, password: viewerPassword, role: "viewer"},

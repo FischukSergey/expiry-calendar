@@ -1,0 +1,34 @@
+---
+description: Изоляция данных по owner_id (Sprint 7)
+globs: backend/**/*.go
+alwaysApply: false
+---
+
+# Изоляция Duekeep
+
+Предметные строки принадлежат пользователю: `owner_id` = `sub` из access. Не `org_id`. В JSON поле не отдаём (`json:"-"`). Из query/body `owner_id` / `user_id` не принимать.
+
+## Что уже scoped
+
+- items: list/get/patch/delete/renew/bulk/CSV — `ItemFilter.OwnerID` ставит service из actor; чужой UUID → `404 not_found` (`requireOwner`).
+- categories: дерево и CRUD только свои; глубина ≤ 3; чужой parent → 404.
+- audit, notifications (list/read/read-all), dashboard, calendar — `WHERE owner_id = $sub`.
+- SSE: `Hub.Subscribe(userID)`, `Notify` только клиентам с тем же `sub`.
+- Web Push: `Broadcast` только подпискам `user_id = notification.OwnerID`.
+- Create item/category/import/ticker notification пишут `OwnerID` владельца.
+
+## Что общее
+
+- `item_kinds` — справочник на инсталляцию. GET всем auth. Не копировать пользователю, не вешать `owner_id`.
+- `Items.ListOpen` — все открытые записи (тикер пересчитывает статусы всем). Обзор — отдельный `ListOpenByOwner`.
+
+## Тикер
+
+- `TICKER_EVERY` по умолчанию `12h` + Tick при старте. Статус — календарный день UTC, не крутить раз в минуту.
+- `Tick` обязан ставить `OwnerID: item.OwnerID`, иначе INSERT в Postgres падает (NOT NULL + uuid).
+
+## Ошибки
+
+- Чужой id предметной сущности → `404`, не `403`.
+- Viewer по-прежнему `403` на мутации (`RequireAdmin`). После register роль — `admin`.
+- Пустой owner в list-запросе → пустой результат, не «все строки».

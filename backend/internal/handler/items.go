@@ -80,7 +80,7 @@ func (a *API) listItems(w http.ResponseWriter, r *http.Request) {
 		writeDomainError(w, err)
 		return
 	}
-	out, err := a.items.List(r.Context(), f, page)
+	out, err := a.items.List(r.Context(), f, page, middleware.UserID(r.Context()))
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -94,7 +94,7 @@ func (a *API) exportItems(w http.ResponseWriter, r *http.Request) {
 		writeDomainError(w, err)
 		return
 	}
-	body, err := a.items.Export(r.Context(), f)
+	body, err := a.items.Export(r.Context(), f, middleware.UserID(r.Context()))
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -172,7 +172,7 @@ func (a *API) getItem(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	card, err := a.items.Get(r.Context(), id)
+	card, err := a.items.Get(r.Context(), id, middleware.UserID(r.Context()))
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -258,7 +258,7 @@ func (a *API) listAudit(w http.ResponseWriter, r *http.Request) {
 		writeDomainError(w, err)
 		return
 	}
-	out, err := a.items.ListAudit(r.Context(), page)
+	out, err := a.items.ListAudit(r.Context(), page, middleware.UserID(r.Context()))
 	if err != nil {
 		writeDomainError(w, err)
 		return

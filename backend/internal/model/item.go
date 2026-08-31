@@ -51,6 +51,7 @@ const (
 // Item — запись истечения. Даты started_at/expires_at — DateLayout.
 type Item struct {
 	ID               string         `json:"id"`
+	OwnerID          string         `json:"-"`
 	Title            string         `json:"title"`
 	Description      string         `json:"description"`
 	KindID           string         `json:"kind_id"`
@@ -86,7 +87,9 @@ type ItemCard struct {
 }
 
 // ItemFilter — query GET /items. CategoryIDs заполняет service (узел + потомки).
+// OwnerID ставит service из sub; из query не принимаем.
 type ItemFilter struct {
+	OwnerID       string
 	Q             string
 	KindID        string
 	Status        string
@@ -199,6 +202,7 @@ type Renewal struct {
 // AuditEntry — строка audit_log.
 type AuditEntry struct {
 	ID         string          `json:"id"`
+	OwnerID    string          `json:"-"`
 	ActorID    *string         `json:"actor_id"`
 	Action     string          `json:"action"`
 	Entity     string          `json:"entity"`

@@ -16,7 +16,7 @@ type Fanout struct {
 	Push *Push
 }
 
-// Notify сначала SSE (буфер, без сети), потом push всем подпискам.
+// Notify сначала SSE (буфер, без сети), потом push подпискам владельца.
 func (f *Fanout) Notify(n model.Notification) {
 	if f.SSE != nil {
 		f.SSE.Notify(n)

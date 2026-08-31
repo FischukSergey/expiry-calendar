@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 
 	"duekeep/internal/clock"
 	"duekeep/internal/model"
+	"duekeep/internal/seed"
 )
 
 // UserStore — пользователи. Интерфейс объявлен у потребителя.
@@ -41,6 +43,11 @@ type AuthConfig struct {
 	BcryptCost int
 }
 
+// CategoryWriter — INSERT категории (копия дерева при Register).
+type CategoryWriter interface {
+	Create(ctx context.Context, c model.Category) (model.Category, error)
+}
+
 // Auth — register/login/refresh/logout. Cookie vs body сюда не входят: только сырой refresh.
 type Auth struct {
 	users   UserStore
@@ -51,6 +58,7 @@ type Auth struct {
 	access  time.Duration
 	refresh time.Duration
 	bcrypt  int
+	cats    CategoryWriter
 }
 
 // NewAuth собирает сервис. Secret не должен быть пустым (проверяет main).
@@ -71,12 +79,17 @@ func NewAuth(users UserStore, tokens RefreshStore, tx TxFunc, clk clock.Clock, c
 	}
 }
 
+// SetCategoryDefaults копирует дефолтное дерево категорий при Register. Без вызова — только user+tokens.
+func (s *Auth) SetCategoryDefaults(w CategoryWriter) {
+	s.cats = w
+}
+
 // ExpiresIn — секунды access для JSON expires_in.
 func (s *Auth) ExpiresIn() int {
 	return int(s.access / time.Second)
 }
 
-// Register всегда создаёт viewer. Дубликат email → ErrConflict.
+// Register создаёт admin и копию дефолтных категорий (без items). Дубликат email → ErrConflict.
 func (s *Auth) Register(ctx context.Context, email, password, userAgent string) (model.TokenPair, error) {
 	email, err := normalizeEmail(email)
 	if err != nil {
@@ -93,11 +106,16 @@ func (s *Auth) Register(ctx context.Context, email, password, userAgent string) 
 	var user model.User
 	var pair model.TokenPair
 	err = s.tx(ctx, func(ctx context.Context) error {
-		created, cerr := s.users.Create(ctx, email, string(hash), model.RoleViewer)
+		created, cerr := s.users.Create(ctx, email, string(hash), model.RoleAdmin)
 		if cerr != nil {
 			return cerr
 		}
 		user = created
+		if s.cats != nil {
+			if cerr := copyDefaultCategories(ctx, user.ID, s.cats); cerr != nil {
+				return cerr
+			}
+		}
 		p, perr := s.issuePair(ctx, user, uuid.NewString(), userAgent)
 		if perr != nil {
 			return perr
@@ -267,6 +285,33 @@ func normalizeEmail(email string) (string, error) {
 func validatePassword(password string) error {
 	if len(password) < model.MinPasswordLen {
 		return model.Validation("password too short", map[string]any{"password": "min 8"})
+	}
+	return nil
+}
+
+// copyDefaultCategories пишет шаблон дерева владельцу. Новые id, без items.
+func copyDefaultCategories(ctx context.Context, ownerID string, w CategoryWriter) error {
+	templates := seed.DefaultCategories()
+	ids := make([]string, len(templates))
+	for i, t := range templates {
+		if t.ParentIdx >= i {
+			return fmt.Errorf("default category %s: parent after child", t.Name)
+		}
+		var parent *string
+		if t.ParentIdx >= 0 {
+			p := ids[t.ParentIdx]
+			parent = &p
+		}
+		created, err := w.Create(ctx, model.Category{
+			OwnerID:   ownerID,
+			ParentID:  parent,
+			Name:      t.Name,
+			SortOrder: t.SortOrder,
+		})
+		if err != nil {
+			return fmt.Errorf("copy category %s: %w", t.Name, err)
+		}
+		ids[i] = created.ID
 	}
 	return nil
 }

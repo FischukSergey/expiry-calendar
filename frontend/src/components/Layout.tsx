@@ -68,8 +68,7 @@ export function Layout() {
           ))}
         </nav>
         <NavLink to="/profile" className={({ isActive }) => `${linkClass(isActive)} mt-4`}>
-          <span className="block truncate text-xs text-slate-500">{user?.email}</span>
-          <span className="text-sm">{user?.role === 'admin' ? 'Админ' : 'Просмотр'}</span>
+          <span className="block truncate text-sm">{user?.email}</span>
         </NavLink>
       </aside>
 

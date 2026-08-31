@@ -56,7 +56,7 @@ func TestNotificationsReadFlow(t *testing.T) {
 	api, tkr, store := notifyAPI(t)
 	tok := testJWT(t, string(model.RoleViewer))
 	created, err := store.Create(t.Context(), model.Item{
-		Title: itemTitleDomain, KindID: otherKindID, Status: model.StatusActive,
+		OwnerID: fixtureUUID, Title: itemTitleDomain, KindID: otherKindID, Status: model.StatusActive,
 		ExpiresAt: expiresSoon, NotifyBeforeDays: 30, Tags: []string{}, Attrs: map[string]any{},
 	})
 	if err != nil {
@@ -91,7 +91,7 @@ func TestNotificationsReadFlow(t *testing.T) {
 	}
 
 	second, err := store.Create(t.Context(), model.Item{
-		Title: "Полис", KindID: otherKindID, Status: model.StatusExpiring,
+		OwnerID: fixtureUUID, Title: "Полис", KindID: otherKindID, Status: model.StatusExpiring,
 		ExpiresAt: "2026-08-25", NotifyBeforeDays: 30, Tags: []string{}, Attrs: map[string]any{},
 	})
 	if err != nil {
@@ -115,7 +115,7 @@ func TestTickerIntegrationStatusAndNotification(t *testing.T) {
 	api, tkr, store := notifyAPI(t)
 	tok := testJWT(t, string(model.RoleViewer))
 	created, err := store.Create(t.Context(), model.Item{
-		Title: itemTitleDomain, KindID: otherKindID, Status: model.StatusActive,
+		OwnerID: fixtureUUID, Title: itemTitleDomain, KindID: otherKindID, Status: model.StatusActive,
 		ExpiresAt: expiresSoon, NotifyBeforeDays: 30, Tags: []string{}, Attrs: map[string]any{},
 	})
 	if err != nil {
@@ -184,6 +184,37 @@ func TestNotificationsRequiresAuth(t *testing.T) {
 	api.Router().ServeHTTP(rec, req)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("status %d", rec.Code)
+	}
+}
+
+func TestNotificationsOwnerIsolation(t *testing.T) {
+	t.Parallel()
+	api, tkr, store := notifyAPI(t)
+	if _, err := store.Create(t.Context(), model.Item{
+		OwnerID: fixtureUUID, Title: itemTitleDomain, KindID: otherKindID, Status: model.StatusActive,
+		ExpiresAt: expiresSoon, NotifyBeforeDays: 30, Tags: []string{}, Attrs: map[string]any{},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := tkr.Tick(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	owner := testJWT(t, string(model.RoleAdmin))
+	other := testJWTSub(t, string(model.RoleAdmin), "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+	mine := listNotifications(t, api, owner, "")
+	if mine.Total != 1 {
+		t.Fatalf("own %+v", mine)
+	}
+	if listNotifications(t, api, other, "").Total != 0 {
+		t.Fatal("leaked list")
+	}
+	adminJSON(t, api, other, http.MethodPost, "/api/v1/notifications/"+mine.Items[0].ID+"/read", "", http.StatusNotFound)
+	if listNotifications(t, api, owner, "unread=true").Total != 1 {
+		t.Fatal("foreign read-all or read changed owner")
+	}
+	adminJSON(t, api, other, http.MethodPost, "/api/v1/notifications/read-all", "", http.StatusNoContent)
+	if listNotifications(t, api, owner, "unread=true").Total != 1 {
+		t.Fatal("foreign read-all")
 	}
 }
 

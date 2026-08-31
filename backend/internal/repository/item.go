@@ -29,7 +29,7 @@ func (r *Items) q(ctx context.Context) db.Querier {
 	return db.QuerierFrom(ctx, r.pool)
 }
 
-const itemCols = `id::text, title, description, kind_id::text, category_id::text, vendor, tags,
+const itemCols = `id::text, owner_id::text, title, description, kind_id::text, category_id::text, vendor, tags,
     cost_amount, trim(currency), billing_period, started_at, expires_at,
     notify_before_days, url, account_hint, status, attrs, created_at, updated_at`
 
@@ -41,15 +41,15 @@ func (r *Items) Create(ctx context.Context, it model.Item) (model.Item, error) {
 	}
 	return r.scanOne(ctx, `
 INSERT INTO items (
-    title, description, kind_id, category_id, vendor, tags,
+    owner_id, title, description, kind_id, category_id, vendor, tags,
     cost_amount, currency, billing_period, started_at, expires_at,
     notify_before_days, url, account_hint, status, attrs
 ) VALUES (
-    $1, $2, $3::uuid, NULLIF($4, '')::uuid, $5, $6,
-    $7, $8, $9, $10, $11,
-    $12, $13, $14, $15, $16
+    $1::uuid, $2, $3, $4::uuid, NULLIF($5, '')::uuid, $6, $7,
+    $8, $9, $10, $11, $12,
+    $13, $14, $15, $16, $17
 )
-RETURNING `+itemCols, it.Title, it.Description, it.KindID, categoryArg(it.CategoryID), it.Vendor, it.Tags,
+RETURNING `+itemCols, it.OwnerID, it.Title, it.Description, it.KindID, categoryArg(it.CategoryID), it.Vendor, it.Tags,
 		it.CostAmount, it.Currency, it.BillingPeriod, dateArg(it.StartedAt), it.ExpiresAt,
 		it.NotifyBeforeDays, it.URL, it.AccountHint, it.Status, attrs)
 }
@@ -90,8 +90,11 @@ func (r *Items) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-// List фильтрует по колонкам. CategoryIDs уже с потомками.
+// List фильтрует по колонкам и owner_id. CategoryIDs уже с потомками.
 func (r *Items) List(ctx context.Context, f model.ItemFilter, page model.Page) ([]model.Item, int, error) {
+	if f.OwnerID == "" {
+		return []model.Item{}, 0, nil
+	}
 	where, args := itemWhere(f)
 	var total int
 	countQ := `SELECT count(*) FROM items` + where
@@ -132,14 +135,17 @@ func (r *Items) List(ctx context.Context, f model.ItemFilter, page model.Page) (
 	return out, total, rows.Err()
 }
 
-// BulkUpdate пишет category_id и/или status. Неизвестные id пропускает.
-func (r *Items) BulkUpdate(ctx context.Context, ids []string, categoryID *string, status *string) (int, error) {
+// BulkUpdate пишет category_id и/или status. Неизвестные и чужие id пропускает.
+func (r *Items) BulkUpdate(ctx context.Context, ids []string, categoryID *string, status *string, ownerID string) (int, error) {
+	if ownerID == "" {
+		return 0, nil
+	}
 	tag, err := r.q(ctx).Exec(ctx, `
 UPDATE items SET
     category_id = COALESCE(NULLIF($2, '')::uuid, category_id),
     status = COALESCE(NULLIF($3, ''), status),
     updated_at = now()
-WHERE id = ANY($1::uuid[])`, ids, categoryArg(categoryID), statusArg(status))
+WHERE id = ANY($1::uuid[]) AND owner_id = $4::uuid`, ids, categoryArg(categoryID), statusArg(status), ownerID)
 	if err != nil {
 		return 0, fmt.Errorf("bulk items: %w", err)
 	}
@@ -153,6 +159,7 @@ func itemWhere(f model.ItemFilter) (string, []any) {
 		args = append(args, val)
 		parts = append(parts, fmt.Sprintf(clause, len(args)))
 	}
+	add("owner_id = $%d::uuid", f.OwnerID)
 	if f.Q != "" {
 		pat := "%" + f.Q + "%"
 		args = append(args, pat)
@@ -220,7 +227,7 @@ func scanItem(row itemRow) (model.Item, error) {
 	var raw []byte
 	var tags []string
 	err := row.Scan(
-		&it.ID, &it.Title, &it.Description, &it.KindID, &cat, &it.Vendor, &tags,
+		&it.ID, &it.OwnerID, &it.Title, &it.Description, &it.KindID, &cat, &it.Vendor, &tags,
 		&it.CostAmount, &it.Currency, &it.BillingPeriod, &started, &expires,
 		&it.NotifyBeforeDays, &it.URL, &it.AccountHint, &it.Status, &raw,
 		&it.CreatedAt, &it.UpdatedAt,
@@ -287,12 +294,27 @@ func statusArg(s *string) string {
 	return *s
 }
 
-// ListOpen — записи, которые тикер может пересчитать (не cancelled/archived).
+// ListOpen — все открытые записи для тикера (не cancelled/archived).
 func (r *Items) ListOpen(ctx context.Context) ([]model.Item, error) {
-	rows, err := r.q(ctx).Query(ctx, `SELECT `+itemCols+`
+	return r.listOpen(ctx, `SELECT `+itemCols+`
 FROM items
 WHERE status NOT IN ('cancelled', 'archived')
 ORDER BY id`)
+}
+
+// ListOpenByOwner — открытые записи владельца для dashboard/calendar.
+func (r *Items) ListOpenByOwner(ctx context.Context, ownerID string) ([]model.Item, error) {
+	if ownerID == "" {
+		return []model.Item{}, nil
+	}
+	return r.listOpen(ctx, `SELECT `+itemCols+`
+FROM items
+WHERE status NOT IN ('cancelled', 'archived') AND owner_id = $1::uuid
+ORDER BY id`, ownerID)
+}
+
+func (r *Items) listOpen(ctx context.Context, q string, args ...any) ([]model.Item, error) {
+	rows, err := r.q(ctx).Query(ctx, q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list open items: %w", err)
 	}

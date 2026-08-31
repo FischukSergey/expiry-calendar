@@ -2,6 +2,18 @@
 
 Как в my-chat: локальный стек, тестовая БД и prod на VPS разнесены по каталогам.
 
+## Хост прода (Beget)
+
+| | |
+|---|---|
+| Домен | `duekeep.ru` (без `www`) |
+| IPv4 VPS | `159.194.252.6` |
+| SSH | `ssh duekeep` (ключ `~/.ssh/beget_duekeep`, алиас в `~/.ssh/config`) |
+| DNS | A `@` → `159.194.252.6`, NS Beget. `www` / autoconfig в зону не нужны |
+| SSL | свой certbot на VPS (`init-ssl.sh`), не бесплатный LE в панели Beget |
+
+В `.env` на сервере: `DOMAIN=duekeep.ru`. То же имя — в [`prod/nginx/conf.d/duekeep.conf`](prod/nginx/conf.d/duekeep.conf) (`server_name` и пути Let's Encrypt).
+
 | Каталог | Назначение | Секреты |
 |---|---|---|
 | [`local/`](local/docker-compose.local.yml) | разработка и сдача (`docker compose up` из корня) | демо, зашиты в compose |
@@ -23,7 +35,8 @@ docker compose -f deploy/prod/docker-compose.prod.yml --env-file .env up -d --bu
 
 В git не должно быть: `.env`, живых JWT/VAPID/паролей, каталога `deploy/prod/certbot/conf/` (сертификаты).
 
-Локальный стек `.env` не читает — там намеренно слабые демо-значения.
+Локальный стек `.env` не читает — там намеренно слабые демо-значения. `SEED=true`.
+Прод: `SEED=false` в compose — демо-пользователи и 50+ items не создаются.
 
 Локальная Postgres с хоста: `localhost:15432`, пользователь/пароль/БД `duekeep`.  
 Внутри compose backend ходит на `db:5432` (имя сервиса).  
@@ -31,13 +44,15 @@ docker compose -f deploy/prod/docker-compose.prod.yml --env-file .env up -d --bu
 
 ## Первый SSL на VPS
 
-Когда будет домен и A-запись:
+Когда `dig +short duekeep.ru A` даёт `159.194.252.6`:
 
 ```bash
-# в .env: DOMAIN=... и LETSENCRYPT_EMAIL=...
+# в .env: DOMAIN=duekeep.ru и LETSENCRYPT_EMAIL=...
 cd deploy/prod
 bash init-ssl.sh --staging   # проверка
 bash init-ssl.sh             # боевой сертификат
 ```
 
 Домен в nginx (`nginx/conf.d/duekeep.conf`) должен совпадать с `DOMAIN`.
+
+Автодеплой с `main` (скрипт + GitHub Actions) — [Sprint 8](../docs/sprint-8-plan.md). Пока спринт не закрыт, выкладка ручная: `ssh duekeep` и команда compose выше.

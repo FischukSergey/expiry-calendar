@@ -1,12 +1,16 @@
 package service_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"duekeep/internal/clock"
 	"duekeep/internal/model"
+	"duekeep/internal/seed"
 	"duekeep/internal/service"
 )
 
@@ -20,7 +24,7 @@ func testAuth(t *testing.T) *service.Auth {
 	})
 }
 
-func TestRegisterAlwaysViewer(t *testing.T) {
+func TestRegisterCreatesAdmin(t *testing.T) {
 	t.Parallel()
 	svc := testAuth(t)
 	pair, err := svc.Register(t.Context(), "new@duekeep.local", "secret12", "")
@@ -31,7 +35,7 @@ func TestRegisterAlwaysViewer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if id.Role != string(model.RoleViewer) {
+	if id.Role != string(model.RoleAdmin) {
 		t.Fatalf("role: %s", id.Role)
 	}
 	if pair.TokenType != model.TokenTypeBearer || pair.ExpiresIn != 900 {
@@ -135,6 +139,98 @@ func TestLogoutAll(t *testing.T) {
 	}
 }
 
+func TestLoginRefreshClaimsNoOrgID(t *testing.T) {
+	t.Parallel()
+	secret := []byte("unit-test-secret")
+	svc := testAuth(t)
+	reg, err := svc.Register(t.Context(), "lr@duekeep.local", "secret12", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	login, err := svc.Login(t.Context(), "lr@duekeep.local", "secret12", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ref, err := svc.Refresh(t.Context(), login.RefreshToken, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, raw := range []string{reg.AccessToken, login.AccessToken, ref.AccessToken} {
+		id, err := service.ParseAccess(secret, raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if id.Role != string(model.RoleAdmin) || id.UserID == "" {
+			t.Fatalf("%+v", id)
+		}
+	}
+}
+
+type memCatWriter struct {
+	rows []model.Category
+}
+
+func (m *memCatWriter) Create(_ context.Context, c model.Category) (model.Category, error) {
+	c.ID = uuid.NewString()
+	c.Children = []model.Category{}
+	m.rows = append(m.rows, c)
+	return c, nil
+}
+
+func TestRegisterCopiesDefaultCategories(t *testing.T) {
+	t.Parallel()
+	want := seed.DefaultCategories()
+	cats := &memCatWriter{}
+	svc := testAuth(t)
+	svc.SetCategoryDefaults(cats)
+
+	pair, err := svc.Register(t.Context(), "cats@duekeep.local", "secret12", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := service.ParseAccess([]byte("unit-test-secret"), pair.AccessToken)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cats.rows) != len(want) {
+		t.Fatalf("cats %d want %d", len(cats.rows), len(want))
+	}
+	for i, c := range cats.rows {
+		if c.OwnerID != id.UserID {
+			t.Fatalf("owner %s want %s", c.OwnerID, id.UserID)
+		}
+		if c.Name != want[i].Name || c.SortOrder != want[i].SortOrder {
+			t.Fatalf("row %d %+v want %+v", i, c, want[i])
+		}
+		if want[i].ParentIdx < 0 {
+			if c.ParentID != nil && *c.ParentID != "" {
+				t.Fatalf("root %s has parent", c.Name)
+			}
+		} else {
+			parent := cats.rows[want[i].ParentIdx]
+			if c.ParentID == nil || *c.ParentID != parent.ID {
+				t.Fatalf("%s parent %v want %s", c.Name, c.ParentID, parent.ID)
+			}
+		}
+	}
+
+	other := &memCatWriter{}
+	second := testAuth(t)
+	second.SetCategoryDefaults(other)
+	if _, err := second.Register(t.Context(), "other@duekeep.local", "secret12", ""); err != nil {
+		t.Fatal(err)
+	}
+	if len(other.rows) != len(want) {
+		t.Fatalf("second cats %d", len(other.rows))
+	}
+	if other.rows[0].ID == cats.rows[0].ID {
+		t.Fatal("category ids must be per-user")
+	}
+	if other.rows[0].OwnerID == cats.rows[0].OwnerID {
+		t.Fatal("owners must differ")
+	}
+}
+
 func TestMe(t *testing.T) {
 	t.Parallel()
 	svc := testAuth(t)
@@ -150,7 +246,7 @@ func TestMe(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if me.Email != "me@duekeep.local" || me.Role != model.RoleViewer {
+	if me.Email != "me@duekeep.local" || me.Role != model.RoleAdmin {
 		t.Fatalf("%+v", me)
 	}
 }

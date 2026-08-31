@@ -1,121 +1,121 @@
-# Sprint 7 — изоляция данных (org)
+# Sprint 7 — свои данные (прод)
 
-Источник: решение после v1; [`ARCHITECTURE.md`](../ARCHITECTURE.md) §7 (claims + `org_id`); спринты 1–6 не переписываем.
+Источник: решение после v1; спринты 1–6 не переписываем. Сдача защиты — тег `v1.0.0`.
 
 ## 1) Цель
 
-Пользователь регистрируется как **хозяин своей области** на одном сервере (PWA, общая PostgreSQL). Может подключить других как **viewer**. Данные разных хозяев не пересекаются.
+Прод (`duekeep.ru`): **каждый регистрируется и видит только своё**. Один пользователь — хозяин своих записей. Роль `viewer`, шаринг и изоляция по `org_id` **не делаем**.
 
 К концу спринта:
 
-- регистрация создаёт `org` + членство `admin` (хозяин);
-- JWT содержит `org_id` без смены протокола login/refresh;
-- инвайт-ссылка (без почты) добавляет viewer в чужую область;
-- items, категории, renewals, audit, notifications, dashboard, calendar, CSV, SSE, push — только текущий `org_id`;
-- seed v1 живёт в одной демо-организации; новый register не видит этот набор.
+- `POST /auth/register` создаёт `admin` с пустым каталогом (копия дефолтных категорий, без seed-items);
+- предметные выборки и мутации — только строки владельца (`owner_id` = `sub` из access);
+- JWT без `org_id`: claims как в Sprint 2 (`sub`, `role`, `iss`, `iat`, `exp`);
+- на проде seed выключен; локально seed-items принадлежат seed-admin, общий каталог v1 больше не используется;
+- два независимых аккаунта не видят записи друг друга.
 
 ## 2) Входные условия
 
-Sprint 6 закрыт: сдача v1 с **общим** набором данных, роли admin/viewer на инсталляцию.
+Sprint 6 закрыт, тег `v1.0.0`. v1: общий набор данных, роли admin/viewer на инсталляцию.
 
 ## 3) Границы
 
 ### Входит
 
-- таблицы `orgs`, `org_members`, `org_invites`;
-- `org_id` на предметных таблицах (items и зависимые, categories);
-- register без инвайта → новая org + admin;
-- register / accept с токеном инвайта → viewer чужой org;
-- claims: `sub`, `role`, `org_id`, `iss`, `iat`, `exp`;
-- все выборки и мутации scoped по текущему `org_id`;
-- UI: принять инвайт, текущая org в профиле; viewer без кнопок записи (как Sprint 5, но в своей области).
+- колонка `owner_id` (FK на `users`) на `items`, `categories`, `audit_log`, `notifications`;
+- register → роль `admin`, свои категории, без чужих items;
+- все list/get/patch/delete/renew/bulk/CSV/dashboard/calendar/notifications scoped по `owner_id`;
+- SSE, тикер, Web Push — только события своих записей;
+- флаг/режим без seed на prod compose;
+- UI: register сразу в пустой свой список; кнопки мутаций у admin (единственная роль после register).
 
 ### Не входит
 
-- рассылка email / Telegram (ссылку копирует хозяин);
-- несколько пространств у одного пользователя в полноценном UX (если членств > 1 — переключение API + минимум в профиле);
-- приглашение второго admin / смена хозяина;
-- per-org справочник `item_kinds` (остаётся общим на инсталляцию);
-- биллинг, квоты, удаление org;
+- таблицы `orgs`, `org_members`, `org_invites` и поле `org_id`;
+- инвайт-ссылки, шаринг, роль `viewer` в новой модели;
+- несколько пространств / переключение org;
+- почта, Telegram, биллинг, квоты;
+- per-user справочник `item_kinds` (остаётся общим на инсталляцию);
 - второй инстанс backend;
-- переписывание контрактов спринтов 1–6 «задним числом»: только аддитивные поля и новые ручки.
+- переписывание контрактов спринтов 1–6 «задним числом»: меняем поведение register и добавляем scope; пути ручек те же.
 
 ## 4) Backlog
 
 ### A. Схема
 
-- `orgs`, `org_members` (user + org + role), `org_invites` (token_hash, expires, redeemed).
-- `org_id` NOT NULL на `items`, `categories`, `renewals` (через item), `audit_log`, `notifications`.
-- Миграция существующих строк v1 в одну демо-org; seed-пользователи — члены этой org.
+- `owner_id NOT NULL` + FK + индексы на `categories`, `items`, `audit_log`, `notifications` (renewals — через item).
+- Backfill локального seed: все бывшие общие строки → `owner_id` seed-admin.
+- Новая строка без `owner_id` невозможна.
 
-### B. Auth и членство
+### B. Auth
 
-- register без инвайта создаёт org (имя по умолчанию из email) и admin.
-- login/refresh кладут в access текущий `org_id` + `role` из членства.
-- `GET /me` отдаёт `org_id`, `org_name`, `role`.
-- Роль больше не источник истины в `users.role` для данных — только membership.
+- `register` больше не создаёт `viewer`: новый пользователь — `admin`.
+- login/refresh без новых claims.
+- `GET /me` — как Sprint 2 (`id`, `email`, `role`), без `org_id`.
+- Права мутаций: auth + владение строкой. Глобальный `users.role` для новых аккаунтов — `admin`.
 
-### C. Инвайты
+### C. Изоляция API
 
-- admin: создать инвайт (TTL, например 7 дней) → opaque token / URL.
-- accept: авторизованный пользователь или register с `invite_token`.
-- повторный accept / чужой org → 409; просроченный → 401/422.
+- repository: обязательный `owner_id` во всех запросах предметных таблиц.
+- Чужой UUID → `404 not_found` (не `403`).
+- `item_kinds` общие; кто пишет kinds — зафиксировать в limitations (не каждый зарегистрированный).
 
-### D. Изоляция API
+### D. Realtime и обзор
 
-- repository: обязательный `org_id` во всех запросах предметных таблиц.
-- 404, если id существует в другой org (не палить чужое 403).
-- kinds: по-прежнему общие; мутации kinds — только admin **демо/инсталляции** или оставить как в v1 только seed-admin (зафиксировать в limitations).
+- тикер, SSE, Web Push, dashboard, calendar, CSV — только items текущего `sub`.
 
-### E. Realtime и обзор
+### E. Seed и прод
 
-- тикер, SSE, Web Push, dashboard, calendar, CSV — только items текущего org (push: подписки пользователя, payload только если item его текущей/его org).
+- Prod: seed не запускать (`SEED` / аналог в prod compose).
+- Local: seed-admin + каталог 50+ на нём; seed-viewer не обязателен (шаринга нет).
+- Register: копия дефолтного дерева категорий, kinds не копировать.
+- Повторный `compose up` не плодит пользователей и категории seed.
 
-### F. Seed и UI
+### F. UI
 
-- демо-org + admin + viewer + бывший общий seed.
-- PWA: экран/блок инвайта; профиль показывает org.
+- Register → пустой свой список.
+- Профиль без org и без инвайтов.
+- Скрыть или убрать сценарий «viewer без кнопок» как продуктовую роль (остаётся только если локальный seed-viewer ещё жив).
 
 ### G. Тесты
 
-- два хозяина не видят чужие items;
-- viewer инвайта читает, не пишет;
-- register без инвайта не видит seed-данные.
+- два register не видят чужие items / dashboard;
+- чужой id → 404;
+- register не видит seed-каталог;
+- SSE/push не утекает другому `sub`.
 
 ## 5) Техрешения
 
-- Один сервер, один Postgres: изоляция = `WHERE org_id = $current`.
-- Клиент — PWA, не натив; данные не в браузере (офлайн-CRUD по-прежнему нет).
+- Один сервер, один Postgres: изоляция = `WHERE owner_id = $sub`. Не `org_id`.
+- Клиент — PWA; офлайн-CRUD по-прежнему нет.
 - Интерфейсы repo по-прежнему в service.
-- `users.role` после миграции: копия «legacy» или deprecated; фильтры прав — `org_members.role`.
-- Новая org: копия дефолтного дерева категорий (как seed), kinds не копировать.
-- Неизвестный refresh по-прежнему 401 без revoke family.
+- Неизвестный refresh — 401 без revoke family.
 
 ## 6) DoD
 
 - два независимых аккаунта не видят записи друг друга;
-- хозяин инвайтом даёт viewer доступ к своей области;
-- viewer не мутирует items/categories;
-- login/refresh работают как в Sprint 2, в access есть `org_id`;
+- register даёт admin и пустой свой каталог;
+- login/refresh как в Sprint 2, без `org_id` в claims;
+- на prod compose seed выключен;
 - контракт [`api-sprint-7.md`](api-sprint-7.md).
 
 ## 7) Демо
 
-1. Register `owner-a@…` — пустой список, свои категории.
-2. Создать item. Register `owner-b@…` — item A не виден.
-3. A создаёт инвайт, B (или новый `view@…`) принимает — видит item A, `POST /items` → 403.
-4. Seed admin/viewer по-прежнему логинятся в демо-org с 50+ items.
+1. Register `a@…` — пустой список, свои категории.
+2. Создать item. Register `b@…` — item A не виден, `GET` по id A → 404.
+3. Прод: чистый том, без `admin@duekeep.local` и без 50+ seed.
 
 ## 8) Риски
 
-- забыть `org_id` в одном запросе → утечка между хозяевами;
-- SSE/тикер шлют события всем сокетам, как в Sprint 4 («данные общие»);
-- register+инвайт: не создать вторую пустую org «на всякий случай»;
-- kinds общие: не дать каждому хозяину ломать глобальный справочник (права зафиксировать).
+- забыть `owner_id` в одном запросе → утечка между пользователями;
+- SSE/тикер шлют всем сокетам, как в Sprint 4 («данные общие»);
+- kinds общие: не дать каждому admin ломать глобальный справочник;
+- register в v1 был viewer — клиент и тесты Sprint 2, которые ждут viewer, поправить только аддитивно в этом спринте.
 
 ## 9) Артефакты
 
-- миграции org + backfill v1;
-- инвайты и scoped queries;
-- тесты изоляции;
+- миграции `owner_id` + backfill seed;
+- scoped queries;
+- seed off на prod;
+- тесты изоляции по пользователю;
 - docs спринта.

@@ -37,7 +37,7 @@ type ItemStore interface {
 	Update(ctx context.Context, it model.Item) (model.Item, error)
 	Delete(ctx context.Context, id string) error
 	List(ctx context.Context, f model.ItemFilter, page model.Page) ([]model.Item, int, error)
-	BulkUpdate(ctx context.Context, ids []string, categoryID *string, status *string) (int, error)
+	BulkUpdate(ctx context.Context, ids []string, categoryID *string, status *string, ownerID string) (int, error)
 }
 
 // RenewalStore — история продлений.
@@ -49,7 +49,7 @@ type RenewalStore interface {
 // AuditStore — журнал.
 type AuditStore interface {
 	Create(ctx context.Context, e model.AuditEntry) error
-	List(ctx context.Context, page model.Page) ([]model.AuditEntry, int, error)
+	List(ctx context.Context, ownerID string, page model.Page) ([]model.AuditEntry, int, error)
 }
 
 // Item — CRUD записей, renew, bulk, audit.
@@ -85,21 +85,11 @@ func (s *Item) SetNotify(notes NotificationStore, bus EventBus) {
 	s.bus = bus
 }
 
-// List фильтрует и пагинирует. category_id включает потомков.
-func (s *Item) List(ctx context.Context, f model.ItemFilter, page model.Page) (model.ItemList, error) {
-	f, err := normalizeFilter(f)
+// List фильтрует и пагинирует. Только свой owner_id; category_id включает потомков.
+func (s *Item) List(ctx context.Context, f model.ItemFilter, page model.Page, actorID string) (model.ItemList, error) {
+	f, err := s.scopedFilter(ctx, f, actorID)
 	if err != nil {
 		return model.ItemList{}, err
-	}
-	if f.CategoryID != "" {
-		if _, err := s.cats.ByID(ctx, f.CategoryID); err != nil {
-			return model.ItemList{}, err
-		}
-		ids, err := s.cats.DescendantIDs(ctx, f.CategoryID)
-		if err != nil {
-			return model.ItemList{}, err
-		}
-		f.CategoryIDs = ids
 	}
 	rows, total, err := s.items.List(ctx, f, page)
 	if err != nil {
@@ -113,10 +103,11 @@ func (s *Item) List(ctx context.Context, f model.ItemFilter, page model.Page) (m
 
 // Create валидирует attrs/даты и считает status.
 func (s *Item) Create(ctx context.Context, in model.Item, actorID string) (model.Item, error) {
-	it, err := s.prepareWrite(ctx, in)
+	it, err := s.prepareWrite(ctx, in, actorID)
 	if err != nil {
 		return model.Item{}, err
 	}
+	it.OwnerID = actorID
 	var created model.Item
 	var note model.Notification
 	var inserted bool
@@ -138,10 +129,13 @@ func (s *Item) Create(ctx context.Context, in model.Item, actorID string) (model
 	return created, err
 }
 
-// Get карточка + renewals.
-func (s *Item) Get(ctx context.Context, id string) (model.ItemCard, error) {
+// Get карточка + renewals. Чужой id → 404.
+func (s *Item) Get(ctx context.Context, id, actorID string) (model.ItemCard, error) {
 	it, err := s.items.ByID(ctx, id)
 	if err != nil {
+		return model.ItemCard{}, err
+	}
+	if err := requireOwner(it.OwnerID, actorID); err != nil {
 		return model.ItemCard{}, err
 	}
 	hist, err := s.renewals.ListByItem(ctx, id)
@@ -160,10 +154,13 @@ func (s *Item) Patch(ctx context.Context, id string, p model.ItemPatch, actorID 
 	if err != nil {
 		return model.Item{}, err
 	}
+	if err := requireOwner(cur.OwnerID, actorID); err != nil {
+		return model.Item{}, err
+	}
 	before := itemSnap(cur)
 	prevStatus := cur.Status
 	applyItemPatch(&cur, p)
-	it, err := s.prepareWrite(ctx, cur)
+	it, err := s.prepareWrite(ctx, cur, actorID)
 	if err != nil {
 		return model.Item{}, err
 	}
@@ -195,6 +192,9 @@ func (s *Item) Delete(ctx context.Context, id, actorID string) error {
 	if err != nil {
 		return err
 	}
+	if err := requireOwner(cur.OwnerID, actorID); err != nil {
+		return err
+	}
 	before := itemSnap(cur)
 	return s.tx(ctx, func(ctx context.Context) error {
 		if err := s.items.Delete(ctx, id); err != nil {
@@ -208,6 +208,9 @@ func (s *Item) Delete(ctx context.Context, id, actorID string) error {
 func (s *Item) Renew(ctx context.Context, id string, in model.RenewInput, actorID string) (model.Item, error) {
 	cur, err := s.items.ByID(ctx, id)
 	if err != nil {
+		return model.Item{}, err
+	}
+	if err := requireOwner(cur.OwnerID, actorID); err != nil {
 		return model.Item{}, err
 	}
 	expires, err := parseDate(fieldNewExpires, in.NewExpiresAt)
@@ -226,7 +229,7 @@ func (s *Item) Renew(ctx context.Context, id string, in model.RenewInput, actorI
 	oldCost := cur.CostAmount
 	cur.ExpiresAt = expires.Format(model.DateLayout)
 	cur.CostAmount = newCost
-	it, err := s.prepareWrite(ctx, cur)
+	it, err := s.prepareWrite(ctx, cur, actorID)
 	if err != nil {
 		return model.Item{}, err
 	}
@@ -269,9 +272,16 @@ func (s *Item) Bulk(ctx context.Context, in model.BulkInput, actorID string) (mo
 		if _, err := uuid.Parse(id); err != nil {
 			return model.BulkResult{}, model.Validation("invalid id", map[string]any{fieldIDs: id})
 		}
+		it, err := s.items.ByID(ctx, id)
+		if err != nil {
+			return model.BulkResult{}, err
+		}
+		if err := requireOwner(it.OwnerID, actorID); err != nil {
+			return model.BulkResult{}, err
+		}
 	}
 	if in.CategoryID != nil {
-		if _, err := s.cats.ByID(ctx, *in.CategoryID); err != nil {
+		if err := s.ownCategory(ctx, *in.CategoryID, actorID); err != nil {
 			return model.BulkResult{}, err
 		}
 	}
@@ -284,7 +294,7 @@ func (s *Item) Bulk(ctx context.Context, in model.BulkInput, actorID string) (mo
 	}
 	var updated int
 	err := s.tx(ctx, func(ctx context.Context) error {
-		n, err := s.items.BulkUpdate(ctx, in.IDs, in.CategoryID, in.Status)
+		n, err := s.items.BulkUpdate(ctx, in.IDs, in.CategoryID, in.Status, actorID)
 		if err != nil {
 			return err
 		}
@@ -304,9 +314,9 @@ func (s *Item) Bulk(ctx context.Context, in model.BulkInput, actorID string) (mo
 	return model.BulkResult{Updated: updated}, err
 }
 
-// ListAudit — GET /audit, без фильтров.
-func (s *Item) ListAudit(ctx context.Context, page model.Page) (model.AuditList, error) {
-	rows, total, err := s.audit.List(ctx, page)
+// ListAudit — GET /audit, только события владельца.
+func (s *Item) ListAudit(ctx context.Context, page model.Page, actorID string) (model.AuditList, error) {
+	rows, total, err := s.audit.List(ctx, actorID, page)
 	if err != nil {
 		return model.AuditList{}, err
 	}
@@ -316,7 +326,7 @@ func (s *Item) ListAudit(ctx context.Context, page model.Page) (model.AuditList,
 	return model.AuditList{Items: rows, Page: page.Page, PerPage: page.PerPage, Total: total}, nil
 }
 
-func (s *Item) prepareWrite(ctx context.Context, in model.Item) (model.Item, error) {
+func (s *Item) prepareWrite(ctx context.Context, in model.Item, actorID string) (model.Item, error) {
 	in.Title = strings.TrimSpace(in.Title)
 	in.Description = strings.TrimSpace(in.Description)
 	in.Vendor = strings.TrimSpace(in.Vendor)
@@ -344,7 +354,7 @@ func (s *Item) prepareWrite(ctx context.Context, in model.Item) (model.Item, err
 	if err := ValidateAttrs(kind.AttrSchema, in.Attrs); err != nil {
 		return model.Item{}, err
 	}
-	if err := s.normalizeCategoryID(ctx, &in); err != nil {
+	if err := s.normalizeCategoryID(ctx, &in, actorID); err != nil {
 		return model.Item{}, err
 	}
 	if in.CostAmount < 0 {
@@ -387,7 +397,34 @@ func (s *Item) prepareWrite(ctx context.Context, in model.Item) (model.Item, err
 	return in, nil
 }
 
-func (s *Item) normalizeCategoryID(ctx context.Context, in *model.Item) error {
+func (s *Item) scopedFilter(ctx context.Context, f model.ItemFilter, actorID string) (model.ItemFilter, error) {
+	f, err := normalizeFilter(f)
+	if err != nil {
+		return f, err
+	}
+	f.OwnerID = actorID
+	if f.CategoryID != "" {
+		if err := s.ownCategory(ctx, f.CategoryID, actorID); err != nil {
+			return f, err
+		}
+		ids, err := s.cats.DescendantIDs(ctx, f.CategoryID)
+		if err != nil {
+			return f, err
+		}
+		f.CategoryIDs = ids
+	}
+	return f, nil
+}
+
+func (s *Item) ownCategory(ctx context.Context, id, actorID string) error {
+	cat, err := s.cats.ByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	return requireOwner(cat.OwnerID, actorID)
+}
+
+func (s *Item) normalizeCategoryID(ctx context.Context, in *model.Item, actorID string) error {
 	if in.CategoryID == nil {
 		return nil
 	}
@@ -399,7 +436,7 @@ func (s *Item) normalizeCategoryID(ctx context.Context, in *model.Item) error {
 	if _, err := uuid.Parse(cid); err != nil {
 		return model.Validation("invalid category_id", map[string]any{fieldCategory: detailUUID})
 	}
-	if _, err := s.cats.ByID(ctx, cid); err != nil {
+	if err := s.ownCategory(ctx, cid, actorID); err != nil {
 		return err
 	}
 	in.CategoryID = &cid
@@ -530,6 +567,7 @@ func (s *Item) notifyTransition(ctx context.Context, prev string, it model.Item)
 		return model.Notification{}, false, nil
 	}
 	return s.notes.Insert(ctx, model.Notification{
+		OwnerID:   it.OwnerID,
 		ItemID:    it.ID,
 		ToStatus:  it.Status,
 		Title:     it.Title,

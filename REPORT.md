@@ -2,6 +2,59 @@
 
 Журнал создания Duekeep. Записи добавляются по ходу работы, не в конце.
 
+## 2026-08-31 — Sprint 7 §7–8, тесты и DoD
+
+- `TestRegisterDoesNotSeeSeedCatalog`: register не видит seed-items/категории; второй аккаунт не видит item первого (демо плана §7).
+- OpenAPI: register/me без org и invite; `owner_id` не в JSON Item. Limitations: SEED на проде, UI без org.
+- `task lint` и `task test` зелёные.
+
+## 2026-08-31 — Sprint 7 §6, UI
+
+- Register ведёт на `/items` (свой пустой список). Экранов org/инвайта нет. Профиль — email, без названия org.
+- Роль viewer в копирайте входа убрана; в профиле остаётся только как пометка локального стенда.
+
+## 2026-08-31 — Sprint 7 §5, seed и прод
+
+- Prod: `SEED=false`, демо-каталог не пишется. Локально `SEED=true`: 50+ у seed-admin, viewer без шаринга.
+- Register копирует дефолтное дерево категорий (новые UUID), без seed-items. Kinds на проде — `EnsureKinds` (общий справочник).
+- Login/refresh/logout без изменений контракта Sprint 2.
+
+## 2026-08-31 — Sprint 7 §4, realtime и обзор
+
+- Dashboard, calendar, notifications, SSE и Web Push — только свой `owner_id` / `sub`.
+- Тикер пишет `OwnerID` владельца item. Интервал: `TICKER_EVERY` (дефолт 12h), плюс Tick при старте. Статус по календарному дню UTC.
+
+## 2026-08-31 — Sprint 7 §3, изоляция выборок
+
+- List/get/export items, CRUD categories, GET /audit — только `owner_id` = `sub`. Чужой UUID → 404.
+- `item_kinds` по-прежнему общие. Dashboard/calendar/SSE — следующий пункт.
+
+## 2026-08-31 — Sprint 7 §2, auth
+
+- Register создаёт admin; login/refresh/me без `org_id` в claims и `/me`.
+- Patch/delete/renew/bulk items и patch/delete categories — только свой `owner_id`, иначе 404.
+
+## 2026-08-31 — Sprint 7 §1, owner_id
+
+- Миграция `011_owner_id.sql`: колонка на categories/items/audit_log/notifications, backfill seed-admin, NOT NULL + FK + индексы. Org-таблиц нет.
+- Seed и INSERT в repository пишут `owner_id`, иначе NOT NULL ломает compose. Выборка по владельцу — следующие пункты.
+
+## 2026-08-31 — Sprint 8 (документы, без кода)
+
+- CD на Beget: после CI на `main` — SSH, `deploy.sh`, `compose --build`, `https://duekeep.ru/healthz`.
+- Не входит: registry, zero-downtime, секреты приложения в Actions, деплой `v1.0.0`.
+- Добавлены `docs/sprint-8-*.md`, строки в индексе и ARCHITECTURE.
+
+## 2026-08-31 — Sprint 7, смена цели
+
+- Прод: register → admin, видит только свои строки (`owner_id` = `sub`).
+- Не делаем: viewer, инвайты, `org_id` / org / шаринг.
+- Обновлены plan, checklist, api, limitations спринта 7; указатели в ARCHITECTURE, FUNCTIONAL, docs/README, README.
+
+## 2026-08-30 — хост прода
+
+- Документированы домен `duekeep.ru` и IPv4 VPS Beget `159.194.252.6` (`deploy/README.md`, `.env.example`, README).
+
 ## 2026-08-30 — дашборд: суммы по месяцам
 
 - Столбцы «Сроки оплаты» заменены на «Суммы оплаты по месяцам».

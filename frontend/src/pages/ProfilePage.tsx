@@ -16,8 +16,9 @@ export function ProfilePage() {
       <div className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/40 p-4">
         <p className="text-sm text-slate-400">Email</p>
         <p className="text-lg">{user?.email}</p>
-        <p className="text-sm text-slate-400">Роль</p>
-        <p>{isAdmin ? 'admin — полный доступ' : 'viewer — только просмотр и экспорт'}</p>
+        {!isAdmin ? (
+          <p className="mt-3 text-sm text-slate-500">Только просмотр — локальный стенд, не продуктовая роль.</p>
+        ) : null}
       </div>
 
       <section className="mt-6 space-y-3 rounded-xl border border-slate-800 p-4">

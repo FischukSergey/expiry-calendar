@@ -31,6 +31,7 @@ func itemSnap(it model.Item) json.RawMessage {
 
 func auditEntry(actorID, action, entityID string, before, after json.RawMessage) model.AuditEntry {
 	e := model.AuditEntry{
+		OwnerID:    actorID,
 		Action:     action,
 		Entity:     model.AuditEntityItem,
 		EntityID:   entityID,

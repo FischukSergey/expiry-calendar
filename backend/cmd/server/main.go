@@ -34,7 +34,7 @@ func main() {
 	}
 }
 
-// run поднимает slog, пул, goose, seed и HTTP. По SIGINT/SIGTERM — Shutdown за 10 с.
+// run поднимает slog, пул, goose, seed (если SEED) и HTTP. По SIGINT/SIGTERM — Shutdown за 10 с.
 func run() error {
 	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	slog.SetDefault(log)
@@ -50,6 +50,8 @@ func run() error {
 		"jwt_refresh_ttl", cfg.RefreshTTL.String(),
 		"cookie_secure", cfg.CookieSecure,
 		"vapid_generated", cfg.VAPIDGenerated,
+		"ticker_every", cfg.TickEvery.String(),
+		"seed", cfg.Seed,
 	)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -64,8 +66,15 @@ func run() error {
 	if err := db.Migrate(ctx, pool, migrations.FS, "."); err != nil {
 		return err
 	}
-	if err := seed.Run(ctx, pool, clock.Real{}); err != nil {
-		return err
+	if cfg.Seed {
+		if err := seed.Run(ctx, pool, clock.Real{}); err != nil {
+			return err
+		}
+	} else {
+		slog.Info("demo seed disabled")
+		if err := seed.EnsureKinds(ctx, pool); err != nil {
+			return err
+		}
 	}
 
 	users := repository.NewUsers(pool)
@@ -81,6 +90,7 @@ func run() error {
 	})
 	kindsRepo := repository.NewKinds(pool)
 	catsRepo := repository.NewCategories(pool)
+	auth.SetCategoryDefaults(catsRepo)
 	itemsRepo := repository.NewItems(pool)
 	notesRepo := repository.NewNotifications(pool)
 	pushRepo := repository.NewPushSubscriptions(pool)
@@ -110,7 +120,7 @@ func run() error {
 	bus := &service.Fanout{SSE: hub, Push: pushSvc}
 	itemsSvc.SetNotify(notesRepo, bus)
 	tkr := service.NewTicker(itemsRepo, notesRepo, runTx, clk, bus)
-	go tkr.Run(ctx, 60*time.Second)
+	go tkr.Run(ctx, cfg.TickEvery)
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           api.Router(),
@@ -149,6 +159,8 @@ type config struct {
 	VAPIDPrivate   string
 	VAPIDSubject   string
 	VAPIDGenerated bool // ключи не из env: подписки не переживут рестарт.
+	TickEvery      time.Duration
+	Seed           bool
 }
 
 // loadConfig: HTTP_ADDR, DATABASE_URL, JWT_SECRET обязателен; TTL с дефолтами 15m / 336h.
@@ -160,6 +172,11 @@ func loadConfig() (config, error) {
 	refreshTTL, err := time.ParseDuration(cmp.Or(os.Getenv("JWT_REFRESH_TTL"), "336h"))
 	if err != nil {
 		return config{}, errors.New("JWT_REFRESH_TTL is invalid")
+	}
+	// Статус — календарный день UTC; чаще минуты не нужны. Сразу Tick при старте, затем каждые 12 ч.
+	tickEvery, err := time.ParseDuration(cmp.Or(os.Getenv("TICKER_EVERY"), "12h"))
+	if err != nil || tickEvery <= 0 {
+		return config{}, errors.New("TICKER_EVERY is invalid")
 	}
 	vapidPublic := strings.TrimSpace(os.Getenv("VAPID_PUBLIC"))
 	vapidPrivate := strings.TrimSpace(os.Getenv("VAPID_PRIVATE"))
@@ -184,6 +201,8 @@ func loadConfig() (config, error) {
 		VAPIDPrivate:   vapidPrivate,
 		VAPIDSubject:   cmp.Or(strings.TrimSpace(os.Getenv("VAPID_SUBJECT")), "dev@duekeep.local"),
 		VAPIDGenerated: generated,
+		TickEvery:      tickEvery,
+		Seed:           seedEnabled(os.Getenv("SEED")),
 	}
 	if cfg.DatabaseURL == "" {
 		return config{}, errors.New("DATABASE_URL is required")
@@ -192,6 +211,16 @@ func loadConfig() (config, error) {
 		return config{}, errors.New("JWT_SECRET is required")
 	}
 	return cfg, nil
+}
+
+// seedEnabled: пустой SEED — включён (локальный go run). 0/false/no/off — выкл.
+func seedEnabled(raw string) bool {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return true
+	}
 }
 
 // redactDSN маскирует пароль в DSN для slog. Невалидный URL → "invalid".

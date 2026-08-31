@@ -25,7 +25,7 @@ docker compose down -v && docker compose up --build
 
 Или короче, если тома уже не важны: `docker compose up --build`.
 
-Три сервиса: PostgreSQL, backend (Go), frontend (nginx + SPA). Backend ждёт healthy у БД, накатывает goose и пишет seed.
+Три сервиса: PostgreSQL, backend (Go), frontend (nginx + SPA). Backend ждёт healthy у БД, накатывает goose и пишет локальный seed (`SEED=true`).
 
 Повторный `docker compose up` не дублирует пользователей, виды, категории и записи: конфликт по стабильным id / email / slug.
 
@@ -51,9 +51,9 @@ nginx на `:80` проксирует `/api`, `/healthz`, `/docs`, `/openapi.yam
 | Email | Пароль | Роль |
 |---|---|---|
 | `admin@duekeep.local` | `admin1234` | полный CRUD, аудит, импорт |
-| `viewer@duekeep.local` | `viewer1234` | чтение, экспорт, без кнопок записи |
+| `viewer@duekeep.local` | `viewer1234` | чтение своего пустого списка, без кнопок записи |
 
-Данные v1 общие: оба видят один каталог.
+Каталог 50+ принадлежит seed-admin. Viewer чужие записи не видит. На проде seed выключен (`SEED=false`): нет этих аккаунтов и нет демо-записей.
 
 ## Сценарий демо
 
@@ -62,7 +62,7 @@ nginx на `:80` проксирует `/api`, `/healthz`, `/docs`, `/openapi.yam
 3. Список: фильтр, карточка, создать/править, продлить (история на карточке).
 4. Календарь текущего месяца.
 5. Экспорт CSV фильтра; импорт — dry run, затем запись.
-6. Колокольчик: непрочитанные из seed; вторая вкладка — SSE без перезагрузки (смена срока у записи и тикер до 60 с).
+6. Колокольчик: непрочитанные; вторая вкладка — SSE без перезагрузки (смена срока у записи; тикер при старте и каждые 12 ч).
 7. Профиль: «Установить» (Chrome), разрешение пушей.
 8. Swagger: `/docs`.
 9. CI: вкладка Actions, workflow `CI`.
@@ -97,8 +97,8 @@ task test            # go test -race
 - Журнал: [REPORT.md](REPORT.md)
 - Прод и секреты: [deploy/README.md](deploy/README.md)
 
-На VPS — `.env` из [`.env.example`](.env.example), `chmod 600`, `task prod:up`. `.env` в git не класть.
+На VPS (`duekeep.ru`, `159.194.252.6`) — `.env` из [`.env.example`](.env.example), `chmod 600`, `task prod:up`. Хост и DNS: [deploy/README.md](deploy/README.md). `.env` в git не класть.
 
 ## Статус
 
-Сдача v1 — тег [`v1.0.0`](https://github.com/FischukSergey/expiry-calendar/releases/tag/v1.0.0) (Sprint 6). `main` после сдачи — развитие. Изоляция данных: [Sprint 7](docs/sprint-7-plan.md).
+Сдача v1 — тег [`v1.0.0`](https://github.com/FischukSergey/expiry-calendar/releases/tag/v1.0.0) (Sprint 6). `main` после сдачи — развитие. Прод: каждый видит своё ([Sprint 7](docs/sprint-7-plan.md)); выкладка на VPS — [Sprint 8](docs/sprint-8-plan.md).

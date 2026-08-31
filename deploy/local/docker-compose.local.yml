@@ -37,6 +37,8 @@ services:
       JWT_SECRET: dev-only-change-me
       JWT_ACCESS_TTL: 15m
       JWT_REFRESH_TTL: 336h
+      TICKER_EVERY: 12h
+      SEED: "true"
       # Локальные ключи, как JWT_SECRET. Не прод.
       VAPID_PUBLIC: BF_BtS_tvLDpsYbIYChfAdPOiwy1PKS-Se-JzRZWG5hAExv9Fp3x8DWaNnKcw9167vY3-fixphFlAeKhmXMajas
       VAPID_PRIVATE: KlOo42SRQIP-WLodpzLKX_MDcNP0nKqZ_3zlXcxhfLk

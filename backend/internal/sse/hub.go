@@ -23,23 +23,28 @@ type Event struct {
 	Data []byte
 }
 
+type client struct {
+	userID string
+	ch     chan Event
+}
+
 // Hub — in-memory клиенты. Одна реплика процесса; горутинобезопасен.
 type Hub struct {
 	mu      sync.RWMutex
-	clients map[string]chan Event
+	clients map[string]client
 }
 
 // NewHub пустой хаб.
 func NewHub() *Hub {
-	return &Hub{clients: map[string]chan Event{}}
+	return &Hub{clients: map[string]client{}}
 }
 
-// Subscribe регистрирует клиента. Канал не закрываем: отмена — через Unsubscribe + ctx.
-func (h *Hub) Subscribe() (id string, ch <-chan Event) {
+// Subscribe регистрирует клиента с sub. Канал не закрываем: отмена — через Unsubscribe + ctx.
+func (h *Hub) Subscribe(userID string) (id string, ch <-chan Event) {
 	id = uuid.NewString()
 	c := make(chan Event, clientBuf)
 	h.mu.Lock()
-	h.clients[id] = c
+	h.clients[id] = client{userID: userID, ch: c}
 	h.mu.Unlock()
 	return id, c
 }
@@ -55,16 +60,19 @@ func (h *Hub) Unsubscribe(id string) {
 func (h *Hub) Publish(ev Event) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	for _, ch := range h.clients {
+	for _, c := range h.clients {
 		select {
-		case ch <- ev:
+		case c.ch <- ev:
 		default:
 		}
 	}
 }
 
-// Notify — EventBus для тикера: только свежий INSERT, без read_at.
+// Notify — EventBus для тикера: только клиентам с тем же sub, что owner_id.
 func (h *Hub) Notify(n model.Notification) {
+	if n.OwnerID == "" {
+		return
+	}
 	body, err := json.Marshal(struct {
 		ID       string `json:"id"`
 		ItemID   string `json:"item_id"`
@@ -74,5 +82,16 @@ func (h *Hub) Notify(n model.Notification) {
 	if err != nil {
 		return
 	}
-	h.Publish(Event{Name: EventNotification, Data: body})
+	ev := Event{Name: EventNotification, Data: body}
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for _, c := range h.clients {
+		if c.userID != n.OwnerID {
+			continue
+		}
+		select {
+		case c.ch <- ev:
+		default:
+		}
+	}
 }

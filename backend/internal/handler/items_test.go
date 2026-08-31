@@ -23,6 +23,7 @@ const (
 	kindNameOther   = "Прочее"
 	expiresSoon     = "2026-09-10"
 	currencyUSD     = "USD"
+	pathItemsBulk   = "/api/v1/items/bulk"
 )
 
 func itemsAPI(t *testing.T) *handler.API {
@@ -42,12 +43,13 @@ func itemsAPI(t *testing.T) *handler.API {
 	kinds.mu.Unlock()
 
 	clk := clock.Fixed{T: time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC)}
-	items := service.NewItem(newMemItems(), kinds, newMemCats(), newMemRenewals(), newMemAudit(), nopTx, clk)
+	cats := newMemCats()
+	items := service.NewItem(newMemItems(), kinds, cats, newMemRenewals(), newMemAudit(), nopTx, clk)
 	return handler.New(handler.Deps{
 		Health:        fakeHealth{},
 		Auth:          fakeAuth{},
 		Kinds:         service.NewKind(kinds),
-		Categories:    service.NewCategory(newMemCats()),
+		Categories:    service.NewCategory(cats),
 		Items:         items,
 		Notifications: service.NewNotification(newMemNotifications()),
 		JWTSecret:     []byte("handler-test-secret"),
@@ -160,7 +162,7 @@ func TestViewerForbiddenItemMutations(t *testing.T) {
 		{http.MethodPatch, "/api/v1/items/" + it.ID, `{"title":"y"}`},
 		{http.MethodDelete, "/api/v1/items/" + it.ID, ""},
 		{http.MethodPost, "/api/v1/items/" + it.ID + "/renew", `{"new_expires_at":"2028-01-01"}`},
-		{http.MethodPost, "/api/v1/items/bulk", `{"ids":["` + it.ID + `"],"status":"archived"}`},
+		{http.MethodPost, pathItemsBulk, `{"ids":["` + it.ID + `"],"status":"archived"}`},
 		{http.MethodPost, "/api/v1/items/import", ""},
 	} {
 		rec := httptest.NewRecorder()
@@ -231,6 +233,164 @@ func TestItemsCRUDRenewFilterPage(t *testing.T) {
 	}
 }
 
+func TestForeignOwnerItemMutationsNotFound(t *testing.T) {
+	t.Parallel()
+	api := itemsAPI(t)
+	owner := testJWT(t, string(model.RoleAdmin))
+	other := testJWTSub(t, string(model.RoleAdmin), "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+	it := adminCreateItem(t, api, owner, `{"title":"x","kind_id":"`+otherKindID+`","expires_at":"2027-01-01"}`)
+	for _, tc := range []struct {
+		method, path, raw string
+	}{
+		{http.MethodGet, "/api/v1/items/" + it.ID, ""},
+		{http.MethodPatch, "/api/v1/items/" + it.ID, `{"title":"y"}`},
+		{http.MethodDelete, "/api/v1/items/" + it.ID, ""},
+		{http.MethodPost, "/api/v1/items/" + it.ID + "/renew", `{"new_expires_at":"2028-01-01"}`},
+		{http.MethodPost, pathItemsBulk, `{"ids":["` + it.ID + `"],"status":"archived"}`},
+	} {
+		rec := httptest.NewRecorder()
+		var req *http.Request
+		if tc.raw != "" {
+			req = httptest.NewRequestWithContext(t.Context(), tc.method, tc.path, bytes.NewBufferString(tc.raw))
+		} else {
+			req = httptest.NewRequestWithContext(t.Context(), tc.method, tc.path, http.NoBody)
+		}
+		req.Header.Set("Authorization", "Bearer "+other)
+		api.Router().ServeHTTP(rec, req)
+		if rec.Code != http.StatusNotFound {
+			t.Fatalf("%s %s: %d %s", tc.method, tc.path, rec.Code, rec.Body.String())
+		}
+	}
+}
+
+func TestOwnerIsolationItemsListGetAudit(t *testing.T) {
+	t.Parallel()
+	api := itemsAPI(t)
+	owner := testJWT(t, string(model.RoleAdmin))
+	other := testJWTSub(t, string(model.RoleAdmin), "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+	it := adminCreateItem(t, api, owner, `{"title":"x","kind_id":"`+otherKindID+`","expires_at":"2027-01-01"}`)
+
+	theirs := listItems(t, api, other, "")
+	if theirs.Total != 0 || len(theirs.Items) != 0 {
+		t.Fatalf("leaked list %+v", theirs)
+	}
+	mine := listItems(t, api, owner, "")
+	if mine.Total != 1 || mine.Items[0].ID != it.ID {
+		t.Fatalf("own list %+v", mine)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/items/"+it.ID, nil)
+	req.Header.Set("Authorization", "Bearer "+other)
+	api.Router().ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("get %d %s", rec.Code, rec.Body.String())
+	}
+
+	var audit model.AuditList
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/audit", nil)
+	req.Header.Set("Authorization", "Bearer "+other)
+	api.Router().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("audit other %d %s", rec.Code, rec.Body.String())
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&audit); err != nil {
+		t.Fatal(err)
+	}
+	if audit.Total != 0 || len(audit.Items) != 0 {
+		t.Fatalf("leaked audit %+v", audit)
+	}
+
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/audit", nil)
+	req.Header.Set("Authorization", "Bearer "+owner)
+	api.Router().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("audit own %d %s", rec.Code, rec.Body.String())
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&audit); err != nil {
+		t.Fatal(err)
+	}
+	if audit.Total != 1 || audit.Items[0].Action != model.AuditCreate {
+		t.Fatalf("own audit %+v", audit)
+	}
+}
+
+func TestForeignCategoryIDNotFound(t *testing.T) {
+	t.Parallel()
+	api := itemsAPI(t)
+	owner := testJWT(t, string(model.RoleAdmin))
+	other := testJWTSub(t, string(model.RoleAdmin), "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+	cat := adminCreateCategory(t, api, owner, `{"name":"Work"}`)
+
+	rec := httptest.NewRecorder()
+	raw := `{"title":"x","kind_id":"` + otherKindID + `","expires_at":"2027-01-01","category_id":"` + cat.ID + `"}`
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/items", bytes.NewBufferString(raw))
+	req.Header.Set("Authorization", "Bearer "+other)
+	api.Router().ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("create %d %s", rec.Code, rec.Body.String())
+	}
+
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/items?category_id="+cat.ID, nil)
+	req.Header.Set("Authorization", "Bearer "+other)
+	api.Router().ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("filter %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestOwnerIsolationCategories(t *testing.T) {
+	t.Parallel()
+	api := itemsAPI(t)
+	owner := testJWT(t, string(model.RoleAdmin))
+	other := testJWTSub(t, string(model.RoleAdmin), "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+	cat := adminCreateCategory(t, api, owner, `{"name":"Mine"}`)
+
+	own := listCategories(t, api, owner)
+	if len(own) != 1 || own[0].ID != cat.ID {
+		t.Fatalf("own %+v", own)
+	}
+	theirs := listCategories(t, api, other)
+	if len(theirs) != 0 {
+		t.Fatalf("leaked %+v", theirs)
+	}
+
+	adminJSON(t, api, other, http.MethodPatch, "/api/v1/categories/"+cat.ID, `{"name":"X"}`, http.StatusNotFound)
+	adminJSON(t, api, other, http.MethodDelete, "/api/v1/categories/"+cat.ID, "", http.StatusNotFound)
+
+	rec := httptest.NewRecorder()
+	body := bytes.NewBufferString(`{"name":"Child","parent_id":"` + cat.ID + `"}`)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/categories", body)
+	req.Header.Set("Authorization", "Bearer "+other)
+	api.Router().ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("parent %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestKindsRemainShared(t *testing.T) {
+	t.Parallel()
+	api := itemsAPI(t)
+	other := testJWTSub(t, string(model.RoleAdmin), "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/kinds", nil)
+	req.Header.Set("Authorization", "Bearer "+other)
+	api.Router().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d %s", rec.Code, rec.Body.String())
+	}
+	var out model.KindList
+	if err := json.NewDecoder(rec.Body).Decode(&out); err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Items) == 0 {
+		t.Fatal("kinds empty")
+	}
+}
+
 func TestViewerForbiddenAudit(t *testing.T) {
 	t.Parallel()
 	api := itemsAPI(t)
@@ -255,7 +415,7 @@ func TestMutationsWriteAudit(t *testing.T) {
 	adminJSON(t, api, tok, http.MethodPost, "/api/v1/items/"+created.ID+"/renew",
 		`{"new_expires_at":"2028-01-01","new_cost":10,"comment":"год"}`, http.StatusOK)
 	second := adminCreateItem(t, api, tok, `{"title":"Второй","kind_id":"`+otherKindID+`","expires_at":"2027-06-01"}`)
-	adminJSON(t, api, tok, http.MethodPost, "/api/v1/items/bulk",
+	adminJSON(t, api, tok, http.MethodPost, pathItemsBulk,
 		`{"ids":["`+second.ID+`"],"status":"archived"}`, http.StatusOK)
 	adminJSON(t, api, tok, http.MethodDelete, "/api/v1/items/"+created.ID, "", http.StatusNoContent)
 
@@ -313,6 +473,32 @@ func adminJSON(t *testing.T, api *handler.API, tok, method, path, raw string, wa
 		t.Fatalf("%s %s: %d %s", method, path, rec.Code, rec.Body.String())
 	}
 	return rec
+}
+
+func adminCreateCategory(t *testing.T, api *handler.API, tok, raw string) model.Category {
+	t.Helper()
+	rec := adminJSON(t, api, tok, http.MethodPost, "/api/v1/categories", raw, http.StatusCreated)
+	var c model.Category
+	if err := json.NewDecoder(rec.Body).Decode(&c); err != nil {
+		t.Fatal(err)
+	}
+	return c
+}
+
+func listCategories(t *testing.T, api *handler.API, tok string) []model.Category {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/categories", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	api.Router().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("categories %d %s", rec.Code, rec.Body.String())
+	}
+	var out model.CategoryList
+	if err := json.NewDecoder(rec.Body).Decode(&out); err != nil {
+		t.Fatal(err)
+	}
+	return out.Items
 }
 
 func listItems(t *testing.T, api *handler.API, tok, query string) model.ItemList {

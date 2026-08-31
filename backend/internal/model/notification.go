@@ -5,6 +5,7 @@ import "time"
 // Notification — in-app событие перехода в expiring/expired.
 type Notification struct {
 	ID        string     `json:"id"`
+	OwnerID   string     `json:"-"`
 	ItemID    string     `json:"item_id"`
 	ToStatus  string     `json:"to_status"`
 	Title     string     `json:"title"`

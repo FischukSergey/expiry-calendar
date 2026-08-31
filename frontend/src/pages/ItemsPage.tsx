@@ -60,6 +60,9 @@ export function ItemsPage() {
     URL.revokeObjectURL(url)
   }
 
+  const hasListFilter = ['q', 'kind_id', 'status', 'category_id', 'vendor', 'expires_from', 'expires_to', 'billing_period', 'tag'].some(
+    (key) => Boolean(params.get(key)),
+  )
   const flatCats = flattenCategories(cats.data?.items ?? [])
   const kindById = new Map((kinds.data?.items ?? []).map((k) => [k.id, k]))
   const total = items.data?.total ?? 0
@@ -170,8 +173,12 @@ export function ItemsPage() {
       ) : null}
       {items.data && items.data.items.length === 0 ? (
         <PageState
-          title="Пусто"
-          hint="Измените фильтр или создайте запись"
+          title="Пока нет записей"
+          hint={
+            hasListFilter
+              ? 'Измените фильтр или сбросьте поиск'
+              : 'Это ваш список, не общий каталог. Создайте первую запись.'
+          }
           action={
             isAdmin ? (
               <Link to="/items/new">

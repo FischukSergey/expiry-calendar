@@ -27,26 +27,30 @@ func (r *Audit) q(ctx context.Context) db.Querier {
 // Create пишет событие.
 func (r *Audit) Create(ctx context.Context, e model.AuditEntry) error {
 	_, err := r.q(ctx).Exec(ctx, `
-INSERT INTO audit_log (actor_id, action, entity, entity_id, before_json, after_json)
-VALUES (NULLIF($1, '')::uuid, $2, $3, $4::uuid, $5, $6)`,
-		actorArg(e.ActorID), e.Action, e.Entity, e.EntityID, nullJSON(e.BeforeJSON), nullJSON(e.AfterJSON))
+INSERT INTO audit_log (owner_id, actor_id, action, entity, entity_id, before_json, after_json)
+VALUES ($1::uuid, NULLIF($2, '')::uuid, $3, $4, $5::uuid, $6, $7)`,
+		e.OwnerID, actorArg(e.ActorID), e.Action, e.Entity, e.EntityID, nullJSON(e.BeforeJSON), nullJSON(e.AfterJSON))
 	if err != nil {
 		return fmt.Errorf("insert audit: %w", err)
 	}
 	return nil
 }
 
-// List новые сверху.
-func (r *Audit) List(ctx context.Context, page model.Page) ([]model.AuditEntry, int, error) {
+// List новые сверху, только события владельца.
+func (r *Audit) List(ctx context.Context, ownerID string, page model.Page) ([]model.AuditEntry, int, error) {
+	if ownerID == "" {
+		return []model.AuditEntry{}, 0, nil
+	}
 	var total int
-	if err := r.q(ctx).QueryRow(ctx, `SELECT count(*) FROM audit_log`).Scan(&total); err != nil {
+	if err := r.q(ctx).QueryRow(ctx, `SELECT count(*) FROM audit_log WHERE owner_id = $1::uuid`, ownerID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count audit: %w", err)
 	}
 	rows, err := r.q(ctx).Query(ctx, `
 SELECT id::text, actor_id::text, action, entity, entity_id::text, before_json, after_json, created_at
 FROM audit_log
+WHERE owner_id = $1::uuid
 ORDER BY created_at DESC, id
-LIMIT $1 OFFSET $2`, page.PerPage, page.Offset())
+LIMIT $2 OFFSET $3`, ownerID, page.PerPage, page.Offset())
 	if err != nil {
 		return nil, 0, fmt.Errorf("list audit: %w", err)
 	}

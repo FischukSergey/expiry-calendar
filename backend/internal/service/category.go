@@ -9,7 +9,7 @@ import (
 
 // CategoryStore — плоские строки categories.
 type CategoryStore interface {
-	List(ctx context.Context) ([]model.Category, error)
+	List(ctx context.Context, ownerID string) ([]model.Category, error)
 	ByID(ctx context.Context, id string) (model.Category, error)
 	Create(ctx context.Context, c model.Category) (model.Category, error)
 	Update(ctx context.Context, c model.Category) (model.Category, error)
@@ -29,9 +29,9 @@ func NewCategory(store CategoryStore) *Category {
 	return &Category{store: store}
 }
 
-// List дерево корней с вложенными children.
-func (s *Category) List(ctx context.Context) ([]model.Category, error) {
-	rows, err := s.store.List(ctx)
+// List дерево корней владельца с вложенными children.
+func (s *Category) List(ctx context.Context, ownerID string) ([]model.Category, error) {
+	rows, err := s.store.List(ctx, ownerID)
 	if err != nil {
 		return nil, err
 	}
@@ -39,25 +39,30 @@ func (s *Category) List(ctx context.Context) ([]model.Category, error) {
 }
 
 // Create проверяет глубину нового узла (height=1).
-func (s *Category) Create(ctx context.Context, parentID *string, name string, sortOrder int) (model.Category, error) {
+func (s *Category) Create(
+	ctx context.Context, parentID *string, name string, sortOrder int, ownerID string,
+) (model.Category, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return model.Category{}, model.Validation(msgInvalidName, map[string]any{fieldName: detailRequired})
 	}
-	rows, err := s.store.List(ctx)
+	rows, err := s.store.List(ctx, ownerID)
 	if err != nil {
 		return model.Category{}, err
 	}
 	if err := checkNewDepth(rows, parentID); err != nil {
 		return model.Category{}, err
 	}
-	return s.store.Create(ctx, model.Category{ParentID: parentID, Name: name, SortOrder: sortOrder})
+	return s.store.Create(ctx, model.Category{OwnerID: ownerID, ParentID: parentID, Name: name, SortOrder: sortOrder})
 }
 
 // Patch имя/порядок/родитель. Смена родителя — те же инварианты + запрет цикла.
-func (s *Category) Patch(ctx context.Context, id string, p model.CategoryPatch) (model.Category, error) {
+func (s *Category) Patch(ctx context.Context, id string, p model.CategoryPatch, actorID string) (model.Category, error) {
 	cur, err := s.store.ByID(ctx, id)
 	if err != nil {
+		return model.Category{}, err
+	}
+	if err := requireOwner(cur.OwnerID, actorID); err != nil {
 		return model.Category{}, err
 	}
 	if p.Name != nil {
@@ -71,7 +76,7 @@ func (s *Category) Patch(ctx context.Context, id string, p model.CategoryPatch) 
 		cur.SortOrder = *p.SortOrder
 	}
 	if p.SetParent {
-		rows, err := s.store.List(ctx)
+		rows, err := s.store.List(ctx, actorID)
 		if err != nil {
 			return model.Category{}, err
 		}
@@ -84,8 +89,12 @@ func (s *Category) Patch(ctx context.Context, id string, p model.CategoryPatch) 
 }
 
 // Delete → 409, если есть дети или items.
-func (s *Category) Delete(ctx context.Context, id string) error {
-	if _, err := s.store.ByID(ctx, id); err != nil {
+func (s *Category) Delete(ctx context.Context, id, actorID string) error {
+	cur, err := s.store.ByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if err := requireOwner(cur.OwnerID, actorID); err != nil {
 		return err
 	}
 	n, err := s.store.CountChildren(ctx, id)

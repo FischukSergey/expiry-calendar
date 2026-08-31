@@ -83,12 +83,12 @@ ON CONFLICT (slug) DO NOTHING`
 // seedCategories пишет дерево. Пустой parent_id в SQL → NULL; конфликт по id.
 func seedCategories(ctx context.Context, pool *pgxpool.Pool) error {
 	const q = `
-INSERT INTO categories (id, parent_id, name, sort_order, created_at)
-VALUES ($1, NULLIF($2, '')::uuid, $3, $4, now())
+INSERT INTO categories (id, owner_id, parent_id, name, sort_order, created_at)
+VALUES ($1, $2::uuid, NULLIF($3, '')::uuid, $4, $5, now())
 ON CONFLICT (id) DO NOTHING`
 
 	for _, c := range categorySeeds {
-		if _, err := pool.Exec(ctx, q, c.id, c.parentID, c.name, c.sortOrder); err != nil {
+		if _, err := pool.Exec(ctx, q, c.id, adminID, c.parentID, c.name, c.sortOrder); err != nil {
 			return fmt.Errorf("insert category %s: %w", c.name, err)
 		}
 	}
@@ -99,13 +99,13 @@ ON CONFLICT (id) DO NOTHING`
 func seedItems(ctx context.Context, pool *pgxpool.Pool, clk clock.Clock) error {
 	const q = `
 INSERT INTO items (
-    id, title, description, kind_id, category_id, vendor, tags,
+    id, owner_id, title, description, kind_id, category_id, vendor, tags,
     cost_amount, currency, billing_period, started_at, expires_at,
     notify_before_days, url, account_hint, status, attrs, created_at, updated_at
 ) VALUES (
-    $1, $2, $3, $4::uuid, NULLIF($5, '')::uuid, $6, $7,
-    $8, $9, $10, $11, $12,
-    $13, $14, $15, $16, $17, now(), now()
+    $1, $2::uuid, $3, $4, $5::uuid, NULLIF($6, '')::uuid, $7, $8,
+    $9, $10, $11, $12, $13,
+    $14, $15, $16, $17, $18, now(), now()
 )
 ON CONFLICT (id) DO UPDATE SET
     started_at = EXCLUDED.started_at,
@@ -126,7 +126,7 @@ ON CONFLICT (id) DO UPDATE SET
 			return fmt.Errorf("attrs %s: %w", it.title, err)
 		}
 		if _, err := pool.Exec(ctx, q,
-			it.id, it.title, it.description, kindID, it.categoryID, it.vendor, it.tags,
+			it.id, adminID, it.title, it.description, kindID, it.categoryID, it.vendor, it.tags,
 			it.cost, it.currency, it.billing, started, expires,
 			it.notifyDays, it.url, it.account, status, attrs,
 		); err != nil {
@@ -171,8 +171,8 @@ ON CONFLICT (id) DO UPDATE SET
 // seedAudit пишет журнал. Конфликт по id — пропуск (снимок не освежаем).
 func seedAudit(ctx context.Context, pool *pgxpool.Pool, clk clock.Clock) error {
 	const q = `
-INSERT INTO audit_log (id, actor_id, action, entity, entity_id, before_json, after_json, created_at)
-VALUES ($1::uuid, $2::uuid, $3, 'item', $4::uuid, $5, $6, now())
+INSERT INTO audit_log (id, owner_id, actor_id, action, entity, entity_id, before_json, after_json, created_at)
+VALUES ($1::uuid, $2::uuid, $3::uuid, $4, 'item', $5::uuid, $6, $7, now())
 ON CONFLICT (id) DO NOTHING`
 
 	today := clock.Today(clk)
@@ -203,7 +203,7 @@ ON CONFLICT (id) DO NOTHING`
 				return fmt.Errorf("audit before %s: %w", it.title, err)
 			}
 		}
-		if _, err := pool.Exec(ctx, q, auditID(a.n), adminID, a.action, it.id, before, after); err != nil {
+		if _, err := pool.Exec(ctx, q, auditID(a.n), adminID, adminID, a.action, it.id, before, after); err != nil {
 			return fmt.Errorf("insert audit %d: %w", a.n, err)
 		}
 	}
@@ -213,8 +213,8 @@ ON CONFLICT (id) DO NOTHING`
 // seedNotifications пишет unread для expired/expiring. Конфликт по id — снова unread.
 func seedNotifications(ctx context.Context, pool *pgxpool.Pool, clk clock.Clock) error {
 	const q = `
-INSERT INTO notifications (id, item_id, to_status, title, read_at, created_at)
-VALUES ($1::uuid, $2::uuid, $3, $4, NULL, now())
+INSERT INTO notifications (id, owner_id, item_id, to_status, title, read_at, created_at)
+VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, NULL, now())
 ON CONFLICT (id) DO UPDATE SET
     title = EXCLUDED.title,
     to_status = EXCLUDED.to_status,
@@ -232,7 +232,7 @@ ON CONFLICT (id) DO UPDATE SET
 		if n < 1 {
 			return fmt.Errorf("notification: bad item id %s", it.id)
 		}
-		if _, err := pool.Exec(ctx, q, noteID(n), it.id, st, it.title); err != nil {
+		if _, err := pool.Exec(ctx, q, noteID(n), adminID, it.id, st, it.title); err != nil {
 			return fmt.Errorf("insert notification %s: %w", it.title, err)
 		}
 	}

@@ -59,10 +59,10 @@ func TestCategoryDepthAndCreateLimit(t *testing.T) {
 
 	store := newMemCats(rows)
 	svc := service.NewCategory(store)
-	if _, err := svc.Create(t.Context(), &grand, "too-deep", 0); !errors.Is(err, model.ErrValidation) {
+	if _, err := svc.Create(t.Context(), &grand, "too-deep", 0, "owner"); !errors.Is(err, model.ErrValidation) {
 		t.Fatalf("want 422 depth, got %v", err)
 	}
-	if _, err := svc.Create(t.Context(), &child, "ok-leaf", 1); err != nil {
+	if _, err := svc.Create(t.Context(), &child, "ok-leaf", 1, "owner"); err != nil {
 		t.Fatal(err)
 	}
 }

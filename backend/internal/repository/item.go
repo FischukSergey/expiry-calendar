@@ -29,7 +29,7 @@ func (r *Items) q(ctx context.Context) db.Querier {
 	return db.QuerierFrom(ctx, r.pool)
 }
 
-const itemCols = `id::text, title, description, kind_id::text, category_id::text, vendor, tags,
+const itemCols = `id::text, owner_id::text, title, description, kind_id::text, category_id::text, vendor, tags,
     cost_amount, trim(currency), billing_period, started_at, expires_at,
     notify_before_days, url, account_hint, status, attrs, created_at, updated_at`
 
@@ -41,15 +41,15 @@ func (r *Items) Create(ctx context.Context, it model.Item) (model.Item, error) {
 	}
 	return r.scanOne(ctx, `
 INSERT INTO items (
-    title, description, kind_id, category_id, vendor, tags,
+    owner_id, title, description, kind_id, category_id, vendor, tags,
     cost_amount, currency, billing_period, started_at, expires_at,
     notify_before_days, url, account_hint, status, attrs
 ) VALUES (
-    $1, $2, $3::uuid, NULLIF($4, '')::uuid, $5, $6,
-    $7, $8, $9, $10, $11,
-    $12, $13, $14, $15, $16
+    $1::uuid, $2, $3, $4::uuid, NULLIF($5, '')::uuid, $6, $7,
+    $8, $9, $10, $11, $12,
+    $13, $14, $15, $16, $17
 )
-RETURNING `+itemCols, it.Title, it.Description, it.KindID, categoryArg(it.CategoryID), it.Vendor, it.Tags,
+RETURNING `+itemCols, it.OwnerID, it.Title, it.Description, it.KindID, categoryArg(it.CategoryID), it.Vendor, it.Tags,
 		it.CostAmount, it.Currency, it.BillingPeriod, dateArg(it.StartedAt), it.ExpiresAt,
 		it.NotifyBeforeDays, it.URL, it.AccountHint, it.Status, attrs)
 }
@@ -220,7 +220,7 @@ func scanItem(row itemRow) (model.Item, error) {
 	var raw []byte
 	var tags []string
 	err := row.Scan(
-		&it.ID, &it.Title, &it.Description, &it.KindID, &cat, &it.Vendor, &tags,
+		&it.ID, &it.OwnerID, &it.Title, &it.Description, &it.KindID, &cat, &it.Vendor, &tags,
 		&it.CostAmount, &it.Currency, &it.BillingPeriod, &started, &expires,
 		&it.NotifyBeforeDays, &it.URL, &it.AccountHint, &it.Status, &raw,
 		&it.CreatedAt, &it.UpdatedAt,

@@ -14,7 +14,7 @@ import (
 	"duekeep/internal/model"
 )
 
-const notificationCols = `id::text, item_id::text, to_status, title, read_at, created_at`
+const notificationCols = `id::text, owner_id::text, item_id::text, to_status, title, read_at, created_at`
 
 // Notifications — SQL к notifications.
 type Notifications struct {
@@ -33,10 +33,10 @@ func (r *Notifications) q(ctx context.Context) db.Querier {
 // Insert пишет строку. Конфликт (item, to_status, день UTC) — false, не ошибка.
 func (r *Notifications) Insert(ctx context.Context, n model.Notification) (model.Notification, bool, error) {
 	created, err := scanNotification(r.q(ctx).QueryRow(ctx, `
-INSERT INTO notifications (item_id, to_status, title, created_at)
-VALUES ($1::uuid, $2, $3, $4)
+INSERT INTO notifications (owner_id, item_id, to_status, title, created_at)
+VALUES ($1::uuid, $2::uuid, $3, $4, $5)
 ON CONFLICT (item_id, to_status, ((created_at AT TIME ZONE 'UTC')::date)) DO NOTHING
-RETURNING `+notificationCols, n.ItemID, n.ToStatus, n.Title, n.CreatedAt))
+RETURNING `+notificationCols, n.OwnerID, n.ItemID, n.ToStatus, n.Title, n.CreatedAt))
 	if errors.Is(err, model.ErrNotFound) {
 		return model.Notification{}, false, nil
 	}
@@ -110,7 +110,7 @@ type notificationRow interface {
 func scanNotification(row notificationRow) (model.Notification, error) {
 	var n model.Notification
 	var readAt *time.Time
-	if err := row.Scan(&n.ID, &n.ItemID, &n.ToStatus, &n.Title, &readAt, &n.CreatedAt); err != nil {
+	if err := row.Scan(&n.ID, &n.OwnerID, &n.ItemID, &n.ToStatus, &n.Title, &readAt, &n.CreatedAt); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return model.Notification{}, model.ErrNotFound
 		}

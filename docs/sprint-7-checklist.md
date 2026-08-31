@@ -4,10 +4,12 @@
 
 ## 1) Модель и миграции
 
-- [ ] Колонка `owner_id` на `categories`, `items`, `audit_log`, `notifications` (FK на `users`, индексы).
-- [ ] Backfill: бывшие общие строки seed → `owner_id` seed-admin.
-- [ ] Новые строки без `owner_id` невозможны (NOT NULL + FK).
-- [ ] Нет таблиц `orgs` / `org_members` / `org_invites` и нет колонки `org_id`.
+- [x] Колонка `owner_id` на `categories`, `items`, `audit_log`, `notifications` (FK на `users`, индексы).
+  Примечание: `011_owner_id.sql`. В API поле не отдаём (`json:"-"`).
+- [x] Backfill: бывшие общие строки seed → `owner_id` seed-admin.
+  Примечание: UPDATE на UUID `11111111-…`; новые seed-INSERT тоже пишут его.
+- [x] Новые строки без `owner_id` невозможны (NOT NULL + FK).
+- [x] Нет таблиц `orgs` / `org_members` / `org_invites` и нет колонки `org_id`.
 
 ## 2) Auth
 

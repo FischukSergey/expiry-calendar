@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"duekeep/internal/middleware"
 	"duekeep/internal/model"
 )
 
@@ -116,7 +117,7 @@ func (a *API) createCategory(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity, "validation_error", "invalid json")
 		return
 	}
-	c, err := a.categories.Create(r.Context(), body.ParentID, body.Name, body.SortOrder)
+	c, err := a.categories.Create(r.Context(), body.ParentID, body.Name, body.SortOrder, middleware.UserID(r.Context()))
 	if err != nil {
 		writeDomainError(w, err)
 		return

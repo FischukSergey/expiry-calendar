@@ -2,6 +2,11 @@
 
 Журнал создания Duekeep. Записи добавляются по ходу работы, не в конце.
 
+## 2026-08-31 — Sprint 7 §1, owner_id
+
+- Миграция `011_owner_id.sql`: колонка на categories/items/audit_log/notifications, backfill seed-admin, NOT NULL + FK + индексы. Org-таблиц нет.
+- Seed и INSERT в repository пишут `owner_id`, иначе NOT NULL ломает compose. Выборка по владельцу — следующие пункты.
+
 ## 2026-08-31 — Sprint 8 (документы, без кода)
 
 - CD на Beget: после CI на `main` — SSH, `deploy.sh`, `compose --build`, `https://duekeep.ru/healthz`.

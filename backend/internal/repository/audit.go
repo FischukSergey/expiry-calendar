@@ -27,9 +27,9 @@ func (r *Audit) q(ctx context.Context) db.Querier {
 // Create пишет событие.
 func (r *Audit) Create(ctx context.Context, e model.AuditEntry) error {
 	_, err := r.q(ctx).Exec(ctx, `
-INSERT INTO audit_log (actor_id, action, entity, entity_id, before_json, after_json)
-VALUES (NULLIF($1, '')::uuid, $2, $3, $4::uuid, $5, $6)`,
-		actorArg(e.ActorID), e.Action, e.Entity, e.EntityID, nullJSON(e.BeforeJSON), nullJSON(e.AfterJSON))
+INSERT INTO audit_log (owner_id, actor_id, action, entity, entity_id, before_json, after_json)
+VALUES ($1::uuid, NULLIF($2, '')::uuid, $3, $4, $5::uuid, $6, $7)`,
+		e.OwnerID, actorArg(e.ActorID), e.Action, e.Entity, e.EntityID, nullJSON(e.BeforeJSON), nullJSON(e.AfterJSON))
 	if err != nil {
 		return fmt.Errorf("insert audit: %w", err)
 	}

@@ -24,7 +24,7 @@ type nopCategories struct{}
 
 func (nopCategories) List(context.Context) ([]model.Category, error) { return nil, nil }
 
-func (nopCategories) Create(context.Context, *string, string, int) (model.Category, error) {
+func (nopCategories) Create(context.Context, *string, string, int, string) (model.Category, error) {
 	return model.Category{}, model.ErrForbidden
 }
 

@@ -39,7 +39,9 @@ func (s *Category) List(ctx context.Context) ([]model.Category, error) {
 }
 
 // Create проверяет глубину нового узла (height=1).
-func (s *Category) Create(ctx context.Context, parentID *string, name string, sortOrder int) (model.Category, error) {
+func (s *Category) Create(
+	ctx context.Context, parentID *string, name string, sortOrder int, ownerID string,
+) (model.Category, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return model.Category{}, model.Validation(msgInvalidName, map[string]any{fieldName: detailRequired})
@@ -51,7 +53,7 @@ func (s *Category) Create(ctx context.Context, parentID *string, name string, so
 	if err := checkNewDepth(rows, parentID); err != nil {
 		return model.Category{}, err
 	}
-	return s.store.Create(ctx, model.Category{ParentID: parentID, Name: name, SortOrder: sortOrder})
+	return s.store.Create(ctx, model.Category{OwnerID: ownerID, ParentID: parentID, Name: name, SortOrder: sortOrder})
 }
 
 // Patch имя/порядок/родитель. Смена родителя — те же инварианты + запрет цикла.

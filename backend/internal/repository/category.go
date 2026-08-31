@@ -64,9 +64,9 @@ FROM categories WHERE id = $1::uuid`, id))
 // Create вставляет узел. parent_id NULL — корень.
 func (r *Categories) Create(ctx context.Context, c model.Category) (model.Category, error) {
 	created, err := scanCategory(r.q(ctx).QueryRow(ctx, `
-INSERT INTO categories (parent_id, name, sort_order)
-VALUES ($1, $2, $3)
-RETURNING id::text, parent_id::text, name, sort_order`, parentArg(c.ParentID), c.Name, c.SortOrder))
+INSERT INTO categories (owner_id, parent_id, name, sort_order)
+VALUES ($1::uuid, $2, $3, $4)
+RETURNING id::text, parent_id::text, name, sort_order`, c.OwnerID, parentArg(c.ParentID), c.Name, c.SortOrder))
 	if err != nil {
 		return model.Category{}, fmt.Errorf("insert category: %w", err)
 	}

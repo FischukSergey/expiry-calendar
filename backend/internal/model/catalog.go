@@ -37,6 +37,7 @@ type KindList struct {
 // Category — узел дерева. Children всегда массив, не null.
 type Category struct {
 	ID        string     `json:"id"`
+	OwnerID   string     `json:"-"`
 	ParentID  *string    `json:"parent_id"`
 	Name      string     `json:"name"`
 	SortOrder int        `json:"sort_order"`

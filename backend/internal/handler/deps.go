@@ -29,7 +29,7 @@ type KindService interface {
 // CategoryService — дерево категорий.
 type CategoryService interface {
 	List(ctx context.Context) ([]model.Category, error)
-	Create(ctx context.Context, parentID *string, name string, sortOrder int) (model.Category, error)
+	Create(ctx context.Context, parentID *string, name string, sortOrder int, ownerID string) (model.Category, error)
 	Patch(ctx context.Context, id string, p model.CategoryPatch) (model.Category, error)
 	Delete(ctx context.Context, id string) error
 }

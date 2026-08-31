@@ -227,6 +227,7 @@ func (s *Item) writeImport(ctx context.Context, items []model.Item, actorID stri
 	ids := make([]string, 0, len(items))
 	err := s.tx(ctx, func(ctx context.Context) error {
 		for _, it := range items {
+			it.OwnerID = actorID
 			created, err := s.items.Create(ctx, it)
 			if err != nil {
 				return err

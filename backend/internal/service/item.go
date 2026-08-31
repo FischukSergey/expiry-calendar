@@ -117,6 +117,7 @@ func (s *Item) Create(ctx context.Context, in model.Item, actorID string) (model
 	if err != nil {
 		return model.Item{}, err
 	}
+	it.OwnerID = actorID
 	var created model.Item
 	var note model.Notification
 	var inserted bool
@@ -530,6 +531,7 @@ func (s *Item) notifyTransition(ctx context.Context, prev string, it model.Item)
 		return model.Notification{}, false, nil
 	}
 	return s.notes.Insert(ctx, model.Notification{
+		OwnerID:   it.OwnerID,
 		ItemID:    it.ID,
 		ToStatus:  it.Status,
 		Title:     it.Title,

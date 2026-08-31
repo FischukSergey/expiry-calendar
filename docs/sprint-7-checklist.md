@@ -4,69 +4,57 @@
 
 ## 1) Модель и миграции
 
-- [ ] Таблица `orgs` (id, name, created_at).
-- [ ] Таблица `org_members` (org_id, user_id, role `admin`|`viewer`, UNIQUE(org_id, user_id)).
-- [ ] Таблица `org_invites` (org_id, token_hash, expires_at, created_by, redeemed_at, redeemed_by).
-- [ ] Колонка `org_id` на `categories`, `items`, `audit_log`, `notifications` (+ индексы).
-- [ ] Backfill: одна демо-org, все строки v1 и seed-пользователи привязаны к ней.
-- [ ] Новые строки без `org_id` невозможны (NOT NULL + FK).
+- [ ] Колонка `owner_id` на `categories`, `items`, `audit_log`, `notifications` (FK на `users`, индексы).
+- [ ] Backfill: бывшие общие строки seed → `owner_id` seed-admin.
+- [ ] Новые строки без `owner_id` невозможны (NOT NULL + FK).
+- [ ] Нет таблиц `orgs` / `org_members` / `org_invites` и нет колонки `org_id`.
 
-## 2) Auth и членство
+## 2) Auth
 
-- [ ] `POST /auth/register` без инвайта: org + membership admin + пара токенов.
-- [ ] Claims access: `sub`, `role` (из членства), `org_id`, `iss=duekeep`, `iat`, `exp`.
-- [ ] `POST /auth/login` и `POST /auth/refresh` кладут тот же `org_id` (текущая org пользователя).
-- [ ] `GET /me`: `id`, `email`, `role`, `org_id`, `org_name`.
-- [ ] Права мутаций — по `org_members.role`, не по глобальному `users.role`.
+- [ ] `POST /auth/register` создаёт `admin` (не `viewer`) и пару токенов.
+- [ ] Claims access без `org_id`: `sub`, `role`, `iss=duekeep`, `iat`, `exp`.
+- [ ] `POST /auth/login` и `POST /auth/refresh` — тот же набор claims.
+- [ ] `GET /me`: `id`, `email`, `role` (без `org_id` / `org_name`).
+- [ ] Мутации предметных сущностей — только если `owner_id` = текущий `sub`.
 
-## 3) Инвайты
+## 3) Изоляция выборок
 
-- [ ] `POST /api/v1/org/invites` — только admin текущей org; ответ: token + expires_in (сырой token один раз).
-- [ ] `POST /api/v1/org/invites/accept` — cookie/Bearer; viewer в org инвайта.
-- [ ] `POST /auth/register` с `invite_token` — без новой org, сразу viewer.
-- [ ] Просроченный / погашенный / неизвестный токен — 401 или 422 (как в контракте).
-- [ ] Повторное членство той же org — 409, без второй строки.
-
-## 4) Изоляция выборок
-
-- [ ] List/get/patch/delete `items`, renew, bulk, CSV — только текущий `org_id`.
-- [ ] CRUD `categories` — только текущий `org_id`; глубина ≤ 3 как в Sprint 2.
-- [ ] `GET /audit` — только события своей org.
+- [ ] List/get/patch/delete `items`, renew, bulk, CSV — только свой `owner_id`.
+- [ ] CRUD `categories` — только свой `owner_id`; глубина ≤ 3 как в Sprint 2.
+- [ ] `GET /audit` — только свои события.
 - [ ] Чужой UUID → `404 not_found` (не `403`).
 - [ ] `item_kinds` остаются общими на инсталляцию (чтение всем auth).
 
-## 5) Realtime и обзор
+## 4) Realtime и обзор
 
-- [ ] `GET /dashboard`, `GET /calendar` — агрегаты только своей org.
-- [ ] `GET /notifications` и read/read-all — только своя org.
-- [ ] Тикер создаёт notification с `org_id` item.
-- [ ] SSE: событие только клиентам с тем же `org_id` в токене.
-- [ ] Web Push: не слать подписчику чужой org.
+- [ ] `GET /dashboard`, `GET /calendar` — агрегаты только своих items.
+- [ ] `GET /notifications` и read/read-all — только свои.
+- [ ] Тикер создаёт notification с `owner_id` владельца item.
+- [ ] SSE: событие только клиентам с тем же `sub`.
+- [ ] Web Push: не слать подписчику чужие items.
 
-## 6) Seed и совместимость v1
+## 5) Seed и прод
 
-- [ ] Демо-org: `admin@duekeep.local` (admin) + `viewer@duekeep.local` (viewer) + прежний seed items.
-- [ ] Новая org при register: копия дефолтных категорий, без items демо.
-- [ ] Повторный `compose up` не плодит org/members/invites.
-- [ ] Login/refresh/logout контракта Sprint 2 не ломаются (поля только добавляются).
+- [ ] Prod compose: seed не выполняется.
+- [ ] Local seed: каталог 50+ на seed-admin; общего каталога и шаринга с viewer нет.
+- [ ] Register: копия дефолтных категорий, без items seed.
+- [ ] Повторный `compose up` не плодит seed-пользователей и категории.
+- [ ] Login/refresh/logout контракта Sprint 2 не ломаются (кроме роли после register: теперь `admin`).
 
-## 7) UI / PWA
+## 6) UI / PWA
 
-- [ ] Профиль: название org и роль.
-- [ ] Хозяин: создать инвайт, показать копируемую ссылку.
-- [ ] Экран/шаг «принять инвайт» (токен в query или форма).
-- [ ] Viewer по-прежнему без кнопок мутаций.
-- [ ] Register без инвайта попадает в пустую свою область (не в демо-список).
+- [ ] Register попадает в пустой свой список (не в seed).
+- [ ] Нет экранов org / инвайта.
+- [ ] Профиль без названия org.
 
-## 8) Тесты
+## 7) Тесты
 
-- [ ] Unit: хеш инвайта; register создаёт org; accept не создаёт вторую org.
 - [ ] Isolation: два admin не видят чужие items / dashboard.
-- [ ] Invite: viewer читает, `POST /items` → 403.
+- [ ] Register не видит seed-каталог.
 - [ ] Чужой id → 404.
-- [ ] SSE/push не утекает в другой org (хотя бы на уровне service-фильтра).
+- [ ] SSE/push не утекает другому пользователю (хотя бы на уровне service-фильтра).
 
-## 9) DoD
+## 8) DoD
 
 - [ ] Контракт [`api-sprint-7.md`](api-sprint-7.md) соблюдён, `openapi.yaml` дополнен.
 - [ ] [`known-limitations-sprint-7.md`](known-limitations-sprint-7.md) заполнен.

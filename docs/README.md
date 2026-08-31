@@ -12,8 +12,9 @@
 | 4 | Статусы, realtime, обзор | [plan](sprint-4-plan.md) | [api](api-sprint-4.md) | [checklist](sprint-4-checklist.md) | [limitations](known-limitations-sprint-4.md) |
 | 5 | UI, CSV, PWA | [plan](sprint-5-plan.md) | [api](api-sprint-5.md) | [checklist](sprint-5-checklist.md) | [limitations](known-limitations-sprint-5.md) |
 | 6 | Сдача | [plan](sprint-6-plan.md) | [api](api-sprint-6.md) | [checklist](sprint-6-checklist.md) | [limitations](known-limitations-sprint-6.md) |
-| 7 | Изоляция данных (org) | [plan](sprint-7-plan.md) | [api](api-sprint-7.md) | [checklist](sprint-7-checklist.md) | [limitations](known-limitations-sprint-7.md) |
+| 7 | Свои данные (прод, без org) | [plan](sprint-7-plan.md) | [api](api-sprint-7.md) | [checklist](sprint-7-checklist.md) | [limitations](known-limitations-sprint-7.md) |
+| 8 | CD на VPS | [plan](sprint-8-plan.md) | [api](api-sprint-8.md) | [checklist](sprint-8-checklist.md) | [limitations](known-limitations-sprint-8.md) |
 
 Правило: новый handler не меняет контракт спринта без правки `api-sprint-N.md`.
 
-Код не пишем, пока не начат Sprint 1 по чеклисту. Sprint 7 — после закрытия v1 (спринты 1–6).
+Код не пишем, пока не начат Sprint 1 по чеклисту. Sprint 7 — после закрытия v1. Sprint 8 — после Sprint 7.

@@ -1,14 +1,13 @@
 # API контракты Sprint 7
 
-Источник: [`sprint-7-plan.md`](sprint-7-plan.md). База — сумма [`api-sprint-1.md`](api-sprint-1.md)…[`api-sprint-6.md`](api-sprint-6.md). Login/refresh **не ломаем**: только новые поля и ручки.
+Источник: [`sprint-7-plan.md`](sprint-7-plan.md). База — сумма [`api-sprint-1.md`](api-sprint-1.md)…[`api-sprint-6.md`](api-sprint-6.md). Login/refresh **не ломаем**. Новых полей JWT нет. Меняется роль после register и scope данных.
 
 ## 1) Решения
 
-- Изоляция на одном сервере: текущий `org_id` из access JWT.
-- Регистрация без инвайта → хозяин (admin) новой org.
-- Регистрация / accept с инвайтом → viewer чужой org.
-- Справочник `item_kinds` общий. Категории и записи — per-org.
-- Инвайт — opaque token, без email.
+- Изоляция на одном сервере: `owner_id` = `sub` из access. Не `org_id`.
+- Регистрация → `admin`, пустой свой каталог (дефолтные категории).
+- Нет инвайтов, нет `viewer` как роли шаринга.
+- Справочник `item_kinds` общий. Категории и записи — per-user.
 
 ## 2) Соглашения
 
@@ -16,92 +15,53 @@
 - Защищённые ручки: `Authorization: Bearer <access_token>`
 - Коды ошибок без изменений. Чужие id предметных сущностей → `404 not_found`.
 
-## 3) Claims access (аддитивно)
+## 3) Claims access
+
+Как Sprint 2, без `org_id`:
 
 ```json
 {
   "sub": "<user uuid>",
   "role": "admin",
-  "org_id": "<org uuid>",
   "iss": "duekeep",
   "iat": 0,
   "exp": 0
 }
 ```
 
-`role` — роль **в этой** org. Протокол login/refresh тот же.
-
 ## 4) Auth (изменения)
 
 ### `POST /api/v1/auth/register`
 
 ```json
-{ "email": "new@duekeep.local", "password": "secret12", "invite_token": null }
+{ "email": "new@duekeep.local", "password": "secret12" }
 ```
 
-`invite_token` опционален.
-
-- без токена: `201` пара токенов, пользователь — `admin` новой org;
-- с валидным токеном: `201` пара токенов, `viewer` org инвайта, инвайт погашен;
-- занятый email → `409 conflict`.
+- `201` пара токенов, `role` = `admin` (в v1 register давал `viewer` — здесь меняем).
+- Поля `invite_token` нет.
+- Занятый email → `409 conflict`.
 
 Тело ответа как login (Sprint 2).
 
 ### `GET /api/v1/me`
 
-`200`:
-
-```json
-{
-  "id": "11111111-1111-1111-1111-111111111111",
-  "email": "admin@duekeep.local",
-  "role": "admin",
-  "org_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-  "org_name": "Демо"
-}
-```
+`200` как Sprint 2: `id`, `email`, `role`. Полей `org_id` / `org_name` нет.
 
 ## 5) Org и инвайты
 
-### `GET /api/v1/org`
-
-Auth. Текущая org: `{ "id", "name", "role" }`.
-
-### `POST /api/v1/org/invites`
-
-Admin текущей org.
-
-`201`:
-
-```json
-{
-  "token": "opaque…",
-  "expires_in": 604800
-}
-```
-
-Сырой `token` показывается один раз. В БД только hash.
-
-### `POST /api/v1/org/invites/accept`
-
-Auth (access).
-
-```json
-{ "token": "opaque…" }
-```
-
-`204`. Дальше клиент делает refresh (или сервер отдаёт новую пару — зафиксировать в реализации и здесь). Пользователь становится `viewer`. Уже член → `409`. Токен мёртв → `401` или `422`.
+Ручек `/api/v1/org` и `/api/v1/org/invites` нет.
 
 ## 6) Предметные ручки
 
-Пути Sprint 3–5 не меняются. Сервер всегда фильтрует по `org_id` из токена.
+Пути Sprint 3–5 не меняются. Сервер всегда фильтрует по `owner_id` текущего `sub`.
 
-Нельзя передать чужой `org_id` query/body, чтобы обойти scope.
+Нельзя передать чужой `owner_id` / `user_id` query/body, чтобы обойти scope.
 
 `GET/POST /kinds` — как Sprint 2 (общий справочник). Кто может писать kinds — [`known-limitations-sprint-7.md`](known-limitations-sprint-7.md).
 
 ## 7) Совместимость
 
 - Поля ответов Sprint 2–5 не удалять.
-- `/me` и JWT только расширяются.
-- Хендлеры после Sprint 7 не отдают данные без `org_id` в запросе к БД.
+- JWT не расширяем.
+- Хендлеры после Sprint 7 не отдают предметные данные без `owner_id` в запросе к БД.
+- Клиенты, которые после register ждали `viewer` и общий каталог, больше не верны — это сознательная смена для прода.

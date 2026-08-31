@@ -2,6 +2,18 @@
 
 Журнал создания Duekeep. Записи добавляются по ходу работы, не в конце.
 
+## 2026-08-31 — Sprint 8 (документы, без кода)
+
+- CD на Beget: после CI на `main` — SSH, `deploy.sh`, `compose --build`, `https://duekeep.ru/healthz`.
+- Не входит: registry, zero-downtime, секреты приложения в Actions, деплой `v1.0.0`.
+- Добавлены `docs/sprint-8-*.md`, строки в индексе и ARCHITECTURE.
+
+## 2026-08-31 — Sprint 7, смена цели
+
+- Прод: register → admin, видит только свои строки (`owner_id` = `sub`).
+- Не делаем: viewer, инвайты, `org_id` / org / шаринг.
+- Обновлены plan, checklist, api, limitations спринта 7; указатели в ARCHITECTURE, FUNCTIONAL, docs/README, README.
+
 ## 2026-08-30 — хост прода
 
 - Документированы домен `duekeep.ru` и IPv4 VPS Beget `159.194.252.6` (`deploy/README.md`, `.env.example`, README).

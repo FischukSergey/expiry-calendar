@@ -23,7 +23,7 @@
 
 ### Не входит
 
-- новые фичи (вложения, почта, org_id, iCal). `org_id` — [Sprint 7](sprint-7-plan.md).
+- новые фичи (вложения, почта, org_id, iCal). Свои данные (`owner_id`) — [Sprint 7](sprint-7-plan.md).
 - если всплыл баг сдачи — фикс, не расширение scope.
 
 ## 4) Backlog

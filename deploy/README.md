@@ -53,3 +53,5 @@ bash init-ssl.sh             # боевой сертификат
 ```
 
 Домен в nginx (`nginx/conf.d/duekeep.conf`) должен совпадать с `DOMAIN`.
+
+Автодеплой с `main` (скрипт + GitHub Actions) — [Sprint 8](../docs/sprint-8-plan.md). Пока спринт не закрыт, выкладка ручная: `ssh duekeep` и команда compose выше.

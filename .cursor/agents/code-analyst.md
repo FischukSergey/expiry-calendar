@@ -67,8 +67,8 @@ docker-compose.yml     — include local, name: duekeep
 **Ключевые доменные факты (план, не всё в коде):**
 - Типы — справочник `item_kinds` + `items.attrs JSONB`; срок/деньги/статус — колонки.
 - Auth: JWT access 15 мин + refresh 14 дней (ротация, `family_id`, revoke при reuse). Refresh в JSON и HttpOnly cookie `duekeep_refresh`. Не cookie-сессия.
-- v1 данные общие; в claims сразу `sub` и `role`, позже `org_id` без смены login/refresh.
-- Роли admin / viewer. Регистрация → viewer.
+- v1 данные общие; в claims `sub` и `role`. Sprint 7: `owner_id` = `sub`, без `org_id` и без viewer/шаринга.
+- v1: роли admin / viewer, регистрация → viewer. Sprint 7: register → admin, только свои данные.
 - Дашборд: суммы раздельно по валютам, без конвертации.
 - Realtime: SSE во вкладке + Web Push + PWA (Sprint 4–5).
 - Seed-типы: есть `subscription` и `rent`; нет `ssl` и `warranty`.

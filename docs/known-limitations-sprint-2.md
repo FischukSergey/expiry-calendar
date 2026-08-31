@@ -12,7 +12,7 @@
 
 **Нет смены роли в UI/API.** Admin только из seed.
 
-**Нет `org_id` в claims.** Заложено в архитектуре на потом.
+**Нет `org_id` в claims.** Sprint 7 тоже не добавляет: изоляция по `owner_id`, не по org.
 
 **Refresh: body важнее cookie.** Пустой body + cookie — берём cookie.
 

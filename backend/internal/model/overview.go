@@ -60,7 +60,7 @@ type Calendar struct {
 	Days  []CalendarDay `json:"days"`
 }
 
-// CalendarDay — истечения одного дня.
+// CalendarDay — обязательства одного дня.
 type CalendarDay struct {
 	Date  string         `json:"date"`
 	Items []CalendarItem `json:"items"`

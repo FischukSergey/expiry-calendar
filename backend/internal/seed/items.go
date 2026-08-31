@@ -41,7 +41,7 @@ func itemID(n int) string {
 	return fmt.Sprintf("55555555-5555-5555-5555-5555555555%02d", n)
 }
 
-// it собирает запись: старт за год до истечения, порог 30 дней, валюта RUB yearly.
+// it собирает запись: старт за год до обязательства, порог 30 дней, валюта RUB yearly.
 func it(n int, title, kind, cat string, expire int) itemSeed {
 	return itemSeed{
 		id:         itemID(n),

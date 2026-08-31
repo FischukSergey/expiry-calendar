@@ -62,3 +62,4 @@ cancel(fmt.Errorf("worker stopped: %w", err))
 - Не тяни библиотеки ради того, что есть в `slices` / `maps` / `cmp` / `sync`.
 - Не предлагай синтаксис новее **1.25**.
 - Интерфейсы репозиториев объявляй в `service`, реализации — в `repository`.
+- Предметные выборки (кроме `ListOpen` тикера и kinds) несут `owner_id` в SQL. Подробности — `.cursor/rules/isolation.mdc`.

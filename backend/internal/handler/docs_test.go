@@ -61,6 +61,9 @@ func TestOpenAPISpec(t *testing.T) {
 	if !strings.Contains(body, "duekeep_refresh") || !strings.Contains(body, "bearerAuth") {
 		t.Fatalf("spec without refresh cookie / bearerAuth")
 	}
+	if strings.Contains(body, "/api/v1/org") || strings.Contains(body, "/org/invites") {
+		t.Fatal("spec must not have org/invite paths")
+	}
 	for _, path := range []string{
 		"/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/refresh",
 		"/api/v1/auth/logout", "/api/v1/auth/logout-all", "/api/v1/me",

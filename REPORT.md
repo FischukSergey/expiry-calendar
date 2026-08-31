@@ -2,6 +2,12 @@
 
 Журнал создания Duekeep. Записи добавляются по ходу работы, не в конце.
 
+## 2026-08-31 — Sprint 7 §7–8, тесты и DoD
+
+- `TestRegisterDoesNotSeeSeedCatalog`: register не видит seed-items/категории; второй аккаунт не видит item первого (демо плана §7).
+- OpenAPI: register/me без org и invite; `owner_id` не в JSON Item. Limitations: SEED на проде, UI без org.
+- `task lint` и `task test` зелёные.
+
 ## 2026-08-31 — Sprint 7 §6, UI
 
 - Register ведёт на `/items` (свой пустой список). Экранов org/инвайта нет. Профиль — email, без названия org.

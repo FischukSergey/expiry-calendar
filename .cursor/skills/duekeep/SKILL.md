@@ -13,9 +13,8 @@ description: >-
 
 ## Статус
 
-- Спринты **1–6 закрыты** (тег сдачи `v1.0.0`: общий каталог, admin/viewer).
-- Текущий фокус — **Sprint 7**: свои данные. §1–6 закрыты. Дальше тесты/DoD.
-- Sprint 8 (CD) — после 7. Не начинай его сам.
+- Спринты **1–6** — сдача `v1.0.0` (общий каталог). **Sprint 7 закрыт** (свои данные, seed off на prod).
+- Sprint 8 (CD) — следующий. Не начинай его сам.
 
 Документы спринта N: `docs/sprint-N-plan.md`, `checklist`, `api-sprint-N.md`, `known-limitations-sprint-N.md`. Журнал — `REPORT.md`.
 
@@ -60,9 +59,9 @@ Create/import/ticker notification: писать `OwnerID`. Пустой owner в
 
 `TICKER_EVERY` (дефолт `12h`) + Tick при старте. Статус по `Clock.Today` (день UTC). Не возвращать интервал 60 с без явной просьбы.
 
-## Ещё не сделано (Sprint 7 §7–8)
+## Ещё не сделано
 
-- Тест: register не видит seed-каталог. DoD §8.
+- Sprint 8 (CD на VPS) — только по просьбе.
 
 ## Не делать
 

@@ -62,13 +62,16 @@
 ## 7) Тесты
 
 - [x] Isolation: два admin не видят чужие items / dashboard.
-- [ ] Register не видит seed-каталог.
+- [x] Register не видит seed-каталог.
+  Примечание: `TestRegisterDoesNotSeeSeedCatalog` — пустой list/dashboard, GET seed и item A → 404 у B.
 - [x] Чужой id → 404.
 - [x] SSE/push не утекает другому пользователю (хотя бы на уровне service-фильтра).
 
 ## 8) DoD
 
-- [ ] Контракт [`api-sprint-7.md`](api-sprint-7.md) соблюдён, `openapi.yaml` дополнен.
-- [ ] [`known-limitations-sprint-7.md`](known-limitations-sprint-7.md) заполнен.
-- [ ] Демо из плана §7 пройдено (curl или UI).
-- [ ] `task lint` и `task test` зелёные.
+- [x] Контракт [`api-sprint-7.md`](api-sprint-7.md) соблюдён, `openapi.yaml` дополнен.
+  Примечание: register → admin + категории; /me без org; нет `/org`; `owner_id` не в JSON.
+- [x] [`known-limitations-sprint-7.md`](known-limitations-sprint-7.md) заполнен.
+- [x] Демо из плана §7 пройдено (curl или UI).
+  Примечание: шаги 1–2 — `TestRegisterDoesNotSeeSeedCatalog`. Шаг 3 (прод без seed) — `SEED=false` + `TestSeedEnabled`.
+- [x] `task lint` и `task test` зелёные.

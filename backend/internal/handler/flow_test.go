@@ -224,6 +224,148 @@ func TestAdminLoginCreatesKind(t *testing.T) {
 	}
 }
 
+func liveCatalogAPI(t *testing.T) (*handler.API, *memItems, *memCats) {
+	t.Helper()
+	users := newMemUsers()
+	cats := newMemCats()
+	kinds := newMemKinds()
+	_, err := kinds.Create(t.Context(), model.Kind{
+		Slug: kindSlugOther, Name: kindNameOther, Color: kindColorBlack, AttrSchema: []model.AttrField{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	kinds.mu.Lock()
+	k := kinds.byID[fixtureUUID]
+	k.ID = otherKindID
+	delete(kinds.byID, fixtureUUID)
+	kinds.byID[otherKindID] = k
+	kinds.mu.Unlock()
+
+	store := newMemItems()
+	auth := service.NewAuth(users, newMemRefresh(), nopTx, clock.Real{}, service.AuthConfig{
+		Secret:     []byte("handler-test-secret"),
+		AccessTTL:  15 * time.Minute,
+		RefreshTTL: 336 * time.Hour,
+		BcryptCost: 4,
+	})
+	auth.SetCategoryDefaults(cats)
+	clk := clock.Fixed{T: time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC)}
+	api := handler.New(handler.Deps{
+		Health:        fakeHealth{},
+		Auth:          auth,
+		Kinds:         service.NewKind(kinds),
+		Categories:    service.NewCategory(cats),
+		Items:         service.NewItem(store, kinds, cats, newMemRenewals(), newMemAudit(), nopTx, clk),
+		Overview:      service.NewOverview(store, clk),
+		Notifications: nopNotifications{},
+		JWTSecret:     []byte("handler-test-secret"),
+		RefreshTTL:    336 * time.Hour,
+	})
+	return api, store, cats
+}
+
+func TestRegisterDoesNotSeeSeedCatalog(t *testing.T) {
+	t.Parallel()
+	api, store, cats := liveCatalogAPI(t)
+	seedCat, err := cats.Create(t.Context(), model.Category{OwnerID: fixtureUUID, Name: "Seed IT"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	seedItem, err := store.Create(t.Context(), model.Item{
+		OwnerID: fixtureUUID, Title: "duekeep.ru", KindID: otherKindID,
+		Status: model.StatusActive, ExpiresAt: "2027-01-01",
+		Tags: []string{}, Attrs: map[string]any{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	regA := serveJSON(t, api, http.MethodPost, "/api/v1/auth/register",
+		`{"email":"a@duekeep.local","password":"secret12"}`, "")
+	if regA.Code != http.StatusCreated {
+		t.Fatalf("register A %d %s", regA.Code, regA.Body.String())
+	}
+	pairA := decodePair(t, regA)
+	idA, err := service.ParseAccess([]byte("handler-test-secret"), pairA.AccessToken)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if idA.Role != string(model.RoleAdmin) {
+		t.Fatalf("role A %s", idA.Role)
+	}
+
+	me := serveJSON(t, api, http.MethodGet, "/api/v1/me", "", pairA.AccessToken)
+	if me.Code != http.StatusOK {
+		t.Fatalf("me %d %s", me.Code, me.Body.String())
+	}
+	var pub model.PublicUser
+	if err := json.NewDecoder(me.Body).Decode(&pub); err != nil {
+		t.Fatal(err)
+	}
+	if pub.Email != "a@duekeep.local" || pub.Role != model.RoleAdmin || pub.ID == fixtureUUID {
+		t.Fatalf("me %+v", pub)
+	}
+
+	if got := listItems(t, api, pairA.AccessToken, ""); got.Total != 0 || len(got.Items) != 0 {
+		t.Fatalf("A saw seed items %+v", got)
+	}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/items/"+seedItem.ID, nil)
+	req.Header.Set("Authorization", "Bearer "+pairA.AccessToken)
+	api.Router().ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("seed get %d %s", rec.Code, rec.Body.String())
+	}
+
+	dash := serveJSON(t, api, http.MethodGet, "/api/v1/dashboard", "", pairA.AccessToken)
+	if dash.Code != http.StatusOK {
+		t.Fatalf("dashboard %d %s", dash.Code, dash.Body.String())
+	}
+	var board model.Dashboard
+	if err := json.NewDecoder(dash.Body).Decode(&board); err != nil {
+		t.Fatal(err)
+	}
+	if board.Counts.Active != 0 || len(board.Soonest) != 0 {
+		t.Fatalf("dashboard leaked seed %+v", board)
+	}
+
+	tree := listCategories(t, api, pairA.AccessToken)
+	if n := countCatNodes(tree); n != len(seed.DefaultCategories()) {
+		t.Fatalf("A cats %d", n)
+	}
+	var walk func([]model.Category)
+	walk = func(rows []model.Category) {
+		for _, c := range rows {
+			if c.ID == seedCat.ID {
+				t.Fatal("A saw seed category")
+			}
+			walk(c.Children)
+		}
+	}
+	walk(tree)
+
+	created := adminCreateItem(t, api, pairA.AccessToken,
+		`{"title":"Мой домен","kind_id":"`+otherKindID+`","expires_at":"2027-06-01"}`)
+
+	regB := serveJSON(t, api, http.MethodPost, "/api/v1/auth/register",
+		`{"email":"b@duekeep.local","password":"secret12"}`, "")
+	if regB.Code != http.StatusCreated {
+		t.Fatalf("register B %d %s", regB.Code, regB.Body.String())
+	}
+	pairB := decodePair(t, regB)
+	if got := listItems(t, api, pairB.AccessToken, ""); got.Total != 0 || len(got.Items) != 0 {
+		t.Fatalf("B saw items %+v", got)
+	}
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/items/"+created.ID, nil)
+	req.Header.Set("Authorization", "Bearer "+pairB.AccessToken)
+	api.Router().ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("B get A %d %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestRegisterCopiesDefaultCategoriesNoItems(t *testing.T) {
 	t.Parallel()
 	users := newMemUsers()

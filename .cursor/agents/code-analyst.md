@@ -33,8 +33,8 @@ is_background: true
 Перечитай `docs/sprint-7-checklist.md` и `REPORT.md`, если они новее этого абзаца.
 
 - Спринты **1–6 закрыты** (сдача `v1.0.0`: общий каталог, admin/viewer).
-- **Sprint 7 в работе.** Закрыты §1–4: миграция `owner_id`, register → admin, изоляция list/get/CSV/categories/audit, dashboard/calendar/notifications, SSE и push по `sub`, тикер пишет `OwnerID`, `TICKER_EVERY=12h`.
-- Открыты §5 (seed off на prod, копия категорий при register), §6 UI, часть §7 (register не видит seed), §8 DoD.
+- **Sprint 7 в работе.** Закрыты §1–5: миграция `owner_id`, register → admin, изоляция, realtime, seed off на prod, копия категорий при register.
+- Открыты §6 UI, часть §7 (register не видит seed), §8 DoD.
 - Sprint 8 — CD после закрытия 7.
 
 Код не опережает чеклист текущего спринта. DoD не отмечать (это не твоя задача).
@@ -50,7 +50,7 @@ is_background: true
 **Структура:**
 ```
 backend/
-  cmd/server/          — env, slog, pgx, goose, seed (пока всегда), ticker, HTTP
+  cmd/server/          — env, slog, pgx, goose, seed если SEED, ticker, HTTP
   internal/
     handler/           — REST, SSE /events, cookie refresh
     service/           — сценарии; интерфейсы store здесь
@@ -75,7 +75,7 @@ deploy/{local,test,prod}/
 - SSE: `Hub.Subscribe(userID)`, событие только тому же `sub`. Push: только `user_id` владельца.
 - Тикер: Tick при старте, затем `TICKER_EVERY` (дефолт 12h). Статус — день UTC.
 - Дашборд: суммы по валютам раздельно, без конвертации.
-- Seed всё ещё всегда в `main` — выключение на prod это §5, не баг изоляции.
+- Seed: `SEED=false` на prod (`EnsureKinds` только); локально полный `seed.Run`. Register копирует дефолтные категории.
 - Seed-типы: есть `subscription` и `rent`; нет `ssl` и `warranty`.
 
 **Соглашения:** `any`; `.cursor/rules/go-idioms.mdc`; `docker compose` с пробелом; `task lint` / `task test`.

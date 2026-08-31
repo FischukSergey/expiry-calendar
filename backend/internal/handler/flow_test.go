@@ -14,6 +14,7 @@ import (
 	"duekeep/internal/clock"
 	"duekeep/internal/handler"
 	"duekeep/internal/model"
+	"duekeep/internal/seed"
 	"duekeep/internal/service"
 )
 
@@ -221,6 +222,60 @@ func TestAdminLoginCreatesKind(t *testing.T) {
 	if create.Code != http.StatusCreated {
 		t.Fatalf("create %d %s", create.Code, create.Body.String())
 	}
+}
+
+func TestRegisterCopiesDefaultCategoriesNoItems(t *testing.T) {
+	t.Parallel()
+	users := newMemUsers()
+	cats := newMemCats()
+	kinds := newMemKinds()
+	auth := service.NewAuth(users, newMemRefresh(), nopTx, clock.Real{}, service.AuthConfig{
+		Secret:     []byte("handler-test-secret"),
+		AccessTTL:  15 * time.Minute,
+		RefreshTTL: 336 * time.Hour,
+		BcryptCost: 4,
+	})
+	auth.SetCategoryDefaults(cats)
+	clk := clock.Real{}
+	api := handler.New(handler.Deps{
+		Health:        fakeHealth{},
+		Auth:          auth,
+		Kinds:         service.NewKind(kinds),
+		Categories:    service.NewCategory(cats),
+		Items:         service.NewItem(newMemItems(), kinds, cats, newMemRenewals(), newMemAudit(), nopTx, clk),
+		Notifications: nopNotifications{},
+		JWTSecret:     []byte("handler-test-secret"),
+		RefreshTTL:    336 * time.Hour,
+	})
+
+	reg := serveJSON(t, api, http.MethodPost, "/api/v1/auth/register",
+		`{"email":"own@duekeep.local","password":"secret12"}`, "")
+	if reg.Code != http.StatusCreated {
+		t.Fatalf("register %d %s", reg.Code, reg.Body.String())
+	}
+	pair := decodePair(t, reg)
+
+	tree := listCategories(t, api, pair.AccessToken)
+	if n := countCatNodes(tree); n != len(seed.DefaultCategories()) {
+		t.Fatalf("categories %d want %d", n, len(seed.DefaultCategories()))
+	}
+	items := listItems(t, api, pair.AccessToken, "")
+	if items.Total != 0 || len(items.Items) != 0 {
+		t.Fatalf("items %+v", items)
+	}
+}
+
+func countCatNodes(tree []model.Category) int {
+	n := 0
+	var walk func([]model.Category)
+	walk = func(rows []model.Category) {
+		for _, c := range rows {
+			n++
+			walk(c.Children)
+		}
+	}
+	walk(tree)
+	return n
 }
 
 func hasRefreshCookie(rec *httptest.ResponseRecorder, raw string) bool {

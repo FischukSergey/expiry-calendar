@@ -38,6 +38,7 @@
 ```
 
 - `201` пара токенов, `role` = `admin` (в v1 register давал `viewer` — здесь меняем).
+- Сразу копия дефолтного дерева категорий (свои UUID), без seed-items.
 - Поля `invite_token` нет.
 - Занятый email → `409 conflict`.
 

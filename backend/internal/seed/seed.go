@@ -42,6 +42,11 @@ func Run(ctx context.Context, pool *pgxpool.Pool, clk clock.Clock) error {
 	return nil
 }
 
+// EnsureKinds пишет справочник item_kinds инсталляции. Конфликт									 по slug — пропуск.
+func EnsureKinds(ctx context.Context, pool *pgxpool.Pool) error {
+	return seedKinds(ctx, pool)
+}
+
 // seedUsers пишет admin и viewer. Конфликт по email — пропуск, пароль не обновляет.
 func seedUsers(ctx context.Context, pool *pgxpool.Pool) error {
 	const q = `

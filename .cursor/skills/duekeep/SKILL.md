@@ -14,7 +14,7 @@ description: >-
 ## Статус
 
 - Спринты **1–6 закрыты** (тег сдачи `v1.0.0`: общий каталог, admin/viewer).
-- Текущий фокус — **Sprint 7**: свои данные. §1–4 закрыты. Дальше §5 seed/прод, §6 UI, остаток тестов/DoD.
+- Текущий фокус — **Sprint 7**: свои данные. §1–5 закрыты. Дальше §6 UI, остаток тестов/DoD.
 - Sprint 8 (CD) — после 7. Не начинай его сам.
 
 Документы спринта N: `docs/sprint-N-plan.md`, `checklist`, `api-sprint-N.md`, `known-limitations-sprint-N.md`. Журнал — `REPORT.md`.
@@ -60,12 +60,10 @@ Create/import/ticker notification: писать `OwnerID`. Пустой owner в
 
 `TICKER_EVERY` (дефолт `12h`) + Tick при старте. Статус по `Clock.Today` (день UTC). Не возвращать интервал 60 с без явной просьбы.
 
-## Ещё не сделано (Sprint 7 §5–6)
+## Ещё не сделано (Sprint 7 §6–8)
 
-- Prod: seed не запускать. Сейчас `seed.Run` в `main` всегда.
-- Register: копия дефолтных категорий, без seed-items.
 - UI: register в свой пустой список; нет org/инвайтов; профиль без org.
-- Повторный compose не плодит seed-пользователей/категории — проверить при §5.
+- Тест: register не видит seed-каталог. DoD §8.
 
 ## Не делать
 

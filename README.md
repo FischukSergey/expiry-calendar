@@ -25,7 +25,7 @@ docker compose down -v && docker compose up --build
 
 Или короче, если тома уже не важны: `docker compose up --build`.
 
-Три сервиса: PostgreSQL, backend (Go), frontend (nginx + SPA). Backend ждёт healthy у БД, накатывает goose и пишет seed.
+Три сервиса: PostgreSQL, backend (Go), frontend (nginx + SPA). Backend ждёт healthy у БД, накатывает goose и пишет локальный seed (`SEED=true`).
 
 Повторный `docker compose up` не дублирует пользователей, виды, категории и записи: конфликт по стабильным id / email / slug.
 
@@ -51,9 +51,9 @@ nginx на `:80` проксирует `/api`, `/healthz`, `/docs`, `/openapi.yam
 | Email | Пароль | Роль |
 |---|---|---|
 | `admin@duekeep.local` | `admin1234` | полный CRUD, аудит, импорт |
-| `viewer@duekeep.local` | `viewer1234` | чтение, экспорт, без кнопок записи |
+| `viewer@duekeep.local` | `viewer1234` | чтение своего пустого списка, без кнопок записи |
 
-Данные v1 общие: оба видят один каталог.
+Каталог 50+ принадлежит seed-admin. Viewer чужие записи не видит. На проде seed выключен (`SEED=false`): нет этих аккаунтов и нет демо-записей.
 
 ## Сценарий демо
 

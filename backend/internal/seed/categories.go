@@ -25,6 +25,30 @@ const (
 	catAuto      = "44444444-4444-4444-4444-444444444451"
 )
 
+// DefaultCategory — узел шаблона без id. ParentIdx = -1 корень, иначе индекс в слайсе.
+type DefaultCategory struct {
+	Name      string
+	ParentIdx int
+	SortOrder int
+}
+
+// DefaultCategories — дерево для Register (новые UUID, свой owner_id). Без items.
+func DefaultCategories() []DefaultCategory {
+	idx := make(map[string]int, len(categorySeeds))
+	for i, c := range categorySeeds {
+		idx[c.id] = i
+	}
+	out := make([]DefaultCategory, len(categorySeeds))
+	for i, c := range categorySeeds {
+		parent := -1
+		if c.parentID != "" {
+			parent = idx[c.parentID]
+		}
+		out[i] = DefaultCategory{Name: c.name, ParentIdx: parent, SortOrder: c.sortOrder}
+	}
+	return out
+}
+
 // Корни + второй уровень (≥ 10 строк). Глубина 2, цикл невозможен.
 var categorySeeds = []categorySeed{
 	{id: catIT, name: "IT", sortOrder: 0},

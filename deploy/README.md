@@ -35,7 +35,8 @@ docker compose -f deploy/prod/docker-compose.prod.yml --env-file .env up -d --bu
 
 В git не должно быть: `.env`, живых JWT/VAPID/паролей, каталога `deploy/prod/certbot/conf/` (сертификаты).
 
-Локальный стек `.env` не читает — там намеренно слабые демо-значения.
+Локальный стек `.env` не читает — там намеренно слабые демо-значения. `SEED=true`.
+Прод: `SEED=false` в compose — демо-пользователи и 50+ items не создаются.
 
 Локальная Postgres с хоста: `localhost:15432`, пользователь/пароль/БД `duekeep`.  
 Внутри compose backend ходит на `db:5432` (имя сервиса).  

@@ -2,6 +2,12 @@
 
 Журнал создания Duekeep. Записи добавляются по ходу работы, не в конце.
 
+## 2026-08-31 — Sprint 7 §5, seed и прод
+
+- Prod: `SEED=false`, демо-каталог не пишется. Локально `SEED=true`: 50+ у seed-admin, viewer без шаринга.
+- Register копирует дефолтное дерево категорий (новые UUID), без seed-items. Kinds на проде — `EnsureKinds` (общий справочник).
+- Login/refresh/logout без изменений контракта Sprint 2.
+
 ## 2026-08-31 — Sprint 7 §4, realtime и обзор
 
 - Dashboard, calendar, notifications, SSE и Web Push — только свой `owner_id` / `sub`.

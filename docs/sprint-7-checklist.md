@@ -40,11 +40,15 @@
 
 ## 5) Seed и прод
 
-- [ ] Prod compose: seed не выполняется.
-- [ ] Local seed: каталог 50+ на seed-admin; общего каталога и шаринга с viewer нет.
-- [ ] Register: копия дефолтных категорий, без items seed.
-- [ ] Повторный `compose up` не плодит seed-пользователей и категории.
-- [ ] Login/refresh/logout контракта Sprint 2 не ломаются (кроме роли после register: теперь `admin`).
+- [x] Prod compose: seed не выполняется.
+  Примечание: `SEED=false` в `deploy/prod`; `seed.Run` не вызывается. Справочник kinds — `EnsureKinds`.
+- [x] Local seed: каталог 50+ на seed-admin; общего каталога и шаринга с viewer нет.
+  Примечание: items `owner_id` = seed-admin; viewer — локальный стенд без шаринга.
+- [x] Register: копия дефолтных категорий, без items seed.
+- [x] Повторный `compose up` не плодит seed-пользователей и категории.
+  Примечание: `ON CONFLICT` по email/id/slug; повторный INSERT не плодит строки.
+- [x] Login/refresh/logout контракта Sprint 2 не ломаются (кроме роли после register: теперь `admin`).
+  Примечание: `TestLoginRefreshLogout`, `TestRefreshRotationAndReuse`.
 
 ## 6) UI / PWA
 

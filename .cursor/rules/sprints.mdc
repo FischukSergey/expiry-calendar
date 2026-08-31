@@ -19,7 +19,7 @@ alwaysApply: true
 
 Спринты **1–6 закрыты** (сдача v1: общий каталог, admin/viewer). Текущий фокус — **Sprint 7** (свои данные, `owner_id`, без org), пока пользователь не назвал другой.
 
-Sprint 7 по чеклисту: §1–4 закрыты (схема, auth, выборки, realtime/обзор). Открыты §5 seed/прод, §6 UI, часть §7 (register vs seed), §8 DoD.
+Sprint 7 по чеклисту: §1–5 закрыты (схема, auth, выборки, realtime, seed/прод). Открыты §6 UI, часть §7 (register vs seed), §8 DoD.
 
 Sprint 8 (CD на VPS) — после закрытия Sprint 7.
 

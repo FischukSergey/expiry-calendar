@@ -76,7 +76,7 @@ func (s *Auth) ExpiresIn() int {
 	return int(s.access / time.Second)
 }
 
-// Register всегда создаёт viewer. Дубликат email → ErrConflict.
+// Register создаёт admin. Дубликат email → ErrConflict.
 func (s *Auth) Register(ctx context.Context, email, password, userAgent string) (model.TokenPair, error) {
 	email, err := normalizeEmail(email)
 	if err != nil {
@@ -93,7 +93,7 @@ func (s *Auth) Register(ctx context.Context, email, password, userAgent string) 
 	var user model.User
 	var pair model.TokenPair
 	err = s.tx(ctx, func(ctx context.Context) error {
-		created, cerr := s.users.Create(ctx, email, string(hash), model.RoleViewer)
+		created, cerr := s.users.Create(ctx, email, string(hash), model.RoleAdmin)
 		if cerr != nil {
 			return cerr
 		}

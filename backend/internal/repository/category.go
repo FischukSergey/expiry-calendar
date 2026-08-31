@@ -29,7 +29,7 @@ func (r *Categories) q(ctx context.Context) db.Querier {
 // List плоский список: sort_order, name. Children пустые.
 func (r *Categories) List(ctx context.Context) ([]model.Category, error) {
 	rows, err := r.q(ctx).Query(ctx, `
-SELECT id::text, parent_id::text, name, sort_order
+SELECT id::text, owner_id::text, parent_id::text, name, sort_order
 FROM categories
 ORDER BY sort_order, name`)
 	if err != nil {
@@ -50,7 +50,7 @@ ORDER BY sort_order, name`)
 // ByID одна строка без детей.
 func (r *Categories) ByID(ctx context.Context, id string) (model.Category, error) {
 	c, err := scanCategory(r.q(ctx).QueryRow(ctx, `
-SELECT id::text, parent_id::text, name, sort_order
+SELECT id::text, owner_id::text, parent_id::text, name, sort_order
 FROM categories WHERE id = $1::uuid`, id))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return model.Category{}, model.ErrNotFound
@@ -66,7 +66,7 @@ func (r *Categories) Create(ctx context.Context, c model.Category) (model.Catego
 	created, err := scanCategory(r.q(ctx).QueryRow(ctx, `
 INSERT INTO categories (owner_id, parent_id, name, sort_order)
 VALUES ($1::uuid, $2, $3, $4)
-RETURNING id::text, parent_id::text, name, sort_order`, c.OwnerID, parentArg(c.ParentID), c.Name, c.SortOrder))
+RETURNING id::text, owner_id::text, parent_id::text, name, sort_order`, c.OwnerID, parentArg(c.ParentID), c.Name, c.SortOrder))
 	if err != nil {
 		return model.Category{}, fmt.Errorf("insert category: %w", err)
 	}
@@ -78,7 +78,7 @@ func (r *Categories) Update(ctx context.Context, c model.Category) (model.Catego
 	updated, err := scanCategory(r.q(ctx).QueryRow(ctx, `
 UPDATE categories SET parent_id = $2, name = $3, sort_order = $4
 WHERE id = $1::uuid
-RETURNING id::text, parent_id::text, name, sort_order`, c.ID, parentArg(c.ParentID), c.Name, c.SortOrder))
+RETURNING id::text, owner_id::text, parent_id::text, name, sort_order`, c.ID, parentArg(c.ParentID), c.Name, c.SortOrder))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return model.Category{}, model.ErrNotFound
 	}
@@ -158,7 +158,7 @@ type catRow interface {
 func scanCategory(row catRow) (model.Category, error) {
 	var c model.Category
 	var parent *string
-	if err := row.Scan(&c.ID, &parent, &c.Name, &c.SortOrder); err != nil {
+	if err := row.Scan(&c.ID, &c.OwnerID, &parent, &c.Name, &c.SortOrder); err != nil {
 		return model.Category{}, err
 	}
 	c.ParentID = parent

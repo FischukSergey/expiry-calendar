@@ -2,7 +2,7 @@ package model
 
 import "time"
 
-// Role — глобальная роль v1 (не per-org; org_id появится в Sprint 7).
+// Role — роль пользователя. После register — admin; viewer остаётся у seed v1.
 type Role string
 
 const (

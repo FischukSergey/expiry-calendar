@@ -147,7 +147,7 @@ func (a *API) patchCategory(w http.ResponseWriter, r *http.Request) {
 			p.ParentID = &parent
 		}
 	}
-	c, err := a.categories.Patch(r.Context(), id, p)
+	c, err := a.categories.Patch(r.Context(), id, p, middleware.UserID(r.Context()))
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -160,7 +160,7 @@ func (a *API) deleteCategory(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := a.categories.Delete(r.Context(), id); err != nil {
+	if err := a.categories.Delete(r.Context(), id, middleware.UserID(r.Context())); err != nil {
 		writeDomainError(w, err)
 		return
 	}

@@ -142,26 +142,45 @@ func TestRefreshReuseRevokesFamily(t *testing.T) {
 
 func TestViewerForbiddenCreateKindLive(t *testing.T) {
 	t.Parallel()
-	api := liveAPI(t, nil)
-	reg := serveJSON(t, api, http.MethodPost, "/api/v1/auth/register",
-		`{"email":"viewer@duekeep.local","password":"secret12"}`, "")
-	if reg.Code != http.StatusCreated {
-		t.Fatalf("register %d %s", reg.Code, reg.Body.String())
+	users := newMemUsers()
+	hash, err := bcrypt.GenerateFromPassword([]byte("secret12"), 4)
+	if err != nil {
+		t.Fatal(err)
 	}
-	pair := decodePair(t, reg)
+	if _, err := users.Create(t.Context(), "viewer@duekeep.local", string(hash), model.RoleViewer); err != nil {
+		t.Fatal(err)
+	}
+	api := liveAPI(t, users)
+	login := serveJSON(t, api, http.MethodPost, "/api/v1/auth/login",
+		`{"email":"viewer@duekeep.local","password":"secret12"}`, "")
+	if login.Code != http.StatusOK {
+		t.Fatalf("login %d %s", login.Code, login.Body.String())
+	}
+	pair := decodePair(t, login)
 
 	list := serveJSON(t, api, http.MethodGet, "/api/v1/kinds", "", pair.AccessToken)
 	if list.Code != http.StatusOK {
 		t.Fatalf("list %d %s", list.Code, list.Body.String())
 	}
-	cats := serveJSON(t, api, http.MethodGet, "/api/v1/categories", "", pair.AccessToken)
-	if cats.Code != http.StatusOK {
-		t.Fatalf("categories %d %s", cats.Code, cats.Body.String())
-	}
-
 	create := serveJSON(t, api, http.MethodPost, "/api/v1/kinds",
 		`{"slug":"visa","name":"Виза","color":"#111111"}`, pair.AccessToken)
 	if create.Code != http.StatusForbidden {
+		t.Fatalf("create %d %s", create.Code, create.Body.String())
+	}
+}
+
+func TestRegisterCreatesAdminCanWriteKinds(t *testing.T) {
+	t.Parallel()
+	api := liveAPI(t, nil)
+	reg := serveJSON(t, api, http.MethodPost, "/api/v1/auth/register",
+		`{"email":"newadmin@duekeep.local","password":"secret12"}`, "")
+	if reg.Code != http.StatusCreated {
+		t.Fatalf("register %d %s", reg.Code, reg.Body.String())
+	}
+	pair := decodePair(t, reg)
+	create := serveJSON(t, api, http.MethodPost, "/api/v1/kinds",
+		`{"slug":"visa","name":"Виза","color":"#111111"}`, pair.AccessToken)
+	if create.Code != http.StatusCreated {
 		t.Fatalf("create %d %s", create.Code, create.Body.String())
 	}
 }

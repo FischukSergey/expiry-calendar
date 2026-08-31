@@ -20,7 +20,7 @@ func testAuth(t *testing.T) *service.Auth {
 	})
 }
 
-func TestRegisterAlwaysViewer(t *testing.T) {
+func TestRegisterCreatesAdmin(t *testing.T) {
 	t.Parallel()
 	svc := testAuth(t)
 	pair, err := svc.Register(t.Context(), "new@duekeep.local", "secret12", "")
@@ -31,7 +31,7 @@ func TestRegisterAlwaysViewer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if id.Role != string(model.RoleViewer) {
+	if id.Role != string(model.RoleAdmin) {
 		t.Fatalf("role: %s", id.Role)
 	}
 	if pair.TokenType != model.TokenTypeBearer || pair.ExpiresIn != 900 {
@@ -135,6 +135,33 @@ func TestLogoutAll(t *testing.T) {
 	}
 }
 
+func TestLoginRefreshClaimsNoOrgID(t *testing.T) {
+	t.Parallel()
+	secret := []byte("unit-test-secret")
+	svc := testAuth(t)
+	reg, err := svc.Register(t.Context(), "lr@duekeep.local", "secret12", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	login, err := svc.Login(t.Context(), "lr@duekeep.local", "secret12", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ref, err := svc.Refresh(t.Context(), login.RefreshToken, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, raw := range []string{reg.AccessToken, login.AccessToken, ref.AccessToken} {
+		id, err := service.ParseAccess(secret, raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if id.Role != string(model.RoleAdmin) || id.UserID == "" {
+			t.Fatalf("%+v", id)
+		}
+	}
+}
+
 func TestMe(t *testing.T) {
 	t.Parallel()
 	svc := testAuth(t)
@@ -150,7 +177,7 @@ func TestMe(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if me.Email != "me@duekeep.local" || me.Role != model.RoleViewer {
+	if me.Email != "me@duekeep.local" || me.Role != model.RoleAdmin {
 		t.Fatalf("%+v", me)
 	}
 }

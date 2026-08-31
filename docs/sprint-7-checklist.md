@@ -13,11 +13,12 @@
 
 ## 2) Auth
 
-- [ ] `POST /auth/register` создаёт `admin` (не `viewer`) и пару токенов.
-- [ ] Claims access без `org_id`: `sub`, `role`, `iss=duekeep`, `iat`, `exp`.
-- [ ] `POST /auth/login` и `POST /auth/refresh` — тот же набор claims.
-- [ ] `GET /me`: `id`, `email`, `role` (без `org_id` / `org_name`).
-- [ ] Мутации предметных сущностей — только если `owner_id` = текущий `sub`.
+- [x] `POST /auth/register` создаёт `admin` (не `viewer`) и пару токенов.
+- [x] Claims access без `org_id`: `sub`, `role`, `iss=duekeep`, `iat`, `exp`.
+- [x] `POST /auth/login` и `POST /auth/refresh` — тот же набор claims.
+- [x] `GET /me`: `id`, `email`, `role` (без `org_id` / `org_name`).
+- [x] Мутации предметных сущностей — только если `owner_id` = текущий `sub`.
+  Примечание: чужой id → 404. Списки ещё общие (п.3).
 
 ## 3) Изоляция выборок
 

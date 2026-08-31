@@ -28,11 +28,11 @@ func (nopCategories) Create(context.Context, *string, string, int, string) (mode
 	return model.Category{}, model.ErrForbidden
 }
 
-func (nopCategories) Patch(context.Context, string, model.CategoryPatch) (model.Category, error) {
+func (nopCategories) Patch(context.Context, string, model.CategoryPatch, string) (model.Category, error) {
 	return model.Category{}, model.ErrForbidden
 }
 
-func (nopCategories) Delete(context.Context, string) error { return model.ErrForbidden }
+func (nopCategories) Delete(context.Context, string, string) error { return model.ErrForbidden }
 
 type nopItems struct{}
 

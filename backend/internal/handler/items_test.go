@@ -23,6 +23,7 @@ const (
 	kindNameOther   = "Прочее"
 	expiresSoon     = "2026-09-10"
 	currencyUSD     = "USD"
+	pathItemsBulk   = "/api/v1/items/bulk"
 )
 
 func itemsAPI(t *testing.T) *handler.API {
@@ -160,7 +161,7 @@ func TestViewerForbiddenItemMutations(t *testing.T) {
 		{http.MethodPatch, "/api/v1/items/" + it.ID, `{"title":"y"}`},
 		{http.MethodDelete, "/api/v1/items/" + it.ID, ""},
 		{http.MethodPost, "/api/v1/items/" + it.ID + "/renew", `{"new_expires_at":"2028-01-01"}`},
-		{http.MethodPost, "/api/v1/items/bulk", `{"ids":["` + it.ID + `"],"status":"archived"}`},
+		{http.MethodPost, pathItemsBulk, `{"ids":["` + it.ID + `"],"status":"archived"}`},
 		{http.MethodPost, "/api/v1/items/import", ""},
 	} {
 		rec := httptest.NewRecorder()
@@ -231,6 +232,35 @@ func TestItemsCRUDRenewFilterPage(t *testing.T) {
 	}
 }
 
+func TestForeignOwnerItemMutationsNotFound(t *testing.T) {
+	t.Parallel()
+	api := itemsAPI(t)
+	owner := testJWT(t, string(model.RoleAdmin))
+	other := testJWTSub(t, string(model.RoleAdmin), "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+	it := adminCreateItem(t, api, owner, `{"title":"x","kind_id":"`+otherKindID+`","expires_at":"2027-01-01"}`)
+	for _, tc := range []struct {
+		method, path, raw string
+	}{
+		{http.MethodPatch, "/api/v1/items/" + it.ID, `{"title":"y"}`},
+		{http.MethodDelete, "/api/v1/items/" + it.ID, ""},
+		{http.MethodPost, "/api/v1/items/" + it.ID + "/renew", `{"new_expires_at":"2028-01-01"}`},
+		{http.MethodPost, pathItemsBulk, `{"ids":["` + it.ID + `"],"status":"archived"}`},
+	} {
+		rec := httptest.NewRecorder()
+		var req *http.Request
+		if tc.raw != "" {
+			req = httptest.NewRequestWithContext(t.Context(), tc.method, tc.path, bytes.NewBufferString(tc.raw))
+		} else {
+			req = httptest.NewRequestWithContext(t.Context(), tc.method, tc.path, http.NoBody)
+		}
+		req.Header.Set("Authorization", "Bearer "+other)
+		api.Router().ServeHTTP(rec, req)
+		if rec.Code != http.StatusNotFound {
+			t.Fatalf("%s %s: %d %s", tc.method, tc.path, rec.Code, rec.Body.String())
+		}
+	}
+}
+
 func TestViewerForbiddenAudit(t *testing.T) {
 	t.Parallel()
 	api := itemsAPI(t)
@@ -255,7 +285,7 @@ func TestMutationsWriteAudit(t *testing.T) {
 	adminJSON(t, api, tok, http.MethodPost, "/api/v1/items/"+created.ID+"/renew",
 		`{"new_expires_at":"2028-01-01","new_cost":10,"comment":"год"}`, http.StatusOK)
 	second := adminCreateItem(t, api, tok, `{"title":"Второй","kind_id":"`+otherKindID+`","expires_at":"2027-06-01"}`)
-	adminJSON(t, api, tok, http.MethodPost, "/api/v1/items/bulk",
+	adminJSON(t, api, tok, http.MethodPost, pathItemsBulk,
 		`{"ids":["`+second.ID+`"],"status":"archived"}`, http.StatusOK)
 	adminJSON(t, api, tok, http.MethodDelete, "/api/v1/items/"+created.ID, "", http.StatusNoContent)
 

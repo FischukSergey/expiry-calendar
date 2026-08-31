@@ -408,7 +408,7 @@ Swagger: `bearerAuth`. Login → скопировать access в Authorize. Ref
 
 | Метод | Путь | Кто | Назначение |
 |---|---|---|---|
-| POST | `/auth/register` | anon | регистрация viewer + пара токенов |
+| POST | `/auth/register` | anon | регистрация admin + пара токенов |
 | POST | `/auth/login` | anon | access + refresh |
 | POST | `/auth/refresh` | anon | новая пара по refresh (cookie или body) |
 | POST | `/auth/logout` | access или refresh | revoke текущего refresh |

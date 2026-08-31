@@ -10,6 +10,8 @@ import (
 	"duekeep/internal/service"
 )
 
+const catOwner = "owner"
+
 func TestValidateAttrSchema(t *testing.T) {
 	t.Parallel()
 	ok := []model.AttrField{{Key: "vin", Label: "VIN", Type: model.AttrString}}
@@ -59,10 +61,10 @@ func TestCategoryDepthAndCreateLimit(t *testing.T) {
 
 	store := newMemCats(rows)
 	svc := service.NewCategory(store)
-	if _, err := svc.Create(t.Context(), &grand, "too-deep", 0, "owner"); !errors.Is(err, model.ErrValidation) {
+	if _, err := svc.Create(t.Context(), &grand, "too-deep", 0, catOwner); !errors.Is(err, model.ErrValidation) {
 		t.Fatalf("want 422 depth, got %v", err)
 	}
-	if _, err := svc.Create(t.Context(), &child, "ok-leaf", 1, "owner"); err != nil {
+	if _, err := svc.Create(t.Context(), &child, "ok-leaf", 1, catOwner); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -72,15 +74,15 @@ func TestCategoryMoveCycle(t *testing.T) {
 	root := "cccccccc-cccc-cccc-cccc-ccccccccccc1"
 	child := "cccccccc-cccc-cccc-cccc-ccccccccccc2"
 	store := newMemCats([]model.Category{
-		{ID: root, Name: "R"},
-		{ID: child, ParentID: &root, Name: "C"},
+		{ID: root, OwnerID: catOwner, Name: "R"},
+		{ID: child, OwnerID: catOwner, ParentID: &root, Name: "C"},
 	})
 	svc := service.NewCategory(store)
-	_, err := svc.Patch(t.Context(), root, model.CategoryPatch{SetParent: true, ParentID: &child})
+	_, err := svc.Patch(t.Context(), root, model.CategoryPatch{SetParent: true, ParentID: &child}, catOwner)
 	if !errors.Is(err, model.ErrValidation) {
 		t.Fatalf("want cycle, got %v", err)
 	}
-	_, err = svc.Patch(t.Context(), child, model.CategoryPatch{SetParent: true, ParentID: &child})
+	_, err = svc.Patch(t.Context(), child, model.CategoryPatch{SetParent: true, ParentID: &child}, catOwner)
 	if !errors.Is(err, model.ErrValidation) {
 		t.Fatalf("want self-parent, got %v", err)
 	}
@@ -91,14 +93,14 @@ func TestDeleteCategoryWithChildren(t *testing.T) {
 	root := "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1"
 	child := "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2"
 	store := newMemCats([]model.Category{
-		{ID: root, Name: "R"},
-		{ID: child, ParentID: &root, Name: "C"},
+		{ID: root, OwnerID: catOwner, Name: "R"},
+		{ID: child, OwnerID: catOwner, ParentID: &root, Name: "C"},
 	})
 	svc := service.NewCategory(store)
-	if err := svc.Delete(t.Context(), root); !errors.Is(err, model.ErrConflict) {
+	if err := svc.Delete(t.Context(), root, catOwner); !errors.Is(err, model.ErrConflict) {
 		t.Fatalf("got %v", err)
 	}
-	if err := svc.Delete(t.Context(), child); err != nil {
+	if err := svc.Delete(t.Context(), child, catOwner); err != nil {
 		t.Fatal(err)
 	}
 }

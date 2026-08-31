@@ -14,8 +14,13 @@ import (
 
 func testJWT(t *testing.T, role string) string {
 	t.Helper()
+	return testJWTSub(t, role, fixtureUUID)
+}
+
+func testJWTSub(t *testing.T, role, sub string) string {
+	t.Helper()
 	tok := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub":  fixtureUUID,
+		"sub":  sub,
 		"role": role,
 		"iss":  model.JWTIssuer,
 		"iat":  time.Now().Unix(),

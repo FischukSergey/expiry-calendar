@@ -57,9 +57,12 @@ func (s *Category) Create(
 }
 
 // Patch имя/порядок/родитель. Смена родителя — те же инварианты + запрет цикла.
-func (s *Category) Patch(ctx context.Context, id string, p model.CategoryPatch) (model.Category, error) {
+func (s *Category) Patch(ctx context.Context, id string, p model.CategoryPatch, actorID string) (model.Category, error) {
 	cur, err := s.store.ByID(ctx, id)
 	if err != nil {
+		return model.Category{}, err
+	}
+	if err := requireOwner(cur.OwnerID, actorID); err != nil {
 		return model.Category{}, err
 	}
 	if p.Name != nil {
@@ -86,8 +89,12 @@ func (s *Category) Patch(ctx context.Context, id string, p model.CategoryPatch) 
 }
 
 // Delete → 409, если есть дети или items.
-func (s *Category) Delete(ctx context.Context, id string) error {
-	if _, err := s.store.ByID(ctx, id); err != nil {
+func (s *Category) Delete(ctx context.Context, id, actorID string) error {
+	cur, err := s.store.ByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if err := requireOwner(cur.OwnerID, actorID); err != nil {
 		return err
 	}
 	n, err := s.store.CountChildren(ctx, id)

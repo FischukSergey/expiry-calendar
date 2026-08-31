@@ -47,7 +47,7 @@ func TestParseAccessClaims(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if id.Role != string(model.RoleViewer) {
+	if id.Role != string(model.RoleAdmin) {
 		t.Fatalf("role: %s", id.Role)
 	}
 	if id.UserID == "" {
@@ -78,8 +78,11 @@ func TestParseAccessClaims(t *testing.T) {
 	if err != nil || iat.IsZero() {
 		t.Fatalf("iat %v %v", iat, err)
 	}
-	if claims["role"] != string(model.RoleViewer) {
+	if claims["role"] != string(model.RoleAdmin) {
 		t.Fatalf("role claim %v", claims["role"])
+	}
+	if _, ok := claims["org_id"]; ok {
+		t.Fatal("org_id must not be in access")
 	}
 
 	if _, err := service.ParseAccess([]byte("wrong"), pair.AccessToken); err == nil {

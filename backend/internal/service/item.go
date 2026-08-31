@@ -161,6 +161,9 @@ func (s *Item) Patch(ctx context.Context, id string, p model.ItemPatch, actorID 
 	if err != nil {
 		return model.Item{}, err
 	}
+	if err := requireOwner(cur.OwnerID, actorID); err != nil {
+		return model.Item{}, err
+	}
 	before := itemSnap(cur)
 	prevStatus := cur.Status
 	applyItemPatch(&cur, p)
@@ -196,6 +199,9 @@ func (s *Item) Delete(ctx context.Context, id, actorID string) error {
 	if err != nil {
 		return err
 	}
+	if err := requireOwner(cur.OwnerID, actorID); err != nil {
+		return err
+	}
 	before := itemSnap(cur)
 	return s.tx(ctx, func(ctx context.Context) error {
 		if err := s.items.Delete(ctx, id); err != nil {
@@ -209,6 +215,9 @@ func (s *Item) Delete(ctx context.Context, id, actorID string) error {
 func (s *Item) Renew(ctx context.Context, id string, in model.RenewInput, actorID string) (model.Item, error) {
 	cur, err := s.items.ByID(ctx, id)
 	if err != nil {
+		return model.Item{}, err
+	}
+	if err := requireOwner(cur.OwnerID, actorID); err != nil {
 		return model.Item{}, err
 	}
 	expires, err := parseDate(fieldNewExpires, in.NewExpiresAt)
@@ -270,9 +279,20 @@ func (s *Item) Bulk(ctx context.Context, in model.BulkInput, actorID string) (mo
 		if _, err := uuid.Parse(id); err != nil {
 			return model.BulkResult{}, model.Validation("invalid id", map[string]any{fieldIDs: id})
 		}
+		it, err := s.items.ByID(ctx, id)
+		if err != nil {
+			return model.BulkResult{}, err
+		}
+		if err := requireOwner(it.OwnerID, actorID); err != nil {
+			return model.BulkResult{}, err
+		}
 	}
 	if in.CategoryID != nil {
-		if _, err := s.cats.ByID(ctx, *in.CategoryID); err != nil {
+		cat, err := s.cats.ByID(ctx, *in.CategoryID)
+		if err != nil {
+			return model.BulkResult{}, err
+		}
+		if err := requireOwner(cat.OwnerID, actorID); err != nil {
 			return model.BulkResult{}, err
 		}
 	}

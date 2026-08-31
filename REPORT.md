@@ -2,6 +2,11 @@
 
 Журнал создания Duekeep. Записи добавляются по ходу работы, не в конце.
 
+## 2026-08-31 — Sprint 7 §2, auth
+
+- Register создаёт admin; login/refresh/me без `org_id` в claims и `/me`.
+- Patch/delete/renew/bulk items и patch/delete categories — только свой `owner_id`, иначе 404.
+
 ## 2026-08-31 — Sprint 7 §1, owner_id
 
 - Миграция `011_owner_id.sql`: колонка на categories/items/audit_log/notifications, backfill seed-admin, NOT NULL + FK + индексы. Org-таблиц нет.

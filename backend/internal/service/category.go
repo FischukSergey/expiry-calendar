@@ -9,7 +9,7 @@ import (
 
 // CategoryStore — плоские строки categories.
 type CategoryStore interface {
-	List(ctx context.Context) ([]model.Category, error)
+	List(ctx context.Context, ownerID string) ([]model.Category, error)
 	ByID(ctx context.Context, id string) (model.Category, error)
 	Create(ctx context.Context, c model.Category) (model.Category, error)
 	Update(ctx context.Context, c model.Category) (model.Category, error)
@@ -29,9 +29,9 @@ func NewCategory(store CategoryStore) *Category {
 	return &Category{store: store}
 }
 
-// List дерево корней с вложенными children.
-func (s *Category) List(ctx context.Context) ([]model.Category, error) {
-	rows, err := s.store.List(ctx)
+// List дерево корней владельца с вложенными children.
+func (s *Category) List(ctx context.Context, ownerID string) ([]model.Category, error) {
+	rows, err := s.store.List(ctx, ownerID)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (s *Category) Create(
 	if name == "" {
 		return model.Category{}, model.Validation(msgInvalidName, map[string]any{fieldName: detailRequired})
 	}
-	rows, err := s.store.List(ctx)
+	rows, err := s.store.List(ctx, ownerID)
 	if err != nil {
 		return model.Category{}, err
 	}
@@ -76,7 +76,7 @@ func (s *Category) Patch(ctx context.Context, id string, p model.CategoryPatch, 
 		cur.SortOrder = *p.SortOrder
 	}
 	if p.SetParent {
-		rows, err := s.store.List(ctx)
+		rows, err := s.store.List(ctx, actorID)
 		if err != nil {
 			return model.Category{}, err
 		}

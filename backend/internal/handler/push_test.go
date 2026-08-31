@@ -144,7 +144,7 @@ func TestPushTickerBroadcastAnd410(t *testing.T) {
 	tok := testJWT(t, string(model.RoleViewer))
 	adminJSON(t, api, tok, http.MethodPost, "/api/v1/push/subscribe", pushBody, http.StatusNoContent)
 	_, err := store.Create(t.Context(), model.Item{
-		Title: itemTitleDomain, KindID: otherKindID, Status: model.StatusActive,
+		OwnerID: fixtureUUID, Title: itemTitleDomain, KindID: otherKindID, Status: model.StatusActive,
 		ExpiresAt: expiresSoon, NotifyBeforeDays: 30, Tags: []string{}, Attrs: map[string]any{},
 	})
 	if err != nil {
@@ -174,7 +174,7 @@ func TestPushTickerBroadcastAnd410(t *testing.T) {
 	sender.status = http.StatusGone
 	sender.mu.Unlock()
 	_, err = store.Create(t.Context(), model.Item{
-		Title: "Полис", KindID: otherKindID, Status: model.StatusExpiring,
+		OwnerID: fixtureUUID, Title: "Полис", KindID: otherKindID, Status: model.StatusExpiring,
 		ExpiresAt: "2026-08-25", NotifyBeforeDays: 30, Tags: []string{}, Attrs: map[string]any{},
 	})
 	if err != nil {

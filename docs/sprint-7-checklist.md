@@ -18,23 +18,25 @@
 - [x] `POST /auth/login` и `POST /auth/refresh` — тот же набор claims.
 - [x] `GET /me`: `id`, `email`, `role` (без `org_id` / `org_name`).
 - [x] Мутации предметных сущностей — только если `owner_id` = текущий `sub`.
-  Примечание: чужой id → 404. Списки ещё общие (п.3).
+  Примечание: чужой id → 404.
 
 ## 3) Изоляция выборок
 
-- [ ] List/get/patch/delete `items`, renew, bulk, CSV — только свой `owner_id`.
-- [ ] CRUD `categories` — только свой `owner_id`; глубина ≤ 3 как в Sprint 2.
-- [ ] `GET /audit` — только свои события.
-- [ ] Чужой UUID → `404 not_found` (не `403`).
-- [ ] `item_kinds` остаются общими на инсталляцию (чтение всем auth).
+- [x] List/get/patch/delete `items`, renew, bulk, CSV — только свой `owner_id`.
+  Примечание: `ItemFilter.OwnerID` из sub; get/list/export/audit scoped. Dashboard — п.4.
+- [x] CRUD `categories` — только свой `owner_id`; глубина ≤ 3 как в Sprint 2.
+- [x] `GET /audit` — только свои события.
+- [x] Чужой UUID → `404 not_found` (не `403`).
+- [x] `item_kinds` остаются общими на инсталляцию (чтение всем auth).
 
 ## 4) Realtime и обзор
 
-- [ ] `GET /dashboard`, `GET /calendar` — агрегаты только своих items.
-- [ ] `GET /notifications` и read/read-all — только свои.
-- [ ] Тикер создаёт notification с `owner_id` владельца item.
-- [ ] SSE: событие только клиентам с тем же `sub`.
-- [ ] Web Push: не слать подписчику чужие items.
+- [x] `GET /dashboard`, `GET /calendar` — агрегаты только своих items.
+- [x] `GET /notifications` и read/read-all — только свои.
+- [x] Тикер создаёт notification с `owner_id` владельца item.
+  Примечание: `TICKER_EVERY` по умолчанию 12h (статус — день UTC); Tick сразу при старте.
+- [x] SSE: событие только клиентам с тем же `sub`.
+- [x] Web Push: не слать подписчику чужие items.
 
 ## 5) Seed и прод
 
@@ -52,10 +54,10 @@
 
 ## 7) Тесты
 
-- [ ] Isolation: два admin не видят чужие items / dashboard.
+- [x] Isolation: два admin не видят чужие items / dashboard.
 - [ ] Register не видит seed-каталог.
-- [ ] Чужой id → 404.
-- [ ] SSE/push не утекает другому пользователю (хотя бы на уровне service-фильтра).
+- [x] Чужой id → 404.
+- [x] SSE/push не утекает другому пользователю (хотя бы на уровне service-фильтра).
 
 ## 8) DoD
 

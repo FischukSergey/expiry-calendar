@@ -28,7 +28,7 @@ type KindService interface {
 
 // CategoryService — дерево категорий.
 type CategoryService interface {
-	List(ctx context.Context) ([]model.Category, error)
+	List(ctx context.Context, ownerID string) ([]model.Category, error)
 	Create(ctx context.Context, parentID *string, name string, sortOrder int, ownerID string) (model.Category, error)
 	Patch(ctx context.Context, id string, p model.CategoryPatch, actorID string) (model.Category, error)
 	Delete(ctx context.Context, id, actorID string) error
@@ -36,15 +36,15 @@ type CategoryService interface {
 
 // ItemService — записи, renew, bulk, audit list.
 type ItemService interface {
-	List(ctx context.Context, f model.ItemFilter, page model.Page) (model.ItemList, error)
+	List(ctx context.Context, f model.ItemFilter, page model.Page, actorID string) (model.ItemList, error)
 	Create(ctx context.Context, in model.Item, actorID string) (model.Item, error)
-	Get(ctx context.Context, id string) (model.ItemCard, error)
+	Get(ctx context.Context, id, actorID string) (model.ItemCard, error)
 	Patch(ctx context.Context, id string, p model.ItemPatch, actorID string) (model.Item, error)
 	Delete(ctx context.Context, id, actorID string) error
 	Renew(ctx context.Context, id string, in model.RenewInput, actorID string) (model.Item, error)
 	Bulk(ctx context.Context, in model.BulkInput, actorID string) (model.BulkResult, error)
-	ListAudit(ctx context.Context, page model.Page) (model.AuditList, error)
-	Export(ctx context.Context, f model.ItemFilter) ([]byte, error)
+	ListAudit(ctx context.Context, page model.Page, actorID string) (model.AuditList, error)
+	Export(ctx context.Context, f model.ItemFilter, actorID string) ([]byte, error)
 	Import(
 		ctx context.Context,
 		csvData []byte,
@@ -56,15 +56,15 @@ type ItemService interface {
 
 // OverviewService — дашборд и календарь.
 type OverviewService interface {
-	Dashboard(ctx context.Context) (model.Dashboard, error)
-	Calendar(ctx context.Context, year, month int) (model.Calendar, error)
+	Dashboard(ctx context.Context, ownerID string) (model.Dashboard, error)
+	Calendar(ctx context.Context, year, month int, ownerID string) (model.Calendar, error)
 }
 
 // NotificationService — лента и read / read-all.
 type NotificationService interface {
-	List(ctx context.Context, unread bool, page model.Page) (model.NotificationList, error)
-	MarkRead(ctx context.Context, id string) error
-	MarkAllRead(ctx context.Context) error
+	List(ctx context.Context, ownerID string, unread bool, page model.Page) (model.NotificationList, error)
+	MarkRead(ctx context.Context, id, ownerID string) error
+	MarkAllRead(ctx context.Context, ownerID string) error
 }
 
 // PushService — VAPID и подписки Web Push.

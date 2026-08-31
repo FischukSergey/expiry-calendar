@@ -22,7 +22,7 @@ func (nopKinds) Delete(context.Context, string) error { return model.ErrForbidde
 
 type nopCategories struct{}
 
-func (nopCategories) List(context.Context) ([]model.Category, error) { return nil, nil }
+func (nopCategories) List(context.Context, string) ([]model.Category, error) { return nil, nil }
 
 func (nopCategories) Create(context.Context, *string, string, int, string) (model.Category, error) {
 	return model.Category{}, model.ErrForbidden
@@ -36,7 +36,7 @@ func (nopCategories) Delete(context.Context, string, string) error { return mode
 
 type nopItems struct{}
 
-func (nopItems) List(context.Context, model.ItemFilter, model.Page) (model.ItemList, error) {
+func (nopItems) List(context.Context, model.ItemFilter, model.Page, string) (model.ItemList, error) {
 	return model.ItemList{Items: []model.Item{}}, nil
 }
 
@@ -44,7 +44,7 @@ func (nopItems) Create(context.Context, model.Item, string) (model.Item, error) 
 	return model.Item{}, model.ErrForbidden
 }
 
-func (nopItems) Get(context.Context, string) (model.ItemCard, error) {
+func (nopItems) Get(context.Context, string, string) (model.ItemCard, error) {
 	return model.ItemCard{}, model.ErrNotFound
 }
 
@@ -62,11 +62,11 @@ func (nopItems) Bulk(context.Context, model.BulkInput, string) (model.BulkResult
 	return model.BulkResult{}, model.ErrForbidden
 }
 
-func (nopItems) ListAudit(context.Context, model.Page) (model.AuditList, error) {
+func (nopItems) ListAudit(context.Context, model.Page, string) (model.AuditList, error) {
 	return model.AuditList{Items: []model.AuditEntry{}}, nil
 }
 
-func (nopItems) Export(context.Context, model.ItemFilter) ([]byte, error) {
+func (nopItems) Export(context.Context, model.ItemFilter, string) ([]byte, error) {
 	return []byte("id,title\n"), nil
 }
 
@@ -80,10 +80,10 @@ func (nopItems) Import(
 
 type nopNotifications struct{}
 
-func (nopNotifications) List(context.Context, bool, model.Page) (model.NotificationList, error) {
+func (nopNotifications) List(context.Context, string, bool, model.Page) (model.NotificationList, error) {
 	return model.NotificationList{Items: []model.Notification{}}, nil
 }
 
-func (nopNotifications) MarkRead(context.Context, string) error { return model.ErrNotFound }
+func (nopNotifications) MarkRead(context.Context, string, string) error { return model.ErrNotFound }
 
-func (nopNotifications) MarkAllRead(context.Context) error { return nil }
+func (nopNotifications) MarkAllRead(context.Context, string) error { return nil }

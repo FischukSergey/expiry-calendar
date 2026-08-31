@@ -84,7 +84,7 @@ func TestEventsSeesTickerNotification(t *testing.T) {
 	api, tkr, store := notifyAPI(t)
 	tok := testJWT(t, string(model.RoleViewer))
 	_, err := store.Create(t.Context(), model.Item{
-		Title: itemTitleDomain, KindID: otherKindID, Status: model.StatusActive,
+		OwnerID: fixtureUUID, Title: itemTitleDomain, KindID: otherKindID, Status: model.StatusActive,
 		ExpiresAt: expiresSoon, NotifyBeforeDays: 30, Tags: []string{}, Attrs: map[string]any{},
 	})
 	if err != nil {

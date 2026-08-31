@@ -50,6 +50,7 @@ func run() error {
 		"jwt_refresh_ttl", cfg.RefreshTTL.String(),
 		"cookie_secure", cfg.CookieSecure,
 		"vapid_generated", cfg.VAPIDGenerated,
+		"ticker_every", cfg.TickEvery.String(),
 	)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -110,7 +111,7 @@ func run() error {
 	bus := &service.Fanout{SSE: hub, Push: pushSvc}
 	itemsSvc.SetNotify(notesRepo, bus)
 	tkr := service.NewTicker(itemsRepo, notesRepo, runTx, clk, bus)
-	go tkr.Run(ctx, 60*time.Second)
+	go tkr.Run(ctx, cfg.TickEvery)
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           api.Router(),
@@ -149,6 +150,7 @@ type config struct {
 	VAPIDPrivate   string
 	VAPIDSubject   string
 	VAPIDGenerated bool // ключи не из env: подписки не переживут рестарт.
+	TickEvery      time.Duration
 }
 
 // loadConfig: HTTP_ADDR, DATABASE_URL, JWT_SECRET обязателен; TTL с дефолтами 15m / 336h.
@@ -160,6 +162,11 @@ func loadConfig() (config, error) {
 	refreshTTL, err := time.ParseDuration(cmp.Or(os.Getenv("JWT_REFRESH_TTL"), "336h"))
 	if err != nil {
 		return config{}, errors.New("JWT_REFRESH_TTL is invalid")
+	}
+	// Статус — календарный день UTC; чаще минуты не нужны. Сразу Tick при старте, затем каждые 12 ч.
+	tickEvery, err := time.ParseDuration(cmp.Or(os.Getenv("TICKER_EVERY"), "12h"))
+	if err != nil || tickEvery <= 0 {
+		return config{}, errors.New("TICKER_EVERY is invalid")
 	}
 	vapidPublic := strings.TrimSpace(os.Getenv("VAPID_PUBLIC"))
 	vapidPrivate := strings.TrimSpace(os.Getenv("VAPID_PRIVATE"))
@@ -184,6 +191,7 @@ func loadConfig() (config, error) {
 		VAPIDPrivate:   vapidPrivate,
 		VAPIDSubject:   cmp.Or(strings.TrimSpace(os.Getenv("VAPID_SUBJECT")), "dev@duekeep.local"),
 		VAPIDGenerated: generated,
+		TickEvery:      tickEvery,
 	}
 	if cfg.DatabaseURL == "" {
 		return config{}, errors.New("DATABASE_URL is required")

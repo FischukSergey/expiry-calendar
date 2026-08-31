@@ -14,10 +14,13 @@ type overviewItems struct {
 	rows []model.Item
 }
 
-func (m *overviewItems) ListOpen(context.Context) ([]model.Item, error) {
+func (m *overviewItems) ListOpenByOwner(_ context.Context, ownerID string) ([]model.Item, error) {
 	out := make([]model.Item, 0, len(m.rows))
 	for _, it := range m.rows {
 		if it.Status == model.StatusCancelled || it.Status == model.StatusArchived {
+			continue
+		}
+		if it.OwnerID != ownerID {
 			continue
 		}
 		out = append(out, it)
@@ -28,30 +31,36 @@ func (m *overviewItems) ListOpen(context.Context) ([]model.Item, error) {
 func TestDashboardTwoCurrenciesAndSkipsCancelled(t *testing.T) {
 	t.Parallel()
 	today := time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC)
+	const owner = "owner"
 	store := &overviewItems{rows: []model.Item{
 		{
-			ID: "a", Title: itemTitleDomain, KindID: "k1", Status: model.StatusActive,
-			ExpiresAt: "2026-09-01", CostAmount: 100, Currency: model.CurrencyRUB,
+			ID: "a", OwnerID: owner, Title: itemTitleDomain, KindID: "k1", Status: model.StatusActive,
+			ExpiresAt: expiresSep, CostAmount: 100, Currency: model.CurrencyRUB,
 			BillingPeriod: model.BillingMonthly,
 		},
 		{
-			ID: "b", Title: "SaaS", KindID: "k2", Status: model.StatusExpiring,
+			ID: "b", OwnerID: owner, Title: "SaaS", KindID: "k2", Status: model.StatusExpiring,
 			ExpiresAt: "2026-08-28", CostAmount: 120, Currency: "USD",
 			BillingPeriod: model.BillingYearly,
 		},
 		{
-			ID: "c", Title: "Отмена", KindID: "k1", Status: model.StatusCancelled,
+			ID: "c", OwnerID: owner, Title: "Отмена", KindID: "k1", Status: model.StatusCancelled,
 			ExpiresAt: "2026-08-27", CostAmount: 999, Currency: model.CurrencyRUB,
 			BillingPeriod: model.BillingMonthly,
 		},
 		{
-			ID: "d", Title: "Просрочка", KindID: "k1", Status: model.StatusExpired,
+			ID: "d", OwnerID: owner, Title: "Просрочка", KindID: "k1", Status: model.StatusExpired,
 			ExpiresAt: expiresPast, CostAmount: 50, Currency: model.CurrencyRUB,
+			BillingPeriod: model.BillingMonthly,
+		},
+		{
+			ID: "x", OwnerID: otherOwner, Title: "Чужое", KindID: "k1", Status: model.StatusActive,
+			ExpiresAt: expiresSep, CostAmount: 5000, Currency: model.CurrencyRUB,
 			BillingPeriod: model.BillingMonthly,
 		},
 	}}
 	ov := service.NewOverview(store, clock.Fixed{T: today})
-	got, err := ov.Dashboard(t.Context())
+	got, err := ov.Dashboard(t.Context(), owner)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,13 +112,15 @@ func monthAmount(row model.MonthCount, currency string) int {
 
 func TestCalendarMonthAndEmptyDays(t *testing.T) {
 	t.Parallel()
+	const owner = "owner"
 	store := &overviewItems{rows: []model.Item{
-		{ID: "a", Title: "Бета", Status: model.StatusExpiring, ExpiresAt: calendarDay},
-		{ID: "b", Title: "Альфа", Status: model.StatusActive, ExpiresAt: calendarDay},
-		{ID: "c", Title: "Сентябрь", Status: model.StatusActive, ExpiresAt: "2026-09-01"},
+		{ID: "a", OwnerID: owner, Title: "Бета", Status: model.StatusExpiring, ExpiresAt: calendarDay},
+		{ID: "b", OwnerID: owner, Title: "Альфа", Status: model.StatusActive, ExpiresAt: calendarDay},
+		{ID: "c", OwnerID: owner, Title: "Сентябрь", Status: model.StatusActive, ExpiresAt: expiresSep},
+		{ID: "x", OwnerID: otherOwner, Title: "Чужое", Status: model.StatusActive, ExpiresAt: calendarDay},
 	}}
 	ov := service.NewOverview(store, clock.Fixed{T: time.Date(2026, 8, 26, 0, 0, 0, 0, time.UTC)})
-	got, err := ov.Calendar(t.Context(), 2026, 8)
+	got, err := ov.Calendar(t.Context(), 2026, 8, owner)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +133,7 @@ func TestCalendarMonthAndEmptyDays(t *testing.T) {
 	if got.Days[0].Items[0].Title != "Альфа" {
 		t.Fatalf("sort %+v", got.Days[0].Items)
 	}
-	if _, err := ov.Calendar(t.Context(), 2026, 13); err == nil {
+	if _, err := ov.Calendar(t.Context(), 2026, 13, owner); err == nil {
 		t.Fatal("month 13")
 	}
 }

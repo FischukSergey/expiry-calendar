@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"duekeep/internal/middleware"
 	"duekeep/internal/sse"
 )
 
@@ -22,7 +23,7 @@ func (a *API) events(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	writeSSE(w, flusher, sse.EventPing, []byte("{}"))
 
-	id, ch := a.hub.Subscribe()
+	id, ch := a.hub.Subscribe(middleware.UserID(r.Context()))
 	defer a.hub.Unsubscribe(id)
 
 	pingEvery := a.ssePing

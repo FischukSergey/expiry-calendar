@@ -91,21 +91,11 @@ func ParseCSVAttr(typ, raw string) (any, error) {
 	}
 }
 
-// Export пишет CSV текущего фильтра. Пагинация списка не применяется; потолок MaxCSVExport.
-func (s *Item) Export(ctx context.Context, f model.ItemFilter) ([]byte, error) {
-	f, err := normalizeFilter(f)
+// Export пишет CSV текущего фильтра. Только свой owner_id; потолок MaxCSVExport.
+func (s *Item) Export(ctx context.Context, f model.ItemFilter, actorID string) ([]byte, error) {
+	f, err := s.scopedFilter(ctx, f, actorID)
 	if err != nil {
 		return nil, err
-	}
-	if f.CategoryID != "" {
-		if _, err := s.cats.ByID(ctx, f.CategoryID); err != nil {
-			return nil, err
-		}
-		ids, err := s.cats.DescendantIDs(ctx, f.CategoryID)
-		if err != nil {
-			return nil, err
-		}
-		f.CategoryIDs = ids
 	}
 	rows, _, err := s.items.List(ctx, f, model.Page{Page: 1, PerPage: model.MaxCSVExport})
 	if err != nil {
@@ -122,7 +112,7 @@ func (s *Item) Export(ctx context.Context, f model.ItemFilter) ([]byte, error) {
 	for _, k := range kinds {
 		kindByID[k.ID] = k
 	}
-	cats, err := s.cats.List(ctx)
+	cats, err := s.cats.List(ctx, actorID)
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +167,7 @@ func (s *Item) Import(
 	for _, k := range kinds {
 		kindBySlug[k.Slug] = k
 	}
-	cats, err := s.cats.List(ctx)
+	cats, err := s.cats.List(ctx, actorID)
 	if err != nil {
 		return model.CSVImportPreview{}, model.CSVImportResult{}, err
 	}
@@ -194,7 +184,7 @@ func (s *Item) Import(
 	prepared := make([]model.Item, 0, len(dataRows))
 	for i, rec := range dataRows {
 		line := i + 2
-		it, prev, rowErr := s.rowToItem(ctx, rec, col, mapping, kindBySlug, catByName)
+		it, prev, rowErr := s.rowToItem(ctx, rec, col, mapping, kindBySlug, catByName, actorID)
 		if rowErr != "" {
 			preview.Errors = append(preview.Errors, model.CSVImportError{Line: line, Message: rowErr})
 			continue
@@ -256,6 +246,7 @@ func (s *Item) rowToItem(
 	mapping map[string]string,
 	kindBySlug map[string]model.Kind,
 	catByName map[string]model.Category,
+	actorID string,
 ) (model.Item, model.CSVPreviewRow, string) {
 	cell := func(field string) string {
 		name, ok := mapping[field]
@@ -340,7 +331,7 @@ func (s *Item) rowToItem(
 		Currency: cell(csvFieldCurrency), BillingPeriod: cell(csvFieldBilling),
 		ExpiresAt: expires, NotifyBeforeDays: model.DefaultNotifyDays, Attrs: attrs,
 	}
-	prepared, err := s.prepareWrite(ctx, it)
+	prepared, err := s.prepareWrite(ctx, it, actorID)
 	if err != nil {
 		return model.Item{}, prev, csvRowMessage(err)
 	}

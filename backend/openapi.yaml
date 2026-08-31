@@ -4,7 +4,7 @@ info:
   version: 1.0.0
   description: |
     Календарь истечений. Канон для проверяющего: GET /docs (Swagger UI).
-    Спека сверена со спринтами 1–5; новых полей в Sprint 6 нет.
+    Спека сверена со спринтами 1–6. Sprint 7: items/categories/audit/dashboard/calendar/notifications — только свой owner_id.
     Access: Authorization Bearer. Refresh: JSON body и/или cookie duekeep_refresh (body важнее).
 servers:
   - url: /
@@ -17,7 +17,7 @@ tags:
   - name: Auth
     description: Регистрация, вход, refresh, logout, /me
   - name: Catalog
-    description: Общие справочники kinds и categories (не per-user)
+    description: kinds — общий справочник; categories — только свои (owner_id)
   - name: Items
     description: Записи истечения, продление, bulk, CSV
   - name: Audit
@@ -365,7 +365,7 @@ paths:
   /api/v1/categories:
     get:
       tags: [Catalog]
-      summary: Дерево категорий (корни в items)
+      summary: Дерево своих категорий (корни в items)
       operationId: getCategories
       responses:
         "200":
@@ -486,7 +486,7 @@ paths:
   /api/v1/items:
     get:
       tags: [Items]
-      summary: Список записей
+      summary: Список своих записей
       operationId: listItems
       parameters:
         - in: query
@@ -593,7 +593,7 @@ paths:
   /api/v1/items/export:
     get:
       tags: [Items]
-      summary: Экспорт CSV текущего фильтра
+      summary: Экспорт CSV своих записей (фильтр как у списка)
       operationId: exportItems
       parameters:
         - in: query
@@ -694,7 +694,7 @@ paths:
       - $ref: "#/components/parameters/ID"
     get:
       tags: [Items]
-      summary: Карточка и renewals
+      summary: Своя карточка и renewals; чужой id → 404
       operationId: getItem
       responses:
         "200":
@@ -768,7 +768,7 @@ paths:
   /api/v1/audit:
     get:
       tags: [Audit]
-      summary: Журнал (admin)
+      summary: Свой журнал (admin)
       operationId: listAudit
       parameters:
         - $ref: "#/components/parameters/Page"
@@ -785,7 +785,7 @@ paths:
   /api/v1/notifications:
     get:
       tags: [Notifications]
-      summary: Лента уведомлений
+      summary: Своя лента уведомлений
       operationId: listNotifications
       parameters:
         - in: query
@@ -807,7 +807,7 @@ paths:
   /api/v1/notifications/read-all:
     post:
       tags: [Notifications]
-      summary: Пометить все прочитанными
+      summary: Пометить свои непрочитанные
       operationId: readAllNotifications
       responses:
         "204":
@@ -833,7 +833,7 @@ paths:
   /api/v1/events:
     get:
       tags: [Events]
-      summary: SSE поток уведомлений
+      summary: SSE: только свои notification
       operationId: streamEvents
       parameters:
         - in: query
@@ -908,7 +908,7 @@ paths:
   /api/v1/dashboard:
     get:
       tags: [Overview]
-      summary: KPI и series для графиков
+      summary: KPI и series по своим записям
       operationId: getDashboard
       responses:
         "200":
@@ -922,7 +922,7 @@ paths:
   /api/v1/calendar:
     get:
       tags: [Overview]
-      summary: Истечения за календарный месяц
+      summary: Свои истечения за календарный месяц
       operationId: getCalendar
       parameters:
         - in: query

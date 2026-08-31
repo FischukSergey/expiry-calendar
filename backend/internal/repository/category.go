@@ -26,12 +26,16 @@ func (r *Categories) q(ctx context.Context) db.Querier {
 	return db.QuerierFrom(ctx, r.pool)
 }
 
-// List плоский список: sort_order, name. Children пустые.
-func (r *Categories) List(ctx context.Context) ([]model.Category, error) {
+// List плоский список владельца: sort_order, name. Children пустые.
+func (r *Categories) List(ctx context.Context, ownerID string) ([]model.Category, error) {
+	if ownerID == "" {
+		return []model.Category{}, nil
+	}
 	rows, err := r.q(ctx).Query(ctx, `
 SELECT id::text, owner_id::text, parent_id::text, name, sort_order
 FROM categories
-ORDER BY sort_order, name`)
+WHERE owner_id = $1::uuid
+ORDER BY sort_order, name`, ownerID)
 	if err != nil {
 		return nil, fmt.Errorf("list categories: %w", err)
 	}

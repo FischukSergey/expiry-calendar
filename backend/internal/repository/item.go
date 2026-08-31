@@ -90,8 +90,11 @@ func (r *Items) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-// List фильтрует по колонкам. CategoryIDs уже с потомками.
+// List фильтрует по колонкам и owner_id. CategoryIDs уже с потомками.
 func (r *Items) List(ctx context.Context, f model.ItemFilter, page model.Page) ([]model.Item, int, error) {
+	if f.OwnerID == "" {
+		return []model.Item{}, 0, nil
+	}
 	where, args := itemWhere(f)
 	var total int
 	countQ := `SELECT count(*) FROM items` + where
@@ -132,14 +135,17 @@ func (r *Items) List(ctx context.Context, f model.ItemFilter, page model.Page) (
 	return out, total, rows.Err()
 }
 
-// BulkUpdate пишет category_id и/или status. Неизвестные id пропускает.
-func (r *Items) BulkUpdate(ctx context.Context, ids []string, categoryID *string, status *string) (int, error) {
+// BulkUpdate пишет category_id и/или status. Неизвестные и чужие id пропускает.
+func (r *Items) BulkUpdate(ctx context.Context, ids []string, categoryID *string, status *string, ownerID string) (int, error) {
+	if ownerID == "" {
+		return 0, nil
+	}
 	tag, err := r.q(ctx).Exec(ctx, `
 UPDATE items SET
     category_id = COALESCE(NULLIF($2, '')::uuid, category_id),
     status = COALESCE(NULLIF($3, ''), status),
     updated_at = now()
-WHERE id = ANY($1::uuid[])`, ids, categoryArg(categoryID), statusArg(status))
+WHERE id = ANY($1::uuid[]) AND owner_id = $4::uuid`, ids, categoryArg(categoryID), statusArg(status), ownerID)
 	if err != nil {
 		return 0, fmt.Errorf("bulk items: %w", err)
 	}
@@ -153,6 +159,7 @@ func itemWhere(f model.ItemFilter) (string, []any) {
 		args = append(args, val)
 		parts = append(parts, fmt.Sprintf(clause, len(args)))
 	}
+	add("owner_id = $%d::uuid", f.OwnerID)
 	if f.Q != "" {
 		pat := "%" + f.Q + "%"
 		args = append(args, pat)
@@ -287,12 +294,27 @@ func statusArg(s *string) string {
 	return *s
 }
 
-// ListOpen — записи, которые тикер может пересчитать (не cancelled/archived).
+// ListOpen — все открытые записи для тикера (не cancelled/archived).
 func (r *Items) ListOpen(ctx context.Context) ([]model.Item, error) {
-	rows, err := r.q(ctx).Query(ctx, `SELECT `+itemCols+`
+	return r.listOpen(ctx, `SELECT `+itemCols+`
 FROM items
 WHERE status NOT IN ('cancelled', 'archived')
 ORDER BY id`)
+}
+
+// ListOpenByOwner — открытые записи владельца для dashboard/calendar.
+func (r *Items) ListOpenByOwner(ctx context.Context, ownerID string) ([]model.Item, error) {
+	if ownerID == "" {
+		return []model.Item{}, nil
+	}
+	return r.listOpen(ctx, `SELECT `+itemCols+`
+FROM items
+WHERE status NOT IN ('cancelled', 'archived') AND owner_id = $1::uuid
+ORDER BY id`, ownerID)
+}
+
+func (r *Items) listOpen(ctx context.Context, q string, args ...any) ([]model.Item, error) {
+	rows, err := r.q(ctx).Query(ctx, q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list open items: %w", err)
 	}

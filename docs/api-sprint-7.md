@@ -55,7 +55,13 @@
 
 Пути Sprint 3–5 не меняются. Сервер всегда фильтрует по `owner_id` текущего `sub`.
 
-Нельзя передать чужой `owner_id` / `user_id` query/body, чтобы обойти scope.
+- `GET /items`, `GET /items/{id}`, export/import, renew, bulk — только свои строки.
+- `GET/POST/PATCH/DELETE /categories` — только своё дерево (глубина ≤ 3).
+- `GET /audit` — только свои события.
+- `GET /dashboard`, `GET /calendar`, `GET /notifications` — только свои.
+- SSE и Web Push — только клиентам/подпискам с тем же `sub`, что `owner_id` item.
+- Чужой UUID предметной сущности → `404 not_found` (не `403`).
+- Нельзя передать чужой `owner_id` / `user_id` query/body, чтобы обойти scope.
 
 `GET/POST /kinds` — как Sprint 2 (общий справочник). Кто может писать kinds — [`known-limitations-sprint-7.md`](known-limitations-sprint-7.md).
 

@@ -19,9 +19,9 @@ type TickItemStore interface {
 // NotificationStore — лента и идемпотентная вставка за день.
 type NotificationStore interface {
 	Insert(ctx context.Context, n model.Notification) (model.Notification, bool, error)
-	List(ctx context.Context, unread bool, page model.Page) ([]model.Notification, int, error)
-	MarkRead(ctx context.Context, id string) error
-	MarkAllRead(ctx context.Context) error
+	List(ctx context.Context, ownerID string, unread bool, page model.Page) ([]model.Notification, int, error)
+	MarkRead(ctx context.Context, id, ownerID string) error
+	MarkAllRead(ctx context.Context, ownerID string) error
 }
 
 // EventBus — SSE и Web Push (Fanout). nil в тестах, где шина не нужна.
@@ -77,6 +77,7 @@ func (t *Ticker) Tick(ctx context.Context) error {
 			}
 			var ierr error
 			created, inserted, ierr = t.notes.Insert(ctx, model.Notification{
+				OwnerID:   item.OwnerID,
 				ItemID:    item.ID,
 				ToStatus:  status,
 				Title:     item.Title,

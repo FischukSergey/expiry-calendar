@@ -37,9 +37,9 @@ func TestCategoryDepthAndCreateLimit(t *testing.T) {
 	child := "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2"
 	grand := "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3"
 	rows := []model.Category{
-		{ID: root, Name: "A", Children: []model.Category{}},
-		{ID: child, ParentID: &root, Name: "B", Children: []model.Category{}},
-		{ID: grand, ParentID: &child, Name: "C", Children: []model.Category{}},
+		{ID: root, OwnerID: catOwner, Name: "A", Children: []model.Category{}},
+		{ID: child, OwnerID: catOwner, ParentID: &root, Name: "B", Children: []model.Category{}},
+		{ID: grand, OwnerID: catOwner, ParentID: &child, Name: "C", Children: []model.Category{}},
 	}
 	if d := service.CategoryDepth(rows, root); d != 1 {
 		t.Fatalf("root %d", d)
@@ -105,6 +105,19 @@ func TestDeleteCategoryWithChildren(t *testing.T) {
 	}
 }
 
+func TestCategoryListOwnOnly(t *testing.T) {
+	t.Parallel()
+	mine := "cccccccc-cccc-cccc-cccc-ccccccccccc3"
+	store := newMemCats([]model.Category{
+		{ID: mine, OwnerID: catOwner, Name: "Mine"},
+		{ID: "dddddddd-dddd-dddd-dddd-ddddddddddd1", OwnerID: otherOwner, Name: "Theirs"},
+	})
+	got, err := service.NewCategory(store).List(t.Context(), catOwner)
+	if err != nil || len(got) != 1 || got[0].ID != mine {
+		t.Fatalf("%+v %v", got, err)
+	}
+}
+
 func TestKindRejectsBadSchema(t *testing.T) {
 	t.Parallel()
 	svc := service.NewKind(newMemKinds())
@@ -162,10 +175,16 @@ func newMemCats(rows []model.Category) *memCats {
 	return &memCats{rows: cp}
 }
 
-func (m *memCats) List(context.Context) ([]model.Category, error) {
+func (m *memCats) List(_ context.Context, ownerID string) ([]model.Category, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return append([]model.Category(nil), m.rows...), nil
+	out := make([]model.Category, 0, len(m.rows))
+	for _, r := range m.rows {
+		if r.OwnerID == ownerID {
+			out = append(out, r)
+		}
+	}
+	return out, nil
 }
 
 func (m *memCats) ByID(_ context.Context, id string) (model.Category, error) {
@@ -217,11 +236,10 @@ func (m *memCats) CountChildren(_ context.Context, id string) (int, error) {
 
 func (m *memCats) CountItems(context.Context, string) (int, error) { return 0, nil }
 
-func (m *memCats) DescendantIDs(ctx context.Context, id string) ([]string, error) {
-	rows, err := m.List(ctx)
-	if err != nil {
-		return nil, err
-	}
+func (m *memCats) DescendantIDs(_ context.Context, id string) ([]string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	rows := append([]model.Category(nil), m.rows...)
 	byParent := map[string][]string{}
 	for _, r := range rows {
 		if r.ParentID != nil && *r.ParentID != "" {

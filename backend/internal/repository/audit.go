@@ -36,17 +36,21 @@ VALUES ($1::uuid, NULLIF($2, '')::uuid, $3, $4, $5::uuid, $6, $7)`,
 	return nil
 }
 
-// List новые сверху.
-func (r *Audit) List(ctx context.Context, page model.Page) ([]model.AuditEntry, int, error) {
+// List новые сверху, только события владельца.
+func (r *Audit) List(ctx context.Context, ownerID string, page model.Page) ([]model.AuditEntry, int, error) {
+	if ownerID == "" {
+		return []model.AuditEntry{}, 0, nil
+	}
 	var total int
-	if err := r.q(ctx).QueryRow(ctx, `SELECT count(*) FROM audit_log`).Scan(&total); err != nil {
+	if err := r.q(ctx).QueryRow(ctx, `SELECT count(*) FROM audit_log WHERE owner_id = $1::uuid`, ownerID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count audit: %w", err)
 	}
 	rows, err := r.q(ctx).Query(ctx, `
 SELECT id::text, actor_id::text, action, entity, entity_id::text, before_json, after_json, created_at
 FROM audit_log
+WHERE owner_id = $1::uuid
 ORDER BY created_at DESC, id
-LIMIT $1 OFFSET $2`, page.PerPage, page.Offset())
+LIMIT $2 OFFSET $3`, ownerID, page.PerPage, page.Offset())
 	if err != nil {
 		return nil, 0, fmt.Errorf("list audit: %w", err)
 	}

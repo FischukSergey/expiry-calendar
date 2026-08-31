@@ -50,20 +50,30 @@ RETURNING `+notificationCols, n.OwnerID, n.ItemID, n.ToStatus, n.Title, n.Create
 	return created, true, nil
 }
 
-// List новые сверху. unread — только без read_at.
-func (r *Notifications) List(ctx context.Context, unread bool, page model.Page) ([]model.Notification, int, error) {
-	where := ""
+// List новые сверху, только своего владельца. unread — только без read_at.
+func (r *Notifications) List(
+	ctx context.Context, ownerID string, unread bool, page model.Page,
+) ([]model.Notification, int, error) {
+	if ownerID == "" {
+		return []model.Notification{}, 0, nil
+	}
+	where := " WHERE owner_id = $1::uuid"
+	args := make([]any, 0, 3)
+	args = append(args, ownerID)
 	if unread {
-		where = " WHERE read_at IS NULL"
+		where += " AND read_at IS NULL"
 	}
 	var total int
-	if err := r.q(ctx).QueryRow(ctx, `SELECT count(*) FROM notifications`+where).Scan(&total); err != nil {
+	if err := r.q(ctx).QueryRow(ctx, `SELECT count(*) FROM notifications`+where, args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count notifications: %w", err)
 	}
-	rows, err := r.q(ctx).Query(ctx, `SELECT `+notificationCols+`
-FROM notifications`+where+`
+	lim := len(args) + 1
+	off := len(args) + 2
+	args = append(args, page.PerPage, page.Offset())
+	rows, err := r.q(ctx).Query(ctx, fmt.Sprintf(`SELECT %s
+FROM notifications%s
 ORDER BY created_at DESC, id
-LIMIT $1 OFFSET $2`, page.PerPage, page.Offset())
+LIMIT $%d OFFSET $%d`, notificationCols, where, lim, off), args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list notifications: %w", err)
 	}
@@ -79,11 +89,14 @@ LIMIT $1 OFFSET $2`, page.PerPage, page.Offset())
 	return out, total, rows.Err()
 }
 
-// MarkRead ставит read_at. Повтор — 204. Нет строки → ErrNotFound.
-func (r *Notifications) MarkRead(ctx context.Context, id string) error {
+// MarkRead ставит read_at. Повтор — 204. Чужой или нет строки → ErrNotFound.
+func (r *Notifications) MarkRead(ctx context.Context, id, ownerID string) error {
+	if ownerID == "" {
+		return model.ErrNotFound
+	}
 	tag, err := r.q(ctx).Exec(ctx, `
 UPDATE notifications SET read_at = COALESCE(read_at, now())
-WHERE id = $1::uuid`, id)
+WHERE id = $1::uuid AND owner_id = $2::uuid`, id, ownerID)
 	if err != nil {
 		return fmt.Errorf("read notification: %w", err)
 	}
@@ -93,10 +106,13 @@ WHERE id = $1::uuid`, id)
 	return nil
 }
 
-// MarkAllRead помечает непрочитанные. Пустой набор — не ошибка.
-func (r *Notifications) MarkAllRead(ctx context.Context) error {
+// MarkAllRead помечает непрочитанные владельца. Пустой набор — не ошибка.
+func (r *Notifications) MarkAllRead(ctx context.Context, ownerID string) error {
+	if ownerID == "" {
+		return nil
+	}
 	_, err := r.q(ctx).Exec(ctx, `
-UPDATE notifications SET read_at = now() WHERE read_at IS NULL`)
+UPDATE notifications SET read_at = now() WHERE read_at IS NULL AND owner_id = $1::uuid`, ownerID)
 	if err != nil {
 		return fmt.Errorf("read all notifications: %w", err)
 	}

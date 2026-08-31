@@ -91,11 +91,22 @@ func (m *memItems) List(_ context.Context, f model.ItemFilter, page model.Page) 
 }
 
 func (m *memItems) ListOpen(_ context.Context) ([]model.Item, error) {
+	return m.listOpen("")
+}
+
+func (m *memItems) ListOpenByOwner(_ context.Context, ownerID string) ([]model.Item, error) {
+	return m.listOpen(ownerID)
+}
+
+func (m *memItems) listOpen(ownerID string) ([]model.Item, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	out := make([]model.Item, 0)
 	for _, it := range m.byID {
 		if it.Status == model.StatusCancelled || it.Status == model.StatusArchived {
+			continue
+		}
+		if ownerID != "" && it.OwnerID != ownerID {
 			continue
 		}
 		out = append(out, it)
@@ -119,13 +130,13 @@ func (m *memItems) SetStatus(_ context.Context, id, status string) (model.Item, 
 	return it, nil
 }
 
-func (m *memItems) BulkUpdate(_ context.Context, ids []string, categoryID *string, status *string) (int, error) {
+func (m *memItems) BulkUpdate(_ context.Context, ids []string, categoryID *string, status *string, ownerID string) (int, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	n := 0
 	for _, id := range ids {
 		it, ok := m.byID[id]
-		if !ok {
+		if !ok || it.OwnerID != ownerID {
 			continue
 		}
 		if categoryID != nil {
@@ -141,6 +152,9 @@ func (m *memItems) BulkUpdate(_ context.Context, ids []string, categoryID *strin
 }
 
 func memItemMatch(it model.Item, f model.ItemFilter) bool {
+	if it.OwnerID != f.OwnerID {
+		return false
+	}
 	if f.KindID != "" && it.KindID != f.KindID {
 		return false
 	}
@@ -232,13 +246,19 @@ func (m *memAudit) Create(_ context.Context, e model.AuditEntry) error {
 	return nil
 }
 
-func (m *memAudit) List(_ context.Context, page model.Page) ([]model.AuditEntry, int, error) {
+func (m *memAudit) List(_ context.Context, ownerID string, page model.Page) ([]model.AuditEntry, int, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	total := len(m.rows)
+	owned := make([]model.AuditEntry, 0, len(m.rows))
+	for _, e := range m.rows {
+		if e.OwnerID == ownerID {
+			owned = append(owned, e)
+		}
+	}
+	total := len(owned)
 	start := min(page.Offset(), total)
 	end := min(start+page.PerPage, total)
-	out := append([]model.AuditEntry(nil), m.rows[start:end]...)
+	out := append([]model.AuditEntry(nil), owned[start:end]...)
 	return out, total, nil
 }
 
@@ -251,12 +271,14 @@ func newMemCats() *memCats {
 	return &memCats{byID: map[string]model.Category{}}
 }
 
-func (m *memCats) List(context.Context) ([]model.Category, error) {
+func (m *memCats) List(_ context.Context, ownerID string) ([]model.Category, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	out := make([]model.Category, 0, len(m.byID))
 	for _, c := range m.byID {
-		out = append(out, c)
+		if c.OwnerID == ownerID {
+			out = append(out, c)
+		}
 	}
 	return out, nil
 }

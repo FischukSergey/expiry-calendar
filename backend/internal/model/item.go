@@ -87,7 +87,9 @@ type ItemCard struct {
 }
 
 // ItemFilter — query GET /items. CategoryIDs заполняет service (узел + потомки).
+// OwnerID ставит service из sub; из query не принимаем.
 type ItemFilter struct {
+	OwnerID       string
 	Q             string
 	KindID        string
 	Status        string

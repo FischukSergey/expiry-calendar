@@ -52,7 +52,7 @@ func (r *PushSubscriptions) DeleteByEndpoint(ctx context.Context, endpoint strin
 	return nil
 }
 
-// List все подписки: данные общие, пуш уходит каждому подписанному устройству.
+// List все подписки. Рассылку режет service по user_id.
 func (r *PushSubscriptions) List(ctx context.Context) ([]model.PushSubscription, error) {
 	rows, err := r.q(ctx).Query(ctx, `SELECT `+pushCols+` FROM push_subscriptions`)
 	if err != nil {

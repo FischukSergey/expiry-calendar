@@ -100,7 +100,7 @@ func (a *API) deleteKind(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) listCategories(w http.ResponseWriter, r *http.Request) {
-	items, err := a.categories.List(r.Context())
+	items, err := a.categories.List(r.Context(), middleware.UserID(r.Context()))
 	if err != nil {
 		writeDomainError(w, err)
 		return

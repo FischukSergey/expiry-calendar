@@ -17,6 +17,8 @@ const (
 	itemTitleDomain = "Домен"
 	expiresPast     = "2026-08-01"
 	calendarDay     = "2026-08-21"
+	otherOwner      = "other"
+	expiresSep      = "2026-09-01"
 )
 
 type tickItems struct {
@@ -87,15 +89,25 @@ func (m *tickNotes) Insert(_ context.Context, n model.Notification) (model.Notif
 	return n, true, nil
 }
 
-func (m *tickNotes) List(context.Context, bool, model.Page) ([]model.Notification, int, error) {
+func (m *tickNotes) List(_ context.Context, ownerID string, unread bool, _ model.Page) ([]model.Notification, int, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return append([]model.Notification(nil), m.rows...), len(m.rows), nil
+	out := make([]model.Notification, 0)
+	for _, n := range m.rows {
+		if n.OwnerID != ownerID {
+			continue
+		}
+		if unread && n.ReadAt != nil {
+			continue
+		}
+		out = append(out, n)
+	}
+	return out, len(out), nil
 }
 
-func (m *tickNotes) MarkRead(context.Context, string) error { return nil }
+func (m *tickNotes) MarkRead(context.Context, string, string) error { return nil }
 
-func (m *tickNotes) MarkAllRead(context.Context) error { return nil }
+func (m *tickNotes) MarkAllRead(context.Context, string) error { return nil }
 
 func TestTickerMovesStatusAndNotifies(t *testing.T) {
 	t.Parallel()
@@ -103,7 +115,7 @@ func TestTickerMovesStatusAndNotifies(t *testing.T) {
 	notes := &tickNotes{}
 	today := time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC)
 	active := store.put(model.Item{
-		Title: itemTitleDomain, Status: model.StatusActive,
+		OwnerID: "owner-1", Title: itemTitleDomain, Status: model.StatusActive,
 		ExpiresAt: "2026-09-10", NotifyBeforeDays: 30,
 	})
 	tkr := service.NewTicker(store, notes, nopTx, clock.Fixed{T: today}, nil)
@@ -113,7 +125,7 @@ func TestTickerMovesStatusAndNotifies(t *testing.T) {
 	if got := store.get(active.ID).Status; got != model.StatusExpiring {
 		t.Fatalf("status %s", got)
 	}
-	if len(notes.rows) != 1 || notes.rows[0].ToStatus != model.StatusExpiring {
+	if len(notes.rows) != 1 || notes.rows[0].ToStatus != model.StatusExpiring || notes.rows[0].OwnerID != "owner-1" {
 		t.Fatalf("notes %+v", notes.rows)
 	}
 	if err := tkr.Tick(t.Context()); err != nil {

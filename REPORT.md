@@ -2,6 +2,16 @@
 
 Журнал создания Duekeep. Записи добавляются по ходу работы, не в конце.
 
+## 2026-08-31 — Sprint 7 §4, realtime и обзор
+
+- Dashboard, calendar, notifications, SSE и Web Push — только свой `owner_id` / `sub`.
+- Тикер пишет `OwnerID` владельца item. Интервал: `TICKER_EVERY` (дефолт 12h), плюс Tick при старте. Статус по календарному дню UTC.
+
+## 2026-08-31 — Sprint 7 §3, изоляция выборок
+
+- List/get/export items, CRUD categories, GET /audit — только `owner_id` = `sub`. Чужой UUID → 404.
+- `item_kinds` по-прежнему общие. Dashboard/calendar/SSE — следующий пункт.
+
 ## 2026-08-31 — Sprint 7 §2, auth
 
 - Register создаёт admin; login/refresh/me без `org_id` в claims и `/me`.

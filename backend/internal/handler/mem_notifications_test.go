@@ -38,11 +38,16 @@ func (m *memNotifications) Insert(_ context.Context, n model.Notification) (mode
 	return n, true, nil
 }
 
-func (m *memNotifications) List(_ context.Context, unread bool, page model.Page) ([]model.Notification, int, error) {
+func (m *memNotifications) List(
+	_ context.Context, ownerID string, unread bool, page model.Page,
+) ([]model.Notification, int, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	out := make([]model.Notification, 0)
 	for _, n := range m.rows {
+		if n.OwnerID != ownerID {
+			continue
+		}
 		if unread && n.ReadAt != nil {
 			continue
 		}
@@ -63,11 +68,11 @@ func (m *memNotifications) List(_ context.Context, unread bool, page model.Page)
 	return out[start:end], total, nil
 }
 
-func (m *memNotifications) MarkRead(_ context.Context, id string) error {
+func (m *memNotifications) MarkRead(_ context.Context, id, ownerID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for i, n := range m.rows {
-		if n.ID != id {
+		if n.ID != id || n.OwnerID != ownerID {
 			continue
 		}
 		if n.ReadAt == nil {
@@ -80,12 +85,12 @@ func (m *memNotifications) MarkRead(_ context.Context, id string) error {
 	return model.ErrNotFound
 }
 
-func (m *memNotifications) MarkAllRead(_ context.Context) error {
+func (m *memNotifications) MarkAllRead(_ context.Context, ownerID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	now := time.Date(2026, 8, 26, 14, 0, 0, 0, time.UTC)
 	for i, n := range m.rows {
-		if n.ReadAt == nil {
+		if n.OwnerID == ownerID && n.ReadAt == nil {
 			n.ReadAt = &now
 			m.rows[i] = n
 		}

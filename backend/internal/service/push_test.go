@@ -87,7 +87,7 @@ func TestPushBroadcastDeletesOn410(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := p.Broadcast(t.Context(), model.Notification{
-		ID: "n1", ItemID: "i1", ToStatus: model.StatusExpiring, Title: itemTitleDomain,
+		OwnerID: "u1", ID: "n1", ItemID: "i1", ToStatus: model.StatusExpiring, Title: itemTitleDomain,
 		CreatedAt: time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC),
 	}); err != nil {
 		t.Fatal(err)
@@ -101,18 +101,41 @@ func TestPushBroadcastDeletesOn410(t *testing.T) {
 	}
 }
 
+func TestPushBroadcastSkipsOtherUser(t *testing.T) {
+	t.Parallel()
+	store := newMemPushStore()
+	sender := &stubSender{}
+	p := service.NewPush(store, sender, "pub")
+	if err := store.Upsert(t.Context(), model.PushSubscription{
+		UserID: otherOwner, Endpoint: "https://push.example/other", P256dh: "p", Auth: "a",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Broadcast(t.Context(), model.Notification{
+		OwnerID: "u1", ID: "n1", ItemID: "i1", ToStatus: model.StatusExpiring, Title: itemTitleDomain,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	sender.mu.Lock()
+	n := sender.n
+	sender.mu.Unlock()
+	if n != 0 {
+		t.Fatalf("leaked push %d", n)
+	}
+}
+
 func TestFanoutNotifiesSSEAndPush(t *testing.T) {
 	t.Parallel()
 	bus := &recBus{}
 	store := newMemPushStore()
 	sender := &stubSender{}
 	if err := store.Upsert(t.Context(), model.PushSubscription{
-		Endpoint: "https://push.example/a", P256dh: "p", Auth: "a",
+		UserID: "u1", Endpoint: "https://push.example/a", P256dh: "p", Auth: "a",
 	}); err != nil {
 		t.Fatal(err)
 	}
 	f := &service.Fanout{SSE: bus, Push: service.NewPush(store, sender, "pub")}
-	f.Notify(model.Notification{ID: "n1", Title: itemTitleDomain, ToStatus: model.StatusExpired})
+	f.Notify(model.Notification{OwnerID: "u1", ID: "n1", Title: itemTitleDomain, ToStatus: model.StatusExpired})
 	bus.mu.Lock()
 	got := len(bus.got)
 	bus.mu.Unlock()

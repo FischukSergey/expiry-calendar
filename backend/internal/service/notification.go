@@ -6,7 +6,7 @@ import (
 	"duekeep/internal/model"
 )
 
-// Notification — лента и пометки прочитанного. Данные общие, без ролей.
+// Notification — лента и пометки прочитанного. Только свой owner_id.
 type Notification struct {
 	notes NotificationStore
 }
@@ -17,8 +17,8 @@ func NewNotification(notes NotificationStore) *Notification {
 }
 
 // List пагинирует. unread — только без read_at.
-func (s *Notification) List(ctx context.Context, unread bool, page model.Page) (model.NotificationList, error) {
-	rows, total, err := s.notes.List(ctx, unread, page)
+func (s *Notification) List(ctx context.Context, ownerID string, unread bool, page model.Page) (model.NotificationList, error) {
+	rows, total, err := s.notes.List(ctx, ownerID, unread, page)
 	if err != nil {
 		return model.NotificationList{}, err
 	}
@@ -28,12 +28,12 @@ func (s *Notification) List(ctx context.Context, unread bool, page model.Page) (
 	return model.NotificationList{Items: rows, Page: page.Page, PerPage: page.PerPage, Total: total}, nil
 }
 
-// MarkRead — POST /notifications/{id}/read. Повтор уже прочитанного — не ошибка.
-func (s *Notification) MarkRead(ctx context.Context, id string) error {
-	return s.notes.MarkRead(ctx, id)
+// MarkRead — POST /notifications/{id}/read. Чужой id → 404. Повтор — не ошибка.
+func (s *Notification) MarkRead(ctx context.Context, id, ownerID string) error {
+	return s.notes.MarkRead(ctx, id, ownerID)
 }
 
 // MarkAllRead — POST /notifications/read-all.
-func (s *Notification) MarkAllRead(ctx context.Context) error {
-	return s.notes.MarkAllRead(ctx)
+func (s *Notification) MarkAllRead(ctx context.Context, ownerID string) error {
+	return s.notes.MarkAllRead(ctx, ownerID)
 }

@@ -43,7 +43,7 @@ func csvAPI(t *testing.T) (*handler.API, *memAudit) {
 	kinds.mu.Unlock()
 
 	cats := newMemCats()
-	if _, err := cats.Create(t.Context(), model.Category{Name: catWorkName}); err != nil {
+	if _, err := cats.Create(t.Context(), model.Category{OwnerID: fixtureUUID, Name: catWorkName}); err != nil {
 		t.Fatal(err)
 	}
 	audit := newMemAudit()
@@ -124,6 +124,31 @@ func TestExportFilterAndAttrs(t *testing.T) {
 	}
 	if rows[1][0] != keep.ID || rows[1][2] != kindSlugDomain || rows[1][attrCol] != "reg.ru" {
 		t.Fatalf("row %+v", rows[1])
+	}
+}
+
+func TestExportOwnerIsolation(t *testing.T) {
+	t.Parallel()
+	api, _ := csvAPI(t)
+	owner := testJWT(t, string(model.RoleAdmin))
+	other := testJWTSub(t, string(model.RoleAdmin), "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+	_ = adminCreateItem(t, api, owner, `{"title":"KeepMe","kind_id":"`+domainKindID+
+		`","expires_at":"2027-01-01","attrs":{}}`)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/items/export", nil)
+	req.Header.Set("Authorization", "Bearer "+other)
+	api.Router().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("export %d %s", rec.Code, rec.Body.String())
+	}
+	r := csv.NewReader(rec.Body)
+	rows, err := r.ReadAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("leaked rows %+v", rows)
 	}
 }
 

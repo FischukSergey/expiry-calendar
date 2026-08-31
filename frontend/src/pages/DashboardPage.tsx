@@ -153,7 +153,7 @@ export function DashboardPage() {
       <section className="mt-6">
         <h2 className="mb-3 text-sm font-medium text-slate-300">Ближайшие 10</h2>
         {data.soonest.length === 0 ? (
-          <PageState title="Нет открытых записей" />
+          <PageState title="Нет открытых записей" hint="Список пуст — это ваши данные, не общий каталог." />
         ) : (
           <div className="overflow-x-auto rounded-xl border border-slate-800">
             <table className="w-full min-w-[480px] text-left text-sm">

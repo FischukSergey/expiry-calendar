@@ -27,12 +27,16 @@ export function AdminRoute() {
 }
 
 export function GuestRoute() {
-  const { user, ready } = useAuth()
+  const { user, ready, afterAuthPath } = useAuth()
+  const location = useLocation()
   if (!ready) {
     return <div className="grid min-h-screen place-items-center text-slate-400">Загрузка…</div>
   }
   if (user) {
-    return <Navigate to="/" replace />
+    const from = (location.state as { from?: string } | null)?.from
+    // Register всегда на свой список; login чтит исходную страницу.
+    const dest = afterAuthPath === '/items' ? '/items' : from && from !== '/login' ? from : afterAuthPath
+    return <Navigate to={dest} replace />
   }
   return <Outlet />
 }

@@ -33,8 +33,8 @@ is_background: true
 Перечитай `docs/sprint-7-checklist.md` и `REPORT.md`, если они новее этого абзаца.
 
 - Спринты **1–6 закрыты** (сдача `v1.0.0`: общий каталог, admin/viewer).
-- **Sprint 7 в работе.** Закрыты §1–5: миграция `owner_id`, register → admin, изоляция, realtime, seed off на prod, копия категорий при register.
-- Открыты §6 UI, часть §7 (register не видит seed), §8 DoD.
+- **Sprint 7 в работе.** Закрыты §1–6: изоляция, seed off на prod, register → свой список в UI, профиль без org.
+- Открыты часть §7 (register не видит seed), §8 DoD.
 - Sprint 8 — CD после закрытия 7.
 
 Код не опережает чеклист текущего спринта. DoD не отмечать (это не твоя задача).

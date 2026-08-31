@@ -41,7 +41,9 @@ export function LoginPage() {
       <div className="w-full max-w-md">
         <p className="text-sm tracking-[0.2em] text-slate-400 uppercase">календарь сроков оплаты</p>
         <h1 className="mt-3 text-4xl font-semibold tracking-tight">Duekeep</h1>
-        <p className="mt-2 text-slate-400">{mode === 'login' ? 'Вход в аккаунт' : 'Регистрация (роль viewer)'}</p>
+        <p className="mt-2 text-slate-400">
+          {mode === 'login' ? 'Вход в аккаунт' : 'Регистрация — свой список, без общего каталога'}
+        </p>
 
         <form onSubmit={onSubmit} className="mt-8 space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
           {error ? <ErrorBanner message={error} /> : null}
@@ -72,7 +74,7 @@ export function LoginPage() {
           </button>
         </form>
         <p className="mt-4 text-center text-xs text-slate-500">
-          Демо: admin@duekeep.local / admin1234 · viewer@duekeep.local / viewer1234
+          Локальный стенд: admin@duekeep.local / admin1234
         </p>
       </div>
     </main>

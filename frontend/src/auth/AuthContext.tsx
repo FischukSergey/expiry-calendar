@@ -9,6 +9,7 @@ import { AuthContext, type AuthContextValue } from './context.ts'
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<PublicUser | null>(null)
   const [ready, setReady] = useState(false)
+  const [afterAuthPath, setAfterAuthPath] = useState('/')
 
   useEffect(() => {
     setOnAuthLost(() => setUser(null))
@@ -46,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(
     async (email: string, password: string) => {
       const pair = await loginReq(email, password)
+      setAfterAuthPath('/')
       await applyPair(pair.access_token)
     },
     [applyPair],
@@ -54,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = useCallback(
     async (email: string, password: string) => {
       const pair = await registerReq(email, password)
+      setAfterAuthPath('/items')
       await applyPair(pair.access_token)
     },
     [applyPair],
@@ -92,12 +95,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       ready,
       isAdmin: user?.role === 'admin',
+      afterAuthPath,
       login,
       register,
       logout,
       logoutAll,
     }),
-    [user, ready, login, register, logout, logoutAll],
+    [user, ready, afterAuthPath, login, register, logout, logoutAll],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

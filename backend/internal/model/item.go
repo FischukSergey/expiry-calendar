@@ -48,7 +48,7 @@ const (
 	MaxCSVImport = 5_000
 )
 
-// Item — запись истечения. Даты started_at/expires_at — DateLayout.
+// Item — запись обязательства. Даты started_at/expires_at — DateLayout.
 type Item struct {
 	ID               string         `json:"id"`
 	OwnerID          string         `json:"-"`

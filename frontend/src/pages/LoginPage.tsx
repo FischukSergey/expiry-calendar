@@ -39,7 +39,7 @@ export function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-slate-50">
       <div className="w-full max-w-md">
-        <p className="text-sm tracking-[0.2em] text-slate-400 uppercase">календарь сроков оплаты</p>
+        <p className="text-sm tracking-[0.2em] text-slate-400 uppercase">календарь обязательств</p>
         <h1 className="mt-3 text-4xl font-semibold tracking-tight">Duekeep</h1>
         <p className="mt-2 text-slate-400">
           {mode === 'login' ? 'Вход в аккаунт' : 'Регистрация — свой список, без общего каталога'}
@@ -73,9 +73,11 @@ export function LoginPage() {
             {mode === 'login' ? 'Нет аккаунта — регистрация' : 'Уже есть аккаунт — вход'}
           </button>
         </form>
-        <p className="mt-4 text-center text-xs text-slate-500">
-          Локальный стенд: admin@duekeep.local / admin1234
-        </p>
+        {import.meta.env.DEV || import.meta.env.VITE_DEMO_LOGIN === '1' ? (
+          <p className="mt-4 text-center text-xs text-slate-500">
+            Локальный стенд: admin@duekeep.local / admin1234
+          </p>
+        ) : null}
       </div>
     </main>
   )

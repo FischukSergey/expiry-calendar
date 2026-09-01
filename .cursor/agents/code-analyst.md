@@ -41,7 +41,7 @@ is_background: true
 
 ## Проект (факт в коде)
 
-Продукт: календарь истечений. Репозиторий `expiry-calendar`, compose **`duekeep`**. Go **1.25**, модуль `duekeep`, бинарь `cmd/server`.
+Продукт: календарь обязательств. Репозиторий `expiry-calendar`, compose **`duekeep`**. Go **1.25**, модуль `duekeep`, бинарь `cmd/server`.
 
 **Стек:** chi/v5, pgx/v5, goose (SQL embed, `001`…`011_owner_id.sql`), slog JSON, JWT HS256, webpush-go, OpenAPI + Swagger `/docs`. Frontend: Vite 6, React 18, TS, Tailwind 4, PWA (Workbox), nginx статика + proxy.
 

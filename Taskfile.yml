@@ -183,3 +183,8 @@ tasks:
     desc: Статус прод-контейнеров
     cmds:
       - "{{.DOCKER_COMPOSE_CMD}} -f {{.PROD_COMPOSE_FILE}} --env-file .env ps"
+
+  prod:deploy:
+    desc: Выкладка на этой машине (fetch + compose --build + healthz)
+    cmds:
+      - bash deploy/prod/deploy.sh {{.CLI_ARGS}}

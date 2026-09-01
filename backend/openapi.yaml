@@ -3,7 +3,7 @@ info:
   title: Duekeep API
   version: 1.0.0
   description: |
-    Календарь истечений. Канон для проверяющего: GET /docs (Swagger UI).
+    Календарь обязательств. Канон для проверяющего: GET /docs (Swagger UI).
     Спека сверена со спринтами 1–6. Sprint 7: register → admin и свои категории (без seed-items);
     items/categories/audit/dashboard/calendar/notifications — только свой owner_id (в JSON не отдаём).
     Нет org_id, инвайтов и ручек /org.
@@ -21,7 +21,7 @@ tags:
   - name: Catalog
     description: kinds — общий справочник; categories — только свои (owner_id)
   - name: Items
-    description: Записи истечения, продление, bulk, CSV
+    description: Записи обязательств, продление, bulk, CSV
   - name: Audit
     description: Журнал мутаций (admin)
   - name: Notifications
@@ -927,7 +927,7 @@ paths:
   /api/v1/calendar:
     get:
       tags: [Overview]
-      summary: Свои истечения за календарный месяц
+      summary: Свои обязательства за календарный месяц
       operationId: getCalendar
       parameters:
         - in: query

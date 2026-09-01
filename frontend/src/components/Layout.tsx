@@ -51,7 +51,7 @@ export function Layout() {
       <aside className="hidden w-56 shrink-0 border-r border-slate-800 p-4 lg:flex lg:flex-col">
         <div className="px-3 pb-6">
           <p className="text-[11px] tracking-[0.2em] text-slate-500 uppercase">Duekeep</p>
-          <p className="mt-1 text-lg font-semibold">Истечения</p>
+          <p className="mt-1 text-lg font-semibold">Обязательства</p>
         </div>
         <nav className="flex flex-1 flex-col gap-1">
           {visible.map((item) => (

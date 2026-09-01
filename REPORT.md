@@ -2,6 +2,23 @@
 
 Журнал создания Duekeep. Записи добавляются по ходу работы, не в конце.
 
+## 2026-09-01 — /login без демо-учётки на проде
+
+- Подсказка `admin@duekeep.local` только при Vite DEV или `VITE_DEMO_LOGIN=1` (local compose). Прод-сборка флаг не ставит.
+
+## 2026-09-01 — Sprint 8, CD
+
+- `deploy/prod/deploy.sh`: fetch + checkout SHA (дефолт `origin/main`), `compose --env-file .env up -d --build`, healthz 200 за 600 с. `.env` и тома не трогает. `v1.0.0` отклоняет.
+- Job Deploy в `ci.yml`: только после lint/test/build/frontend того же SHA; `push` в `main` и `workflow_dispatch`; PR и тег `v1.0.0` не деплоят. Host key из `deploy/prod/known_hosts`, без `StrictHostKeyChecking=no`.
+- nginx `duekeep.conf`: `server_name` и пути LE = `duekeep.ru`.
+- Документы: `deploy/README.md` (bootstrap, секреты Actions vs `.env`, откат), README — прод с `main`.
+- VPS: `/opt/duekeep`, swap 2G, `.env` chmod 600, ключ Actions в `authorized_keys` (forced command). Staging LE, затем боевой. `https://duekeep.ru/healthz` → 200 `{"status":"ok"}`.
+- Осталось: секреты GitHub (`DEPLOY_*`), push/merge в `main`, повтор `deploy.sh` на том же SHA и откат.
+
+## 2026-08-31 — формулировка «обязательства»
+
+- Слово «истечение» заменено на «обязательства» (UI, OpenAPI, README, FUNCTIONAL, комментарии). Поля API (`expires_at`) не менялись.
+
 ## 2026-08-31 — Sprint 7 §7–8, тесты и DoD
 
 - `TestRegisterDoesNotSeeSeedCatalog`: register не видит seed-items/категории; второй аккаунт не видит item первого (демо плана §7).
@@ -129,7 +146,7 @@
 
 ## 2026-08-29 — Sprint 4, раздел 4 (Обзор)
 
-- `GET /dashboard`: counts, upcoming_cost по валютам без конвертации, 6 месяцев истечений, cost_by_kind, soonest (10).
+- `GET /dashboard`: counts, upcoming_cost по валютам без конвертации, 6 месяцев обязательств, cost_by_kind, soonest (10).
 - `GET /calendar?year=&month=`: дни только с записями. cancelled/archived не входят.
 - Один `ListOpen`, агрегаты в service. `task test` / `task lint` зелёные.
 
@@ -165,7 +182,7 @@
 
 - Учебное задание: full-stack приложение с нуля (AI-процесс, Docker Compose, OpenAPI, CI).
 - Официальные темы (финансы, Trello, рецепты, квизы, заметки, склад) отклонены.
-- Выбрана тема: **календарь истечений** (домены, SSL, подписки, договоры, гарантии и т.п.).
+- Выбрана тема: **календарь обязательств** (домены, SSL, подписки, договоры, гарантии и т.п.).
 - Пожелание по стеку: backend на Go, frontend без предпочтений.
 - Создан новый репозиторий `expiry-calendar`, записан черновик функционала в `FUNCTIONAL.md`.
 - Код и `ARCHITECTURE.md` сознательно не создавались: сначала уточнение объёма.

@@ -1,6 +1,6 @@
 # Duekeep
 
-Календарь истечений: домены, подписки, аренда, договоры, страховки, налоги, ТО.
+Календарь обязательств: домены, подписки, аренда, договоры, страховки, налоги, ТО.
 
 Преподаватель клонирует репозиторий и поднимает стек одной командой.
 
@@ -65,7 +65,7 @@ nginx на `:80` проксирует `/api`, `/healthz`, `/docs`, `/openapi.yam
 6. Колокольчик: непрочитанные; вторая вкладка — SSE без перезагрузки (смена срока у записи; тикер при старте и каждые 12 ч).
 7. Профиль: «Установить» (Chrome), разрешение пушей.
 8. Swagger: `/docs`.
-9. CI: вкладка Actions, workflow `CI`.
+9. CI: вкладка Actions, workflow `CI`. Прод `duekeep.ru` обновляется с `main` после зелёного CI ([deploy/README.md](deploy/README.md)).
 
 ## PWA и пуши
 
@@ -97,8 +97,8 @@ task test            # go test -race
 - Журнал: [REPORT.md](REPORT.md)
 - Прод и секреты: [deploy/README.md](deploy/README.md)
 
-На VPS (`duekeep.ru`, `159.194.252.6`) — `.env` из [`.env.example`](.env.example), `chmod 600`, `task prod:up`. Хост и DNS: [deploy/README.md](deploy/README.md). `.env` в git не класть.
+На VPS (`duekeep.ru`, `159.194.252.6`) прод обновляется с `main`: после lint/test/build/frontend GitHub Actions по SSH запускает [`deploy/prod/deploy.sh`](deploy/prod/deploy.sh). Секреты приложения только в `.env` на сервере. Подробности и откат: [deploy/README.md](deploy/README.md). `.env` в git не класть.
 
 ## Статус
 
-Сдача v1 — тег [`v1.0.0`](https://github.com/FischukSergey/expiry-calendar/releases/tag/v1.0.0) (Sprint 6). `main` после сдачи — развитие. Прод: каждый видит своё ([Sprint 7](docs/sprint-7-plan.md)); выкладка на VPS — [Sprint 8](docs/sprint-8-plan.md).
+Сдача v1 — тег [`v1.0.0`](https://github.com/FischukSergey/expiry-calendar/releases/tag/v1.0.0) (Sprint 6). `main` после сдачи — развитие. Прод: каждый видит своё ([Sprint 7](docs/sprint-7-plan.md)); CD с `main` — [Sprint 8](docs/sprint-8-plan.md).

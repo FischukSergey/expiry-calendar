@@ -14,7 +14,7 @@ description: >-
 ## Статус
 
 - Спринты **1–6** — сдача `v1.0.0` (общий каталог). **Sprint 7 закрыт** (свои данные, seed off на prod).
-- Sprint 8 (CD) — следующий. Не начинай его сам.
+- Sprint 8 (CD) — не начинай сам. Sprint 9 (оплачено / kind `mobile` / не уведомлять / лента PWA) — документы есть; код только по просьбе.
 
 Документы спринта N: `docs/sprint-N-plan.md`, `checklist`, `api-sprint-N.md`, `known-limitations-sprint-N.md`. Журнал — `REPORT.md`.
 
@@ -61,7 +61,7 @@ Create/import/ticker notification: писать `OwnerID`. Пустой owner в
 
 ## Ещё не сделано
 
-- Sprint 8 (CD на VPS) — только по просьбе.
+- Sprint 8 (CD на VPS) и Sprint 9 (продукт) — только по просьбе. Не реализовывать чеклист 9, пока пользователь не сказал «делай спринт 9».
 
 ## Не делать
 

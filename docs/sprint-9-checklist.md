@@ -12,7 +12,7 @@
 
 - [ ] Константа `paid`, бейдж «Оплачено», фильтр списка.
 - [ ] Форма / PATCH / bulk: можно выставить `paid`; тикер `paid` не пересчитывает и не создаёт notification (предоплата).
-- [ ] Дашборд и календарь открытых без `paid` (как без `cancelled`).
+- [ ] Текущее вхождение `paid` не в «сгорит» / графике / календаре; следующие циклы monthly/yearly — да (не как полное исключение `cancelled`).
 - [ ] `renew` с `paid` разрешён; после смены даты статус снова считает тикер.
 
 ## 3) Тип «Мобильная связь»
@@ -27,17 +27,24 @@
 - [ ] Тикер: нет notification / SSE / push; нет перехода в `expiring`.
 - [ ] CSV: пусто или `off` → `null`.
 
-## 5) Лента PWA
+## 5) Обзор и календарь: периоды
+
+- [ ] `expirations_by_month` и `GET /calendar` разворачивают `monthly` / `yearly` от якоря `expires_at` (clamp 29–31).
+- [ ] `one_time` без изменений. `upcoming_cost` как Sprint 4 (run-rate).
+- [ ] `paid`: текущее вхождение (`expires_at`) не в графике/календаре/«сгорит»; следующие циклы — да.
+- [ ] Тест: monthly виден не только в месяце `expires_at`; `paid` прячет текущий день.
+
+## 6) Лента PWA
 
 - [ ] Нижний `nav` (`Layout`, `lg:hidden`): шрифт подписей крупнее `11px` (ориентир `text-sm`).
 - [ ] Пять вкладок и safe-area: текст не обрезан. Десктопное меню без обязательных правок.
 
-## 6) Спека и тесты
+## 7) Спека и тесты
 
 - [ ] [`api-sprint-9.md`](api-sprint-9.md) и `backend/openapi.yaml`.
-- [ ] Тесты: `paid` + тикер (статус и нет notification); `null` notify + тикер; create/PATCH; seed содержит `mobile`.
+- [ ] Тесты: `paid` + тикер (статус и нет notification); `null` notify + тикер; create/PATCH; seed содержит `mobile`; развёртка monthly.
 
-## 7) DoD
+## 8) DoD
 
 - [ ] [`known-limitations-sprint-9.md`](known-limitations-sprint-9.md) заполнен.
 - [ ] Демо плана §7 пройдено.

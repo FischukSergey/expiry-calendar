@@ -44,6 +44,16 @@
 
 Тело Item в ответах: `notify_before_days` может быть `null`; `status` может быть `"paid"`. `owner_id` по-прежнему не в JSON.
 
+## 2a) Dashboard и calendar (развёртка периода)
+
+Пути Sprint 4 те же. Смысл агрегатов:
+
+- `expirations_by_month` и дни `GET /calendar` считают **вхождения** `monthly`/`yearly` в окне, не одну `expires_at`. Якорь — календарный день `expires_at`; день месяца clamp на конец месяца.
+- `one_time` — одна дата, как Sprint 4.
+- `upcoming_cost` — без изменения формулы Sprint 4 (run-rate, не развёртка).
+- `paid`: вхождение в день текущего `expires_at` не входит в график, календарь, `expiring_7`/`30`, `soonest`. Более поздние циклы той же записи входят.
+- JSON-форма ответов не меняется; `count` / точки календаря могут стать больше за счёт развёртки.
+
 ## 3) Kinds
 
 Ручки как [`api-sprint-2.md`](api-sprint-2.md), без новых путей и без продуктового UI create.

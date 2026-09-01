@@ -2,6 +2,19 @@
 
 Журнал создания Duekeep. Записи добавляются по ходу работы, не в конце.
 
+## 2026-09-01 — /login без демо-учётки на проде
+
+- Подсказка `admin@duekeep.local` только при Vite DEV или `VITE_DEMO_LOGIN=1` (local compose). Прод-сборка флаг не ставит.
+
+## 2026-09-01 — Sprint 8, CD
+
+- `deploy/prod/deploy.sh`: fetch + checkout SHA (дефолт `origin/main`), `compose --env-file .env up -d --build`, healthz 200 за 600 с. `.env` и тома не трогает. `v1.0.0` отклоняет.
+- Job Deploy в `ci.yml`: только после lint/test/build/frontend того же SHA; `push` в `main` и `workflow_dispatch`; PR и тег `v1.0.0` не деплоят. Host key из `deploy/prod/known_hosts`, без `StrictHostKeyChecking=no`.
+- nginx `duekeep.conf`: `server_name` и пути LE = `duekeep.ru`.
+- Документы: `deploy/README.md` (bootstrap, секреты Actions vs `.env`, откат), README — прод с `main`.
+- VPS: `/opt/duekeep`, swap 2G, `.env` chmod 600, ключ Actions в `authorized_keys` (forced command). Staging LE, затем боевой. `https://duekeep.ru/healthz` → 200 `{"status":"ok"}`.
+- Осталось: секреты GitHub (`DEPLOY_*`), push/merge в `main`, повтор `deploy.sh` на том же SHA и откат.
+
 ## 2026-08-31 — формулировка «обязательства»
 
 - Слово «истечение» заменено на «обязательства» (UI, OpenAPI, README, FUNCTIONAL, комментарии). Поля API (`expires_at`) не менялись.

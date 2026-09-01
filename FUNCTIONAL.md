@@ -197,7 +197,7 @@
 - seed при старте, без ручной настройки;
 - REST API и живой OpenAPI/Swagger (`/docs` или `/api-docs`);
 - не меньше 10 unit/integration тестов;
-- GitHub Actions: lint + тесты;
+- GitHub Actions: lint + тесты; прод обновляется с `main` после зелёного CI ([deploy/README.md](deploy/README.md));
 - `docker compose up` поднимает frontend + backend + PostgreSQL;
 - `README.md` — запуск;
 - `ARCHITECTURE.md` — **после** утверждения этого файла, **до** кода;

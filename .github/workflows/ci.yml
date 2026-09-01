@@ -4,9 +4,18 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      ref:
+        description: SHA or git ref to test and deploy (empty = this SHA)
+        required: false
+        default: ""
 
 permissions:
   contents: read
+
+# Один SHA на все job: ручной запуск может указать другой ref, чем HEAD ветки.
+env:
+  CHECKOUT_REF: ${{ github.event.inputs.ref || github.sha }}
 
 jobs:
   lint:
@@ -14,6 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CHECKOUT_REF }}
       - uses: actions/setup-go@v5
         with:
           go-version: "1.25"
@@ -32,6 +43,8 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CHECKOUT_REF }}
       - uses: actions/setup-go@v5
         with:
           go-version: "1.25"
@@ -47,6 +60,8 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CHECKOUT_REF }}
       - uses: actions/setup-go@v5
         with:
           go-version: "1.25"
@@ -62,6 +77,8 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CHECKOUT_REF }}
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -71,3 +88,48 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run build
+
+  deploy:
+    name: Deploy
+    needs: [lint, test, build, frontend]
+    if: >-
+      github.event_name != 'pull_request'
+      && github.ref != 'refs/tags/v1.0.0'
+      && (github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    concurrency:
+      group: duekeep-prod
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CHECKOUT_REF }}
+      - name: Deploy over SSH
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_REF: ${{ env.CHECKOUT_REF }}
+        run: |
+          set -euo pipefail
+          test -n "${DEPLOY_HOST}"
+          test -n "${DEPLOY_USER}"
+          test -n "${DEPLOY_SSH_KEY}"
+          port="${DEPLOY_PORT:-22}"
+          install -d -m 700 ~/.ssh
+          cp deploy/prod/known_hosts ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+          umask 077
+          printf '%s\n' "${DEPLOY_SSH_KEY}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # На VPS у ключа command=ssh-deploy.sh — клиент шлёт только ref.
+          ssh -i ~/.ssh/deploy_key \
+            -p "${port}" \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -o BatchMode=yes \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "${DEPLOY_REF}"

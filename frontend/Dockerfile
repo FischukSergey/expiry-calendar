@@ -3,6 +3,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+# Прод не передаёт флаг — на /login нет демо-учётки. Локальный compose ставит 1.
+ARG VITE_DEMO_LOGIN=
+ENV VITE_DEMO_LOGIN=$VITE_DEMO_LOGIN
 RUN npm run build
 
 FROM nginx:1.27-alpine

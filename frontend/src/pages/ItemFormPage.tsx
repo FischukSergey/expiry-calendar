@@ -23,10 +23,11 @@ const schema = z.object({
   currency: z.string().length(3),
   billing_period: z.enum(['one_time', 'monthly', 'yearly']),
   started_at: z.string(),
+  notify_off: z.boolean(),
   notify_before_days: z.number({ error: 'Дни — целое' }).int().min(0),
   url: z.string(),
   account_hint: z.string(),
-  status: z.enum(['', 'cancelled', 'archived']),
+  status: z.enum(['', 'cancelled', 'archived', 'paid']),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -95,6 +96,7 @@ export function ItemFormPage() {
       currency: 'RUB',
       billing_period: 'one_time',
       started_at: '',
+      notify_off: false,
       notify_before_days: 30,
       url: '',
       account_hint: '',
@@ -103,6 +105,7 @@ export function ItemFormPage() {
   })
 
   const kindId = form.watch('kind_id')
+  const notifyOff = form.watch('notify_off')
   const schemaFields = useMemo(
     () => kinds.data?.items.find((k) => k.id === kindId)?.attr_schema ?? [],
     [kinds.data, kindId],
@@ -137,10 +140,11 @@ export function ItemFormPage() {
       currency: it.currency,
       billing_period: it.billing_period,
       started_at: it.started_at ?? '',
-      notify_before_days: it.notify_before_days,
+      notify_off: it.notify_before_days === null,
+      notify_before_days: it.notify_before_days ?? 30,
       url: it.url,
       account_hint: it.account_hint,
-      status: it.status === 'cancelled' || it.status === 'archived' ? it.status : '',
+      status: it.status === 'cancelled' || it.status === 'archived' || it.status === 'paid' ? it.status : '',
     })
     setAttrs(emptyAttrs(it.kind_id ? (kinds.data?.items.find((k) => k.id === it.kind_id)?.attr_schema ?? []) : [], it.attrs))
   }, [card.data, form, kinds.data])
@@ -165,7 +169,7 @@ export function ItemFormPage() {
       cost_amount: values.cost_amount,
       currency: values.currency,
       billing_period: values.billing_period as BillingPeriod,
-      notify_before_days: values.notify_before_days,
+      notify_before_days: values.notify_off ? null : values.notify_before_days,
       url: values.url,
       account_hint: values.account_hint,
       category_id: values.category_id || null,
@@ -176,6 +180,8 @@ export function ItemFormPage() {
     }
     if (values.status) {
       body.status = values.status
+    } else if (isEdit) {
+      body.status = 'active'
     }
     try {
       if (isEdit && id) {
@@ -261,11 +267,29 @@ export function ItemFormPage() {
               <option value="yearly">Ежегодно</option>
             </Select>
           </Field>
-          <Field label="Напомнить за, дней">
+          <Field
+            label="Напомнить за, дней"
+            hint="Ноль — в день срока. «Не уведомлять» выключает колокольчик и окно «скоро срок»."
+          >
+            <label className="mb-2 flex items-center gap-2 text-sm text-slate-200">
+              <input type="checkbox" className="size-4 accent-teal-500" {...form.register('notify_off')} />
+              Не уведомлять
+            </label>
             <div className="flex gap-2">
-              <TextInput type="number" min={0} {...form.register('notify_before_days', { valueAsNumber: true })} />
+              <TextInput
+                type="number"
+                min={0}
+                disabled={notifyOff}
+                {...form.register('notify_before_days', { valueAsNumber: true })}
+              />
               {[7, 14, 30].map((n) => (
-                <Button key={n} type="button" variant="outline" onClick={() => form.setValue('notify_before_days', n)}>
+                <Button
+                  key={n}
+                  type="button"
+                  variant="outline"
+                  disabled={notifyOff}
+                  onClick={() => form.setValue('notify_before_days', n)}
+                >
                   {n}
                 </Button>
               ))}
@@ -277,6 +301,7 @@ export function ItemFormPage() {
           <Field label="Статус вручную">
             <Select {...form.register('status')}>
               <option value="">Считает сервер</option>
+              <option value="paid">Оплачено</option>
               <option value="cancelled">Отменено</option>
               <option value="archived">Архив</option>
             </Select>

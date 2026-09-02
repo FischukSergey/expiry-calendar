@@ -67,7 +67,7 @@ func TestDashboardTwoCurrenciesAndSkipsCancelled(t *testing.T) {
 	if got.Counts.Active != 1 || got.Counts.Expired != 1 {
 		t.Fatalf("counts %+v", got.Counts)
 	}
-	if got.Counts.Expiring7 != 2 || got.Counts.Expiring30 != 2 {
+	if got.Counts.Expiring7 != 3 || got.Counts.Expiring30 != 3 {
 		t.Fatalf("windows %+v", got.Counts)
 	}
 	if len(got.UpcomingCost) != 2 {
@@ -83,20 +83,20 @@ func TestDashboardTwoCurrenciesAndSkipsCancelled(t *testing.T) {
 	if len(got.CostByKind) != 2 {
 		t.Fatalf("kinds %+v", got.CostByKind)
 	}
-	if got.Soonest[0].ID != "d" || len(got.Soonest) != 3 {
+	if got.Soonest[0].ID != "b" || len(got.Soonest) != 3 {
 		t.Fatalf("soonest %+v", got.Soonest)
 	}
 	if len(got.ExpirationsByMonth) != 6 || got.ExpirationsByMonth[0].Month != "2026-08" {
 		t.Fatalf("months %+v", got.ExpirationsByMonth)
 	}
-	if got.ExpirationsByMonth[0].Count != 2 || got.ExpirationsByMonth[1].Count != 1 {
+	if got.ExpirationsByMonth[0].Count != 3 || got.ExpirationsByMonth[1].Count != 2 {
 		t.Fatalf("month counts %+v", got.ExpirationsByMonth)
 	}
-	if monthAmount(got.ExpirationsByMonth[0], model.CurrencyRUB) != 50 ||
+	if monthAmount(got.ExpirationsByMonth[0], model.CurrencyRUB) != 150 ||
 		monthAmount(got.ExpirationsByMonth[0], "USD") != 120 {
 		t.Fatalf("aug amounts %+v", got.ExpirationsByMonth[0].Amounts)
 	}
-	if monthAmount(got.ExpirationsByMonth[1], model.CurrencyRUB) != 100 {
+	if monthAmount(got.ExpirationsByMonth[1], model.CurrencyRUB) != 150 {
 		t.Fatalf("sep amounts %+v", got.ExpirationsByMonth[1].Amounts)
 	}
 }
@@ -135,5 +135,93 @@ func TestCalendarMonthAndEmptyDays(t *testing.T) {
 	}
 	if _, err := ov.Calendar(t.Context(), 2026, 13, owner); err == nil {
 		t.Fatal("month 13")
+	}
+}
+
+func TestDashboardMonthlyExpansionAndPaid(t *testing.T) {
+	t.Parallel()
+	today := time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC)
+	const owner = "owner"
+	store := &overviewItems{rows: []model.Item{
+		{
+			ID: "far", OwnerID: owner, Title: "Netflix", KindID: "k1", Status: model.StatusActive,
+			ExpiresAt: "2027-03-15", CostAmount: 799, Currency: model.CurrencyRUB,
+			BillingPeriod: model.BillingMonthly,
+		},
+		{
+			ID: "paid", OwnerID: owner, Title: "Офис", KindID: "k1", Status: model.StatusPaid,
+			ExpiresAt: "2026-08-28", CostAmount: 10000, Currency: model.CurrencyRUB,
+			BillingPeriod: model.BillingMonthly,
+		},
+		{
+			ID: "once", OwnerID: owner, Title: "Разово", KindID: "k2", Status: model.StatusPaid,
+			ExpiresAt: "2026-08-27", CostAmount: 50, Currency: model.CurrencyRUB,
+			BillingPeriod: model.BillingOneTime,
+		},
+	}}
+	ov := service.NewOverview(store, clock.Fixed{T: today})
+	got, err := ov.Dashboard(t.Context(), owner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ExpirationsByMonth[0].Count != 1 {
+		t.Fatalf("aug should hide paid current: %+v", got.ExpirationsByMonth[0])
+	}
+	if monthAmount(got.ExpirationsByMonth[0], model.CurrencyRUB) != 799 {
+		t.Fatalf("aug amount %+v", got.ExpirationsByMonth[0].Amounts)
+	}
+	if got.ExpirationsByMonth[1].Count != 2 {
+		t.Fatalf("sep wants far+next paid: %+v", got.ExpirationsByMonth[1])
+	}
+	if got.Counts.Expiring7 != 0 {
+		t.Fatalf("paid current not in window: %+v", got.Counts)
+	}
+	foundFar := false
+	for _, row := range got.Soonest {
+		if row.ID == "once" {
+			t.Fatal("paid one_time in soonest")
+		}
+		if row.ID == "paid" && row.ExpiresAt != "2026-09-28" {
+			t.Fatalf("paid next %+v", row)
+		}
+		if row.ID == "far" {
+			foundFar = true
+			if row.ExpiresAt != "2026-09-15" {
+				t.Fatalf("far date %s", row.ExpiresAt)
+			}
+		}
+	}
+	if !foundFar {
+		t.Fatal("far monthly missing soonest")
+	}
+
+	cal, err := ov.Calendar(t.Context(), 2026, 9, owner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cal.Days) != 2 {
+		t.Fatalf("sep days %+v", cal.Days)
+	}
+	aug, err := ov.Calendar(t.Context(), 2026, 8, owner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(aug.Days) != 1 || aug.Days[0].Date != "2026-08-15" {
+		t.Fatalf("aug cal %+v", aug.Days)
+	}
+
+	clampStore := &overviewItems{rows: []model.Item{
+		{
+			ID: "jan31", OwnerID: owner, Title: "Clamp", Status: model.StatusActive,
+			ExpiresAt: "2026-01-31", BillingPeriod: model.BillingMonthly,
+		},
+	}}
+	ovClamp := service.NewOverview(clampStore, clock.Fixed{T: today})
+	feb, err := ovClamp.Calendar(t.Context(), 2026, 2, owner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(feb.Days) != 1 || feb.Days[0].Date != "2026-02-28" {
+		t.Fatalf("clamp feb %+v", feb.Days)
 	}
 }

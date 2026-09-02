@@ -57,7 +57,7 @@ func TestNotificationsReadFlow(t *testing.T) {
 	tok := testJWT(t, string(model.RoleViewer))
 	created, err := store.Create(t.Context(), model.Item{
 		OwnerID: fixtureUUID, Title: itemTitleDomain, KindID: otherKindID, Status: model.StatusActive,
-		ExpiresAt: expiresSoon, NotifyBeforeDays: 30, Tags: []string{}, Attrs: map[string]any{},
+		ExpiresAt: expiresSoon, NotifyBeforeDays: model.Ptr(30), Tags: []string{}, Attrs: map[string]any{},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -92,7 +92,7 @@ func TestNotificationsReadFlow(t *testing.T) {
 
 	second, err := store.Create(t.Context(), model.Item{
 		OwnerID: fixtureUUID, Title: "Полис", KindID: otherKindID, Status: model.StatusExpiring,
-		ExpiresAt: "2026-08-25", NotifyBeforeDays: 30, Tags: []string{}, Attrs: map[string]any{},
+		ExpiresAt: "2026-08-25", NotifyBeforeDays: model.Ptr(30), Tags: []string{}, Attrs: map[string]any{},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -116,7 +116,7 @@ func TestTickerIntegrationStatusAndNotification(t *testing.T) {
 	tok := testJWT(t, string(model.RoleViewer))
 	created, err := store.Create(t.Context(), model.Item{
 		OwnerID: fixtureUUID, Title: itemTitleDomain, KindID: otherKindID, Status: model.StatusActive,
-		ExpiresAt: expiresSoon, NotifyBeforeDays: 30, Tags: []string{}, Attrs: map[string]any{},
+		ExpiresAt: expiresSoon, NotifyBeforeDays: model.Ptr(30), Tags: []string{}, Attrs: map[string]any{},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -192,7 +192,7 @@ func TestNotificationsOwnerIsolation(t *testing.T) {
 	api, tkr, store := notifyAPI(t)
 	if _, err := store.Create(t.Context(), model.Item{
 		OwnerID: fixtureUUID, Title: itemTitleDomain, KindID: otherKindID, Status: model.StatusActive,
-		ExpiresAt: expiresSoon, NotifyBeforeDays: 30, Tags: []string{}, Attrs: map[string]any{},
+		ExpiresAt: expiresSoon, NotifyBeforeDays: model.Ptr(30), Tags: []string{}, Attrs: map[string]any{},
 	}); err != nil {
 		t.Fatal(err)
 	}

@@ -66,7 +66,7 @@ ON CONFLICT (email) DO NOTHING`
 	return nil
 }
 
-// seedKinds пишет 9 типов. Конфликт по slug — пропуск (id/схема не меняются).
+// seedKinds пишет 10 типов. Конфликт по slug — пропуск (id/схема не меняются).
 func seedKinds(ctx context.Context, pool *pgxpool.Pool) error {
 	const q = `
 INSERT INTO item_kinds (id, slug, name, color, attr_schema, created_at)

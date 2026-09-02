@@ -50,16 +50,31 @@ func TestStatusAtWrite(t *testing.T) {
 		{"active", today.AddDate(0, 0, 31), "", model.StatusActive},
 		{"keep cancelled", today.AddDate(0, 0, -1), model.StatusCancelled, model.StatusCancelled},
 		{"keep archived", today.AddDate(0, 0, 90), model.StatusArchived, model.StatusArchived},
+		{"keep paid", today.AddDate(0, 0, 5), model.StatusPaid, model.StatusPaid},
 		{"ignore client active", today.AddDate(0, 0, -1), model.StatusActive, model.StatusExpired},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got := service.StatusAtWrite(today, tc.expire, 30, tc.req)
+			got := service.StatusAtWrite(today, tc.expire, model.Ptr(30), tc.req)
 			if got != tc.want {
 				t.Fatalf("got %s want %s", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestStatusAtWriteNullNotify(t *testing.T) {
+	t.Parallel()
+	today := time.Date(2026, 8, 26, 0, 0, 0, 0, time.UTC)
+	if got := service.StatusAtWrite(today, today.AddDate(0, 0, 5), nil, ""); got != model.StatusActive {
+		t.Fatalf("soon %s", got)
+	}
+	if got := service.StatusAtWrite(today, today, nil, ""); got != model.StatusActive {
+		t.Fatalf("today %s", got)
+	}
+	if got := service.StatusAtWrite(today, today.AddDate(0, 0, -1), nil, ""); got != model.StatusExpired {
+		t.Fatalf("past %s", got)
 	}
 }
 

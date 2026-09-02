@@ -14,7 +14,7 @@ description: >-
 ## Статус
 
 - Спринты **1–6** — сдача `v1.0.0` (общий каталог). **Sprint 7 закрыт** (свои данные, seed off на prod).
-- Sprint 8 (CD) — следующий. Не начинай его сам.
+- Sprint 8 (CD) — по просьбе. **Sprint 9** — `paid`, kind `mobile`, `notify_before_days: null`, развёртка monthly/yearly, лента PWA.
 
 Документы спринта N: `docs/sprint-N-plan.md`, `checklist`, `api-sprint-N.md`, `known-limitations-sprint-N.md`. Журнал — `REPORT.md`.
 
@@ -61,7 +61,7 @@ Create/import/ticker notification: писать `OwnerID`. Пустой owner в
 
 ## Ещё не сделано
 
-- Sprint 8 (CD на VPS) — только по просьбе.
+- Следующий спринт — только если пользователь его назвал. Чеклист 9 не раздувать.
 
 ## Не делать
 
@@ -69,4 +69,4 @@ Create/import/ticker notification: писать `OwnerID`. Пустой owner в
 
 ## Документы при смене API
 
-Вместе с хендлерами: `docs/api-sprint-7.md` и `backend/openapi.yaml`. Чеклист `[x]` только после проверки. DoD §8 — после lint/test/демо.
+Вместе с хендлерами: `docs/api-sprint-9.md` и `backend/openapi.yaml`. Чеклист `[x]` только после проверки. DoD §8 — после lint/test/демо.

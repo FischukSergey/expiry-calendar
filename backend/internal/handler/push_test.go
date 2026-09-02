@@ -145,7 +145,7 @@ func TestPushTickerBroadcastAnd410(t *testing.T) {
 	adminJSON(t, api, tok, http.MethodPost, "/api/v1/push/subscribe", pushBody, http.StatusNoContent)
 	_, err := store.Create(t.Context(), model.Item{
 		OwnerID: fixtureUUID, Title: itemTitleDomain, KindID: otherKindID, Status: model.StatusActive,
-		ExpiresAt: expiresSoon, NotifyBeforeDays: 30, Tags: []string{}, Attrs: map[string]any{},
+		ExpiresAt: expiresSoon, NotifyBeforeDays: model.Ptr(30), Tags: []string{}, Attrs: map[string]any{},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -175,7 +175,7 @@ func TestPushTickerBroadcastAnd410(t *testing.T) {
 	sender.mu.Unlock()
 	_, err = store.Create(t.Context(), model.Item{
 		OwnerID: fixtureUUID, Title: "Полис", KindID: otherKindID, Status: model.StatusExpiring,
-		ExpiresAt: "2026-08-25", NotifyBeforeDays: 30, Tags: []string{}, Attrs: map[string]any{},
+		ExpiresAt: "2026-08-25", NotifyBeforeDays: model.Ptr(30), Tags: []string{}, Attrs: map[string]any{},
 	})
 	if err != nil {
 		t.Fatal(err)

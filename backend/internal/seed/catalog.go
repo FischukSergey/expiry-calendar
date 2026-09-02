@@ -7,10 +7,10 @@ import (
 	"time"
 )
 
-// requiredKindSlugs — девять slug из ARCHITECTURE.md. ssl и warranty сюда не входят.
+// requiredKindSlugs — десять slug каталога. ssl и warranty сюда не входят.
 var requiredKindSlugs = []string{
 	slugDomain, slugSubscription, slugRent, slugContract, slugInsurance,
-	slugLicense, slugTax, slugVehicle, slugOther,
+	slugLicense, slugTax, slugVehicle, slugMobile, slugOther,
 }
 
 // forbiddenKindSlugs — сознательно не в seed; admin может завести тип позже.

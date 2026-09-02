@@ -444,6 +444,58 @@ func TestMutationsWriteAudit(t *testing.T) {
 	}
 }
 
+func TestCreatePatchPaidAndNullNotify(t *testing.T) {
+	t.Parallel()
+	api := itemsAPI(t)
+	tok := testJWT(t, string(model.RoleAdmin))
+	kind := `","kind_id":"` + otherKindID + `","expires_at":`
+
+	paid := adminCreateItem(t, api, tok, `{"title":"Paid`+kind+`"2026-09-10","status":"paid","notify_before_days":30}`)
+	if paid.Status != model.StatusPaid || paid.NotifyBeforeDays == nil || *paid.NotifyBeforeDays != 30 {
+		t.Fatalf("create paid %+v", paid)
+	}
+	listed := listItems(t, api, tok, "status=paid")
+	if listed.Total != 1 || listed.Items[0].ID != paid.ID {
+		t.Fatalf("filter paid %+v", listed)
+	}
+
+	rec := adminJSON(t, api, tok, http.MethodPatch, "/api/v1/items/"+paid.ID, `{"notify_before_days":null}`, http.StatusOK)
+	var patched model.Item
+	if err := json.NewDecoder(rec.Body).Decode(&patched); err != nil {
+		t.Fatal(err)
+	}
+	if patched.NotifyBeforeDays != nil || patched.Status != model.StatusPaid {
+		t.Fatalf("patch null notify %+v", patched)
+	}
+
+	silent := adminCreateItem(t, api, tok, `{"title":"Quiet`+kind+`"2026-09-05","notify_before_days":null}`)
+	if silent.Status != model.StatusActive || silent.NotifyBeforeDays != nil {
+		t.Fatalf("null notify %+v", silent)
+	}
+
+	def := adminCreateItem(t, api, tok, `{"title":"Def`+kind+`"2027-01-01"}`)
+	if def.NotifyBeforeDays == nil || *def.NotifyBeforeDays != model.DefaultNotifyDays {
+		t.Fatalf("default notify %+v", def)
+	}
+
+	renewed := adminJSON(t, api, tok, http.MethodPost, "/api/v1/items/"+paid.ID+"/renew",
+		`{"new_expires_at":"2027-09-10"}`, http.StatusOK)
+	var after model.Item
+	if err := json.NewDecoder(renewed.Body).Decode(&after); err != nil {
+		t.Fatal(err)
+	}
+	if after.Status == model.StatusPaid {
+		t.Fatal("renew kept paid")
+	}
+
+	adminJSON(t, api, tok, http.MethodPost, pathItemsBulk,
+		`{"ids":["`+silent.ID+`"],"status":"paid"}`, http.StatusOK)
+	card := getItemCard(t, api, tok, silent.ID)
+	if card.Item.Status != model.StatusPaid {
+		t.Fatalf("bulk paid %s", card.Item.Status)
+	}
+}
+
 func adminCreateItem(t *testing.T, api *handler.API, tok, raw string) model.Item {
 	t.Helper()
 	rec := adminJSON(t, api, tok, http.MethodPost, "/api/v1/items", raw, http.StatusCreated)

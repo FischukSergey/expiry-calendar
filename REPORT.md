@@ -2,6 +2,23 @@
 
 Журнал создания Duekeep. Записи добавляются по ходу работы, не в конце.
 
+## 2026-09-02 — Sprint 9, код
+
+- Миграция `012_paid_notify.sql`: `status` + `paid`, `notify_before_days` NULL.
+- Тикер не трогает `paid` и не пишет notification при `paid` или `notify_before_days IS NULL`. Renew с `paid` снова считает статус.
+- Seed / `EnsureKinds`: slug `mobile` («Мобильная связь»), `CheckCatalog` — 10 типов.
+- Обзор и календарь: развёртка `monthly`/`yearly` от якоря `expires_at` (clamp 29–31); `paid` прячет текущее вхождение.
+- UI: бейдж «Оплачено», чекбокс «Не уведомлять», нижняя лента PWA `text-sm`.
+- Контракт: `docs/api-sprint-9.md`, OpenAPI.
+- Проверка: `task lint` / `task test` зелёные. Compose rebuild: `GET /kinds` — 10 типов включая «Мобильная связь»; create `paid` и `notify_before_days: null`; monthly с `expires_at` в 2027 виден в календаре сентября; unread без этих записей.
+
+## 2026-09-01 — Sprint 9 (документы, без кода)
+
+- План: статус `paid` (тикер не уведомляет — предоплата), seed-тип `mobile` («Мобильная связь»), `notify_before_days: null` («не уведомлять»), крупнее подписи нижней ленты PWA.
+- Не входит: UI создания kinds, per-user kinds, эквайринг.
+- В спринт добавлена развёртка `monthly`/`yearly` в графике обзора и календаре (сейчас только одна `expires_at`).
+- Добавлены `docs/sprint-9-*.md`, строки в индексе, ARCHITECTURE, FUNCTIONAL.
+
 ## 2026-09-01 — /login без демо-учётки на проде
 
 - Подсказка `admin@duekeep.local` только при Vite DEV или `VITE_DEMO_LOGIN=1` (local compose). Прод-сборка флаг не ставит.

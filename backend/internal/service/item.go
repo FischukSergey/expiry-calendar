@@ -229,6 +229,9 @@ func (s *Item) Renew(ctx context.Context, id string, in model.RenewInput, actorI
 	oldCost := cur.CostAmount
 	cur.ExpiresAt = expires.Format(model.DateLayout)
 	cur.CostAmount = newCost
+	if cur.Status == model.StatusPaid {
+		cur.Status = ""
+	}
 	it, err := s.prepareWrite(ctx, cur, actorID)
 	if err != nil {
 		return model.Item{}, err
@@ -258,7 +261,7 @@ func (s *Item) Renew(ctx context.Context, id string, in model.RenewInput, actorI
 	return updated, err
 }
 
-// Bulk меняет category_id и/или status (только cancelled/archived).
+// Bulk меняет category_id и/или status (только cancelled/archived/paid).
 func (s *Item) Bulk(ctx context.Context, in model.BulkInput, actorID string) (model.BulkResult, error) {
 	if len(in.IDs) == 0 {
 		return model.BulkResult{}, model.Validation("ids required", map[string]any{fieldIDs: detailRequired})
@@ -287,9 +290,9 @@ func (s *Item) Bulk(ctx context.Context, in model.BulkInput, actorID string) (mo
 	}
 	if in.Status != nil {
 		switch *in.Status {
-		case model.StatusCancelled, model.StatusArchived:
+		case model.StatusCancelled, model.StatusArchived, model.StatusPaid:
 		default:
-			return model.BulkResult{}, model.Validation("invalid status", map[string]any{fieldStatus: "cancelled|archived"})
+			return model.BulkResult{}, model.Validation("invalid status", map[string]any{fieldStatus: "cancelled|archived|paid"})
 		}
 	}
 	var updated int
@@ -374,7 +377,7 @@ func (s *Item) prepareWrite(ctx context.Context, in model.Item, actorID string) 
 	default:
 		return model.Item{}, model.Validation("invalid billing_period", map[string]any{fieldBilling: "one_time|monthly|yearly"})
 	}
-	if in.NotifyBeforeDays < 0 {
+	if in.NotifyBeforeDays != nil && *in.NotifyBeforeDays < 0 {
 		return model.Item{}, model.Validation("invalid notify_before_days", map[string]any{fieldNotify: detailMinZero})
 	}
 	expires, err := parseDate(fieldExpiresAt, in.ExpiresAt)
@@ -477,8 +480,8 @@ func applyItemPatch(cur *model.Item, p model.ItemPatch) {
 	if p.ExpiresAt != nil {
 		cur.ExpiresAt = *p.ExpiresAt
 	}
-	if p.NotifyBeforeDays != nil {
-		cur.NotifyBeforeDays = *p.NotifyBeforeDays
+	if p.SetNotify {
+		cur.NotifyBeforeDays = p.NotifyBeforeDays
 	}
 	if p.URL != nil {
 		cur.URL = *p.URL
@@ -516,7 +519,8 @@ func normalizeFilter(f model.ItemFilter) (model.ItemFilter, error) {
 	}
 	if f.Status != "" {
 		switch f.Status {
-		case model.StatusActive, model.StatusExpiring, model.StatusExpired, model.StatusCancelled, model.StatusArchived:
+		case model.StatusActive, model.StatusExpiring, model.StatusExpired,
+			model.StatusCancelled, model.StatusArchived, model.StatusPaid:
 		default:
 			return f, model.Validation("invalid status", map[string]any{fieldStatus: "enum"})
 		}
@@ -558,6 +562,9 @@ func normalizeFilter(f model.ItemFilter) (model.ItemFilter, error) {
 // notifyTransition пишет unread, если статус стал expiring/expired. Повтор за день — false.
 func (s *Item) notifyTransition(ctx context.Context, prev string, it model.Item) (model.Notification, bool, error) {
 	if s.notes == nil {
+		return model.Notification{}, false, nil
+	}
+	if it.NotifyBeforeDays == nil {
 		return model.Notification{}, false, nil
 	}
 	if it.Status != model.StatusExpiring && it.Status != model.StatusExpired {

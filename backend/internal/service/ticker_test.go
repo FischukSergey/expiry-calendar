@@ -19,6 +19,7 @@ const (
 	calendarDay     = "2026-08-21"
 	otherOwner      = "other"
 	expiresSep      = "2026-09-01"
+	expiresSoon     = "2026-09-10"
 )
 
 type tickItems struct {
@@ -55,7 +56,7 @@ func (m *tickItems) SetStatus(_ context.Context, id, status string) (model.Item,
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	it, ok := m.byID[id]
-	if !ok || it.Status == model.StatusCancelled || it.Status == model.StatusArchived {
+	if !ok || it.Status == model.StatusCancelled || it.Status == model.StatusArchived || it.Status == model.StatusPaid {
 		return model.Item{}, model.ErrNotFound
 	}
 	it.Status = status
@@ -116,7 +117,7 @@ func TestTickerMovesStatusAndNotifies(t *testing.T) {
 	today := time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC)
 	active := store.put(model.Item{
 		OwnerID: "owner-1", Title: itemTitleDomain, Status: model.StatusActive,
-		ExpiresAt: "2026-09-10", NotifyBeforeDays: 30,
+		ExpiresAt: expiresSoon, NotifyBeforeDays: model.Ptr(30),
 	})
 	tkr := service.NewTicker(store, notes, nopTx, clock.Fixed{T: today}, nil)
 	if err := tkr.Tick(t.Context()); err != nil {
@@ -142,11 +143,11 @@ func TestTickerSkipsCancelledArchived(t *testing.T) {
 	notes := &tickNotes{}
 	cancelled := store.put(model.Item{
 		Title: "Отмена", Status: model.StatusCancelled,
-		ExpiresAt: expiresPast, NotifyBeforeDays: 30,
+		ExpiresAt: expiresPast, NotifyBeforeDays: model.Ptr(30),
 	})
 	archived := store.put(model.Item{
 		Title: "Архив", Status: model.StatusArchived,
-		ExpiresAt: expiresPast, NotifyBeforeDays: 30,
+		ExpiresAt: expiresPast, NotifyBeforeDays: model.Ptr(30),
 	})
 	tkr := service.NewTicker(store, notes, nopTx, clock.Fixed{
 		T: time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC),
@@ -171,7 +172,7 @@ func TestTickerExpiresAndUniqueDay(t *testing.T) {
 	notes := &tickNotes{}
 	it := store.put(model.Item{
 		Title: "Полис", Status: model.StatusExpiring,
-		ExpiresAt: "2026-08-25", NotifyBeforeDays: 30,
+		ExpiresAt: "2026-08-25", NotifyBeforeDays: model.Ptr(30),
 	})
 	tkr := service.NewTicker(store, notes, nopTx, clock.Fixed{
 		T: time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC),
@@ -211,7 +212,7 @@ func TestTickerPublishesToBus(t *testing.T) {
 	bus := &recBus{}
 	store.put(model.Item{
 		Title: itemTitleDomain, Status: model.StatusActive,
-		ExpiresAt: "2026-09-10", NotifyBeforeDays: 30,
+		ExpiresAt: expiresSoon, NotifyBeforeDays: model.Ptr(30),
 	})
 	tkr := service.NewTicker(store, notes, nopTx, clock.Fixed{
 		T: time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC),
@@ -233,5 +234,71 @@ func TestTickerPublishesToBus(t *testing.T) {
 	bus.mu.Unlock()
 	if n != 1 {
 		t.Fatalf("duplicate bus %d", n)
+	}
+}
+
+func TestTickerSkipsPaid(t *testing.T) {
+	t.Parallel()
+	store := newTickItems()
+	notes := &tickNotes{}
+	paid := store.put(model.Item{
+		Title: itemTitleDomain, Status: model.StatusPaid,
+		ExpiresAt: expiresSoon, NotifyBeforeDays: model.Ptr(30),
+	})
+	tkr := service.NewTicker(store, notes, nopTx, clock.Fixed{
+		T: time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC),
+	}, nil)
+	if err := tkr.Tick(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if store.get(paid.ID).Status != model.StatusPaid {
+		t.Fatal("paid changed")
+	}
+	if len(notes.rows) != 0 {
+		t.Fatalf("notes %+v", notes.rows)
+	}
+}
+
+func TestTickerNullNotifyNoExpiring(t *testing.T) {
+	t.Parallel()
+	store := newTickItems()
+	notes := &tickNotes{}
+	it := store.put(model.Item{
+		Title: itemTitleDomain, Status: model.StatusActive,
+		ExpiresAt: expiresSoon, NotifyBeforeDays: nil,
+	})
+	tkr := service.NewTicker(store, notes, nopTx, clock.Fixed{
+		T: time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC),
+	}, nil)
+	if err := tkr.Tick(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if store.get(it.ID).Status != model.StatusActive {
+		t.Fatalf("status %s", store.get(it.ID).Status)
+	}
+	if len(notes.rows) != 0 {
+		t.Fatalf("notes %+v", notes.rows)
+	}
+}
+
+func TestTickerNullNotifyExpiresWithoutNote(t *testing.T) {
+	t.Parallel()
+	store := newTickItems()
+	notes := &tickNotes{}
+	it := store.put(model.Item{
+		Title: "Полис", Status: model.StatusActive,
+		ExpiresAt: expiresPast, NotifyBeforeDays: nil,
+	})
+	tkr := service.NewTicker(store, notes, nopTx, clock.Fixed{
+		T: time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC),
+	}, nil)
+	if err := tkr.Tick(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if store.get(it.ID).Status != model.StatusExpired {
+		t.Fatalf("status %s", store.get(it.ID).Status)
+	}
+	if len(notes.rows) != 0 {
+		t.Fatalf("notes %+v", notes.rows)
 	}
 }

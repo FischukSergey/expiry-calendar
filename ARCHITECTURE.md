@@ -214,10 +214,10 @@ items
   billing_period      TEXT NOT NULL CHECK (billing_period IN ('one_time', 'monthly', 'yearly'))
   started_at          DATE NULL
   expires_at          DATE NOT NULL
-  notify_before_days  INT NOT NULL DEFAULT 30 CHECK (notify_before_days >= 0)
+  notify_before_days  INT NULL DEFAULT 30 CHECK (notify_before_days IS NULL OR notify_before_days >= 0)
   url                 TEXT NOT NULL DEFAULT ''
   account_hint        TEXT NOT NULL DEFAULT ''
-  status              TEXT NOT NULL CHECK (status IN ('active', 'expiring', 'expired', 'cancelled', 'archived'))
+  status              TEXT NOT NULL CHECK (status IN ('active', 'expiring', 'expired', 'cancelled', 'archived', 'paid'))
   attrs               JSONB NOT NULL DEFAULT '{}'
   created_at          TIMESTAMPTZ NOT NULL
   updated_at          TIMESTAMPTZ NOT NULL
@@ -627,6 +627,7 @@ CI (GitHub Actions):
 | [6](docs/sprint-6-plan.md) | OpenAPI `/docs`, тесты ≥ 10, полный seed, сдача | |
 | [7](docs/sprint-7-plan.md) | После v1: свои данные (`owner_id`), без org и viewer | |
 | [8](docs/sprint-8-plan.md) | CD на VPS: Actions → SSH → compose --build | |
+| [9](docs/sprint-9-plan.md) | `paid`, kind `mobile`, `notify_before_days: null`, крупнее лента PWA | |
 
 Правило: handler не меняет контракт спринта без правки `docs/api-sprint-N.md`.
 

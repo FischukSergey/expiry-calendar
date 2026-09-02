@@ -14,6 +14,7 @@ const dot: Record<Status, string> = {
   expired: 'bg-rose-400',
   cancelled: 'bg-slate-400',
   archived: 'bg-zinc-400',
+  paid: 'bg-sky-400',
 }
 
 function monthTitle(year: number, month: number): string {

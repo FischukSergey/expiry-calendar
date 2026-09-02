@@ -121,7 +121,7 @@ func (m *memItems) SetStatus(_ context.Context, id, status string) (model.Item, 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	it, ok := m.byID[id]
-	if !ok || it.Status == model.StatusCancelled || it.Status == model.StatusArchived {
+	if !ok || it.Status == model.StatusCancelled || it.Status == model.StatusArchived || it.Status == model.StatusPaid {
 		return model.Item{}, model.ErrNotFound
 	}
 	it.Status = status

@@ -15,6 +15,7 @@ const (
 	StatusExpired   = "expired"
 	StatusCancelled = "cancelled"
 	StatusArchived  = "archived"
+	StatusPaid      = "paid"
 
 	BillingOneTime = "one_time"
 	BillingMonthly = "monthly"
@@ -48,6 +49,11 @@ const (
 	MaxCSVImport = 5_000
 )
 
+// Ptr возвращает указатель на значение (опциональные JSON/SQL поля).
+func Ptr[T any](v T) *T {
+	return &v
+}
+
 // Item — запись обязательства. Даты started_at/expires_at — DateLayout.
 type Item struct {
 	ID               string         `json:"id"`
@@ -63,7 +69,7 @@ type Item struct {
 	BillingPeriod    string         `json:"billing_period"`
 	StartedAt        *string        `json:"started_at"`
 	ExpiresAt        string         `json:"expires_at"`
-	NotifyBeforeDays int            `json:"notify_before_days"`
+	NotifyBeforeDays *int           `json:"notify_before_days"`
 	URL              string         `json:"url"`
 	AccountHint      string         `json:"account_hint"`
 	Status           string         `json:"status"`
@@ -132,6 +138,7 @@ type ItemPatch struct {
 	SetStarted       bool
 	StartedAt        *string
 	ExpiresAt        *string
+	SetNotify        bool
 	NotifyBeforeDays *int
 	URL              *string
 	AccountHint      *string

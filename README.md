@@ -101,4 +101,4 @@ task test            # go test -race
 
 ## Статус
 
-Сдача v1 — тег [`v1.0.0`](https://github.com/FischukSergey/expiry-calendar/releases/tag/v1.0.0) (Sprint 6). `main` после сдачи — развитие. Прод: каждый видит своё ([Sprint 7](docs/sprint-7-plan.md)); CD с `main` — [Sprint 8](docs/sprint-8-plan.md).
+Сдача v1 — тег [`v1.0.0`](https://github.com/FischukSergey/expiry-calendar/releases/tag/v1.0.0) (Sprint 6). `main` после сдачи — развитие. Прод: каждый видит своё ([Sprint 7](docs/sprint-7-plan.md)); CD с `main` — [Sprint 8](docs/sprint-8-plan.md). Следующий продукт — [Sprint 9](docs/sprint-9-plan.md) (оплачено, тип «Мобильная связь», «не уведомлять»).

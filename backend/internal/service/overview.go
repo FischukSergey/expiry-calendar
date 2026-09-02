@@ -60,30 +60,41 @@ func (s *Overview) Dashboard(ctx context.Context, ownerID string) (model.Dashboa
 	kindCost := map[string]*model.KindCost{}
 	brief := make([]model.DashboardItem, 0, len(items))
 
+	winStart := clock.DateUTC(1, today.Month(), today.Year())
+	winEnd := winStart.AddDate(0, expirationMonths, 0)
 	for _, it := range items {
-		expires, err := parseDate(fieldExpiresAt, it.ExpiresAt)
-		if err != nil {
-			return model.Dashboard{}, err
-		}
 		switch it.Status {
 		case model.StatusActive:
 			out.Counts.Active++
 		case model.StatusExpired:
 			out.Counts.Expired++
 		}
-		if !expires.Before(today) && !expires.After(today.AddDate(0, 0, expiringWindow7)) {
-			out.Counts.Expiring7++
+		next, ok, err := nextUnpaidOccurrence(it, today)
+		if err != nil {
+			return model.Dashboard{}, err
 		}
-		if !expires.Before(today) && !expires.After(today.AddDate(0, 0, expiringWindow30)) {
-			out.Counts.Expiring30++
+		if ok {
+			if inClosedDayWindow(next, today, today.AddDate(0, 0, expiringWindow7)) {
+				out.Counts.Expiring7++
+			}
+			if inClosedDayWindow(next, today, today.AddDate(0, 0, expiringWindow30)) {
+				out.Counts.Expiring30++
+			}
+			brief = append(brief, model.DashboardItem{
+				ID: it.ID, Title: it.Title, ExpiresAt: next.Format(model.DateLayout),
+				Status: it.Status, KindID: it.KindID,
+			})
 		}
-		if i, ok := monthIdx[expires.Format(monthLayout)]; ok {
-			out.ExpirationsByMonth[i].Count++
-			monthMoney[i][it.Currency] += it.CostAmount
+		occs, err := occurrencesInRange(it, winStart, winEnd)
+		if err != nil {
+			return model.Dashboard{}, err
 		}
-		brief = append(brief, model.DashboardItem{
-			ID: it.ID, Title: it.Title, ExpiresAt: it.ExpiresAt, Status: it.Status, KindID: it.KindID,
-		})
+		for _, occ := range occs {
+			if i, ok := monthIdx[occ.Format(monthLayout)]; ok {
+				out.ExpirationsByMonth[i].Count++
+				monthMoney[i][it.Currency] += it.CostAmount
+			}
+		}
 		if it.Status == model.StatusExpired {
 			continue
 		}
@@ -127,17 +138,16 @@ func (s *Overview) Calendar(ctx context.Context, year, month int, ownerID string
 	end := start.AddDate(0, 1, 0)
 	byDay := map[string][]model.CalendarItem{}
 	for _, it := range items {
-		expires, err := parseDate(fieldExpiresAt, it.ExpiresAt)
+		occs, err := occurrencesInRange(it, start, end)
 		if err != nil {
 			return model.Calendar{}, err
 		}
-		if expires.Before(start) || !expires.Before(end) {
-			continue
+		for _, occ := range occs {
+			day := occ.Format(model.DateLayout)
+			byDay[day] = append(byDay[day], model.CalendarItem{
+				ID: it.ID, Title: it.Title, Status: it.Status,
+			})
 		}
-		day := expires.Format(model.DateLayout)
-		byDay[day] = append(byDay[day], model.CalendarItem{
-			ID: it.ID, Title: it.Title, Status: it.Status,
-		})
 	}
 	days := make([]model.CalendarDay, 0, len(byDay))
 	for date, list := range byDay {

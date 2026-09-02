@@ -65,7 +65,7 @@ export function ItemCardPage() {
     { label: 'Период', value: billingLabel[it.billing_period] },
     { label: 'Начало периода', value: formatDate(it.started_at ?? '') },
     { label: 'Срок оплаты', value: formatDate(it.expires_at) },
-    { label: 'Напомнить за', value: `${it.notify_before_days} дн.` },
+    { label: 'Напомнить за', value: it.notify_before_days === null ? 'Не уведомлять' : `${it.notify_before_days} дн.` },
     { label: 'Теги', value: it.tags.length ? it.tags.join(', ') : '—' },
     { label: 'URL', value: it.url || '—' },
     { label: 'Подсказка', value: it.account_hint || '—' },

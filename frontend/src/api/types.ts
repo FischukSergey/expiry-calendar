@@ -1,6 +1,6 @@
 export type Role = 'admin' | 'viewer'
 
-export type Status = 'active' | 'expiring' | 'expired' | 'cancelled' | 'archived'
+export type Status = 'active' | 'expiring' | 'expired' | 'cancelled' | 'archived' | 'paid'
 
 export type BillingPeriod = 'one_time' | 'monthly' | 'yearly'
 
@@ -55,7 +55,7 @@ export type Item = {
   billing_period: BillingPeriod
   started_at: string | null
   expires_at: string
-  notify_before_days: number
+  notify_before_days: number | null
   url: string
   account_hint: string
   status: Status
@@ -118,10 +118,10 @@ export type ItemWrite = {
   billing_period?: BillingPeriod
   started_at?: string
   expires_at: string
-  notify_before_days?: number
+  notify_before_days?: number | null
   url?: string
   account_hint?: string
-  status?: 'cancelled' | 'archived'
+  status?: 'cancelled' | 'archived' | 'paid' | 'active'
   attrs?: Record<string, unknown>
 }
 

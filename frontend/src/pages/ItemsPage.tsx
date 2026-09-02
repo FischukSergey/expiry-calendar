@@ -104,7 +104,7 @@ export function ItemsPage() {
         <Field label="Статус">
           <Select value={filter.status ?? ''} onChange={(e) => setField('status', e.target.value)}>
             <option value="">Все</option>
-            {(['active', 'expiring', 'expired', 'cancelled', 'archived'] as Status[]).map((s) => (
+            {(['active', 'expiring', 'expired', 'paid', 'cancelled', 'archived'] as Status[]).map((s) => (
               <option key={s} value={s}>
                 {statusLabel[s]}
               </option>

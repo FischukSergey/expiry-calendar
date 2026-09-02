@@ -330,11 +330,11 @@ func (r *Items) listOpen(ctx context.Context, q string, args ...any) ([]model.It
 	return out, rows.Err()
 }
 
-// SetStatus пишет только status. cancelled/archived не обновляет (0 rows → ErrNotFound).
+// SetStatus пишет только status. cancelled/archived/paid не обновляет (0 rows → ErrNotFound).
 func (r *Items) SetStatus(ctx context.Context, id, status string) (model.Item, error) {
 	it, err := r.scanOne(ctx, `
 UPDATE items SET status = $2, updated_at = now()
-WHERE id = $1::uuid AND status NOT IN ('cancelled', 'archived')
+WHERE id = $1::uuid AND status NOT IN ('cancelled', 'archived', 'paid')
 RETURNING `+itemCols, id, status)
 	if err != nil {
 		return model.Item{}, err

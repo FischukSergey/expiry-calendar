@@ -10,6 +10,7 @@ const (
 	slugLicense      = "license"
 	slugTax          = "tax"
 	slugVehicle      = "vehicle"
+	slugMobile       = "mobile"
 	slugOther        = "other"
 
 	currencyRUB = "RUB"
@@ -42,6 +43,8 @@ const (
 	attrContractNo = "contract_number"
 	attrVIN        = "vin"
 	attrPlate      = "plate"
+	attrPhone      = "phone"
+	attrOperator   = "operator"
 
 	vendorRegRu    = "Reg.ru"
 	vendorIngus    = "Ингосстрах"

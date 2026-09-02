@@ -19,22 +19,22 @@ const (
 )
 
 type itemWrite struct {
-	Title            string         `json:"title"`
-	Description      string         `json:"description"`
-	KindID           string         `json:"kind_id"`
-	CategoryID       *string        `json:"category_id"`
-	Vendor           string         `json:"vendor"`
-	Tags             []string       `json:"tags"`
-	CostAmount       *int           `json:"cost_amount"`
-	Currency         string         `json:"currency"`
-	BillingPeriod    string         `json:"billing_period"`
-	StartedAt        *string        `json:"started_at"`
-	ExpiresAt        string         `json:"expires_at"`
-	NotifyBeforeDays *int           `json:"notify_before_days"`
-	URL              string         `json:"url"`
-	AccountHint      string         `json:"account_hint"`
-	Status           string         `json:"status"`
-	Attrs            map[string]any `json:"attrs"`
+	Title            string          `json:"title"`
+	Description      string          `json:"description"`
+	KindID           string          `json:"kind_id"`
+	CategoryID       *string         `json:"category_id"`
+	Vendor           string          `json:"vendor"`
+	Tags             []string        `json:"tags"`
+	CostAmount       *int            `json:"cost_amount"`
+	Currency         string          `json:"currency"`
+	BillingPeriod    string          `json:"billing_period"`
+	StartedAt        *string         `json:"started_at"`
+	ExpiresAt        string          `json:"expires_at"`
+	NotifyBeforeDays json.RawMessage `json:"notify_before_days"`
+	URL              string          `json:"url"`
+	AccountHint      string          `json:"account_hint"`
+	Status           string          `json:"status"`
+	Attrs            map[string]any  `json:"attrs"`
 }
 
 type itemPatchBody struct {
@@ -49,7 +49,7 @@ type itemPatchBody struct {
 	BillingPeriod    *string         `json:"billing_period"`
 	StartedAt        json.RawMessage `json:"started_at"`
 	ExpiresAt        *string         `json:"expires_at"`
-	NotifyBeforeDays *int            `json:"notify_before_days"`
+	NotifyBeforeDays json.RawMessage `json:"notify_before_days"`
 	URL              *string         `json:"url"`
 	AccountHint      *string         `json:"account_hint"`
 	Status           *string         `json:"status"`
@@ -159,7 +159,12 @@ func (a *API) createItem(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity, "validation_error", "invalid json")
 		return
 	}
-	it, err := a.items.Create(r.Context(), itemFromWrite(body), middleware.UserID(r.Context()))
+	in, err := itemFromWrite(body)
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "validation_error", "invalid notify_before_days")
+		return
+	}
+	it, err := a.items.Create(r.Context(), in, middleware.UserID(r.Context()))
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -266,14 +271,17 @@ func (a *API) listAudit(w http.ResponseWriter, r *http.Request) {
 	writeBytes(w, http.StatusOK, out)
 }
 
-func itemFromWrite(body itemWrite) model.Item {
+func itemFromWrite(body itemWrite) (model.Item, error) {
 	cost := 0
 	if body.CostAmount != nil {
 		cost = *body.CostAmount
 	}
-	notify := model.DefaultNotifyDays
-	if body.NotifyBeforeDays != nil {
-		notify = *body.NotifyBeforeDays
+	notify, set, err := parseOptionalInt(body.NotifyBeforeDays)
+	if err != nil {
+		return model.Item{}, err
+	}
+	if !set {
+		notify = model.Ptr(model.DefaultNotifyDays)
 	}
 	tags := body.Tags
 	if tags == nil {
@@ -289,7 +297,7 @@ func itemFromWrite(body itemWrite) model.Item {
 		CostAmount: cost, Currency: body.Currency, BillingPeriod: body.BillingPeriod,
 		StartedAt: body.StartedAt, ExpiresAt: body.ExpiresAt, NotifyBeforeDays: notify,
 		URL: body.URL, AccountHint: body.AccountHint, Status: body.Status, Attrs: attrs,
-	}
+	}, nil
 }
 
 func itemPatchFromBody(body itemPatchBody) (model.ItemPatch, error) {
@@ -297,8 +305,15 @@ func itemPatchFromBody(body itemPatchBody) (model.ItemPatch, error) {
 		Title: body.Title, Description: body.Description, KindID: body.KindID,
 		Vendor: body.Vendor, Tags: body.Tags, CostAmount: body.CostAmount,
 		Currency: body.Currency, BillingPeriod: body.BillingPeriod, ExpiresAt: body.ExpiresAt,
-		NotifyBeforeDays: body.NotifyBeforeDays, URL: body.URL, AccountHint: body.AccountHint,
-		Status: body.Status,
+		URL: body.URL, AccountHint: body.AccountHint, Status: body.Status,
+	}
+	notify, setNotify, err := parseOptionalInt(body.NotifyBeforeDays)
+	if err != nil {
+		return p, err
+	}
+	if setNotify {
+		p.SetNotify = true
+		p.NotifyBeforeDays = notify
 	}
 	if body.CategoryID != nil {
 		p.SetCategory = true
@@ -329,6 +344,20 @@ func itemPatchFromBody(body itemPatchBody) (model.ItemPatch, error) {
 		p.Attrs = attrs
 	}
 	return p, nil
+}
+
+func parseOptionalInt(raw json.RawMessage) (*int, bool, error) {
+	if raw == nil {
+		return nil, false, nil
+	}
+	if string(raw) == jsonNull {
+		return nil, true, nil
+	}
+	var n int
+	if err := json.Unmarshal(raw, &n); err != nil {
+		return nil, false, err
+	}
+	return &n, true, nil
 }
 
 func itemFilterFromQuery(q url.Values) (model.ItemFilter, error) {

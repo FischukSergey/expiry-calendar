@@ -6,6 +6,7 @@ export const statusLabel: Record<Status, string> = {
   expired: 'Просрочено',
   cancelled: 'Отменено',
   archived: 'Архив',
+  paid: 'Оплачено',
 }
 
 /** Лист дерева «Категории», который обычно совпадает с типом записи. */
@@ -18,6 +19,7 @@ const kindDefaultCategory: Record<string, string> = {
   contract: 'Договоры',
   insurance: 'Страховки',
   vehicle: 'Авто',
+  mobile: 'Связь',
 }
 
 export function suggestCategoryId(kindSlug: string, cats: FlatCategory[]): string {
@@ -118,4 +120,6 @@ export const csvFields: { key: string; label: string }[] = [
   { key: 'billing_period', label: 'Период' },
   { key: 'category_name', label: 'Раздел' },
   { key: 'tags', label: 'Теги' },
+  { key: 'status', label: 'Статус' },
+  { key: 'notify_before_days', label: 'Напомнить за (дней)' },
 ]

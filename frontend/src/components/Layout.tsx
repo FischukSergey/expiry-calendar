@@ -72,7 +72,7 @@ export function Layout() {
         </NavLink>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col pb-[calc(4.25rem+env(safe-area-inset-bottom))] lg:pb-0">
+      <div className="flex min-w-0 flex-1 flex-col pb-[calc(5.25rem+env(safe-area-inset-bottom))] lg:pb-0">
         <InstallBanner />
         <header className="flex items-center justify-between border-b border-slate-800 px-4 py-3 lg:hidden">
           <span className="text-sm font-semibold tracking-wide">Duekeep</span>
@@ -90,22 +90,22 @@ export function Layout() {
         </main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-5 border-t border-slate-800 bg-slate-950/95 px-1 py-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-5 border-t border-slate-800 bg-slate-950/95 px-0.5 py-1.5 pb-[max(0.35rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden">
         {mobileTabs.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.to === '/'}
             className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 rounded-lg px-1 py-2 text-[11px] ${
+              `flex flex-col items-center justify-center gap-0.5 rounded-lg px-0.5 py-1.5 text-center text-sm leading-tight ${
                 isActive ? 'text-teal-300' : 'text-slate-400'
               }`
             }
           >
-            <span className="relative">
+            <span className="relative max-w-full whitespace-normal">
               {item.label}
               {item.badge && unreadTotal > 0 ? (
-                <span className="absolute -top-2 -right-3 rounded-full bg-teal-500 px-1 text-[9px] font-semibold text-slate-950">
+                <span className="absolute -top-2 -right-3 rounded-full bg-teal-500 px-1 text-[10px] font-semibold text-slate-950">
                   {unreadTotal > 9 ? '9+' : unreadTotal}
                 </span>
               ) : null}

@@ -26,6 +26,7 @@ const (
 	csvFieldTags      = "tags"
 	csvFieldID        = "id"
 	csvFieldStatus    = "status"
+	csvFieldNotify    = "notify_before_days"
 	csvAttrsPrefix    = "attrs."
 	csvPreviewMax     = 20
 	fieldMapping      = "mapping"
@@ -35,6 +36,7 @@ const (
 var csvMappedFields = []string{
 	csvFieldTitle, csvFieldKindSlug, csvFieldExpiresAt, csvFieldCost,
 	csvFieldCurrency, csvFieldVendor, csvFieldBilling, csvFieldCategory, csvFieldTags,
+	csvFieldStatus, csvFieldNotify,
 }
 
 // NormalizeCSVMapping проверяет ключи: поля записи и attrs.*. Значения — имена колонок CSV.
@@ -325,17 +327,54 @@ func (s *Item) rowToItem(
 	prev.Attrs = attrs
 
 	tags := splitCSVTags(cell(csvFieldTags))
+	days, notifyOff, err := ParseCSVNotify(cell(csvFieldNotify), mappingHas(mapping, csvFieldNotify))
+	if err != nil {
+		return model.Item{}, prev, "invalid notify_before_days"
+	}
+	var notify *int
+	if !notifyOff {
+		notify = model.Ptr(days)
+	}
 	it := model.Item{
 		Title: title, KindID: kind.ID, CategoryID: categoryID,
 		Vendor: cell(csvFieldVendor), Tags: tags, CostAmount: cost,
 		Currency: cell(csvFieldCurrency), BillingPeriod: cell(csvFieldBilling),
-		ExpiresAt: expires, NotifyBeforeDays: model.DefaultNotifyDays, Attrs: attrs,
+		ExpiresAt: expires, NotifyBeforeDays: notify, Attrs: attrs,
+		Status: cell(csvFieldStatus),
 	}
 	prepared, err := s.prepareWrite(ctx, it, actorID)
 	if err != nil {
 		return model.Item{}, prev, csvRowMessage(err)
 	}
 	return prepared, prev, ""
+}
+
+func mappingHas(mapping map[string]string, field string) bool {
+	_, ok := mapping[field]
+	return ok
+}
+
+// ParseCSVNotify читает колонку дней. mapped=false — дефолт 30; пусто/off/- → off=true.
+func ParseCSVNotify(raw string, mapped bool) (days int, off bool, err error) {
+	if !mapped {
+		return model.DefaultNotifyDays, false, nil
+	}
+	raw = strings.TrimSpace(raw)
+	if csvNotifyOff(raw) {
+		return 0, true, nil
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, false, err
+	}
+	if n < 0 {
+		return 0, false, strconv.ErrRange
+	}
+	return n, false, nil
+}
+
+func csvNotifyOff(raw string) bool {
+	return raw == "" || strings.EqualFold(raw, "off") || raw == "-"
 }
 
 func csvRowMessage(err error) string {
@@ -421,7 +460,7 @@ func writeItemsCSV(
 	header := make([]string, 0, 11+len(attrKeys))
 	header = append(header,
 		csvFieldID, csvFieldTitle, csvFieldKindSlug, csvFieldStatus, csvFieldExpiresAt,
-		csvFieldCost, csvFieldCurrency, csvFieldVendor, csvFieldBilling, csvFieldCategory, csvFieldTags,
+		csvFieldNotify, csvFieldCost, csvFieldCurrency, csvFieldVendor, csvFieldBilling, csvFieldCategory, csvFieldTags,
 	)
 	for _, key := range attrKeys {
 		header = append(header, csvAttrsPrefix+key)
@@ -444,6 +483,7 @@ func writeItemsCSV(
 		}
 		rec := []string{
 			it.ID, it.Title, kindSlug, it.Status, it.ExpiresAt,
+			formatCSVNotify(it.NotifyBeforeDays),
 			strconv.Itoa(it.CostAmount), it.Currency, it.Vendor, it.BillingPeriod,
 			catName, strings.Join(it.Tags, ","),
 		}
@@ -459,6 +499,13 @@ func writeItemsCSV(
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+func formatCSVNotify(days *int) string {
+	if days == nil {
+		return ""
+	}
+	return strconv.Itoa(*days)
 }
 
 func formatCSVAttr(v any) string {

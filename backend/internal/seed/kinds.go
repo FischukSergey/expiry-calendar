@@ -105,6 +105,16 @@ var kindSeeds = []kindSeed{
 		},
 	},
 	{
+		id:    "33333333-3333-3333-3333-333333333310",
+		slug:  slugMobile,
+		name:  "Мобильная связь",
+		color: "#0EA5E9",
+		attrSchema: []attrField{
+			field(attrPhone, "Номер телефона", "string"),
+			field(attrOperator, "Оператор", "string"),
+		},
+	},
+	{
 		id:         "33333333-3333-3333-3333-333333333309",
 		slug:       slugOther,
 		name:       "Прочее",

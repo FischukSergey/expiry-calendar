@@ -4,48 +4,48 @@
 
 ## 1) Схема
 
-- [ ] Миграция: `status` CHECK включает `paid`.
-- [ ] `notify_before_days` допускает `NULL` («не уведомлять»). `0` = в день срока.
-- [ ] Старые строки без `NULL` и без авто-`paid`.
+- [x] Миграция: `status` CHECK включает `paid`. (`012_paid_notify.sql`)
+- [x] `notify_before_days` допускает `NULL` («не уведомлять»). `0` = в день срока.
+- [x] Старые строки без `NULL` и без авто-`paid`. (только DROP NOT NULL, данные не трогаем)
 
 ## 2) Статус «Оплачено»
 
-- [ ] Константа `paid`, бейдж «Оплачено», фильтр списка.
-- [ ] Форма / PATCH / bulk: можно выставить `paid`; тикер `paid` не пересчитывает и не создаёт notification (предоплата).
-- [ ] Текущее вхождение `paid` не в «сгорит» / графике / календаре; следующие циклы monthly/yearly — да (не как полное исключение `cancelled`).
-- [ ] `renew` с `paid` разрешён; после смены даты статус снова считает тикер.
+- [x] Константа `paid`, бейдж «Оплачено», фильтр списка.
+- [x] Форма / PATCH / bulk: можно выставить `paid`; тикер `paid` не пересчитывает и не создаёт notification (предоплата).
+- [x] Текущее вхождение `paid` не в «сгорит» / графике / календаре; следующие циклы monthly/yearly — да (не как полное исключение `cancelled`).
+- [x] `renew` с `paid` разрешён; после смены даты статус снова считает тикер.
 
 ## 3) Тип «Мобильная связь»
 
-- [ ] Seed / `EnsureKinds`: slug `mobile`, name «Мобильная связь», стабильный UUID, ON CONFLICT по slug.
-- [ ] `CheckCatalog` / `requiredKindSlugs` — 10 типов, включая `mobile`.
-- [ ] В селекте формы записи тип есть. Экрана и кнопки «добавить тип» нет.
+- [x] Seed / `EnsureKinds`: slug `mobile`, name «Мобильная связь», стабильный UUID, ON CONFLICT по slug.
+- [x] `CheckCatalog` / `requiredKindSlugs` — 10 типов, включая `mobile`.
+- [x] В селекте формы записи тип есть. Экрана и кнопки «добавить тип» нет.
 
 ## 4) Не уведомлять
 
-- [ ] JSON `notify_before_days: null`; форма — чекбокс, поле дней выключается.
-- [ ] Тикер: нет notification / SSE / push; нет перехода в `expiring`.
-- [ ] CSV: пусто или `off` → `null`.
+- [x] JSON `notify_before_days: null`; форма — чекбокс, поле дней выключается.
+- [x] Тикер: нет notification / SSE / push; нет перехода в `expiring`.
+- [x] CSV: пусто или `off` → `null`.
 
 ## 5) Обзор и календарь: периоды
 
-- [ ] `expirations_by_month` и `GET /calendar` разворачивают `monthly` / `yearly` от якоря `expires_at` (clamp 29–31).
-- [ ] `one_time` без изменений. `upcoming_cost` как Sprint 4 (run-rate).
-- [ ] `paid`: текущее вхождение (`expires_at`) не в графике/календаре/«сгорит»; следующие циклы — да.
-- [ ] Тест: monthly виден не только в месяце `expires_at`; `paid` прячет текущий день.
+- [x] `expirations_by_month` и `GET /calendar` разворачивают `monthly` / `yearly` от якоря `expires_at` (clamp 29–31).
+- [x] `one_time` без изменений. `upcoming_cost` как Sprint 4 (run-rate).
+- [x] `paid`: текущее вхождение (`expires_at`) не в графике/календаре/«сгорит»; следующие циклы — да.
+- [x] Тест: monthly виден не только в месяце `expires_at`; `paid` прячет текущий день.
 
 ## 6) Лента PWA
 
-- [ ] Нижний `nav` (`Layout`, `lg:hidden`): шрифт подписей крупнее `11px` (ориентир `text-sm`).
-- [ ] Пять вкладок и safe-area: текст не обрезан. Десктопное меню без обязательных правок.
+- [x] Нижний `nav` (`Layout`, `lg:hidden`): шрифт подписей крупнее `11px` (ориентир `text-sm`).
+- [x] Пять вкладок и safe-area: текст не обрезан. Десктопное меню без обязательных правок.
 
 ## 7) Спека и тесты
 
-- [ ] [`api-sprint-9.md`](api-sprint-9.md) и `backend/openapi.yaml`.
-- [ ] Тесты: `paid` + тикер (статус и нет notification); `null` notify + тикер; create/PATCH; seed содержит `mobile`; развёртка monthly.
+- [x] [`api-sprint-9.md`](api-sprint-9.md) и `backend/openapi.yaml`.
+- [x] Тесты: `paid` + тикер (статус и нет notification); `null` notify + тикер; create/PATCH; seed содержит `mobile`; развёртка monthly.
 
 ## 8) DoD
 
-- [ ] [`known-limitations-sprint-9.md`](known-limitations-sprint-9.md) заполнен.
-- [ ] Демо плана §7 пройдено.
-- [ ] `task lint` и `task test` зелёные.
+- [x] [`known-limitations-sprint-9.md`](known-limitations-sprint-9.md) заполнен.
+- [x] Демо плана §7: API на локальном compose (kinds=10/`mobile`, create `paid` и `notify=null`, monthly на календаре соседнего месяца, колокольчик без Sprint9). Ленту PWA в браузере не кликали — в бандле есть `text-sm leading-tight`, «Оплачено», «Не уведомлять».
+- [x] `task lint` и `task test` зелёные.

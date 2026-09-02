@@ -29,7 +29,7 @@ type EventBus interface {
 	Notify(n model.Notification)
 }
 
-// Ticker пересчитывает статусы по Clock.Today. cancelled/archived не трогает.
+// Ticker пересчитывает статусы по Clock.Today. cancelled/archived/paid не трогает.
 type Ticker struct {
 	items TickItemStore
 	notes NotificationStore
@@ -53,6 +53,9 @@ func (t *Ticker) Tick(ctx context.Context) error {
 	today := clock.Today(t.clk)
 	now := t.clk.Now().UTC()
 	for _, it := range items {
+		if it.Status == model.StatusPaid {
+			continue
+		}
 		expires, err := parseDate(fieldExpiresAt, it.ExpiresAt)
 		if err != nil {
 			return err
@@ -71,6 +74,9 @@ func (t *Ticker) Tick(ctx context.Context) error {
 					return nil
 				}
 				return err
+			}
+			if item.NotifyBeforeDays == nil {
+				return nil
 			}
 			if status != model.StatusExpiring && status != model.StatusExpired {
 				return nil

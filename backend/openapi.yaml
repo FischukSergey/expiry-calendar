@@ -504,7 +504,7 @@ paths:
           name: status
           schema:
             type: string
-            enum: [active, expiring, expired, cancelled, archived]
+            enum: [active, expiring, expired, cancelled, archived, paid]
         - in: query
           name: category_id
           schema: { type: string, format: uuid }
@@ -611,7 +611,7 @@ paths:
           name: status
           schema:
             type: string
-            enum: [active, expiring, expired, cancelled, archived]
+            enum: [active, expiring, expired, cancelled, archived, paid]
         - in: query
           name: category_id
           schema: { type: string, format: uuid }
@@ -1246,13 +1246,14 @@ components:
         notify_before_days:
           type: integer
           minimum: 0
+          nullable: true
         url:
           type: string
         account_hint:
           type: string
         status:
           type: string
-          enum: [active, expiring, expired, cancelled, archived]
+          enum: [active, expiring, expired, cancelled, archived, paid]
         attrs:
           type: object
           additionalProperties: true
@@ -1325,6 +1326,8 @@ components:
           format: date
         notify_before_days:
           type: integer
+          minimum: 0
+          nullable: true
           default: 30
         url:
           type: string
@@ -1332,7 +1335,7 @@ components:
           type: string
         status:
           type: string
-          enum: [cancelled, archived]
+          enum: [cancelled, archived, paid]
           description: Остальные статусы считает сервер
         attrs:
           type: object
@@ -1373,13 +1376,15 @@ components:
           format: date
         notify_before_days:
           type: integer
+          minimum: 0
+          nullable: true
         url:
           type: string
         account_hint:
           type: string
         status:
           type: string
-          enum: [cancelled, archived]
+          enum: [cancelled, archived, paid]
         attrs:
           type: object
           additionalProperties: true
@@ -1409,7 +1414,7 @@ components:
           format: uuid
         status:
           type: string
-          enum: [cancelled, archived]
+          enum: [cancelled, archived, paid]
     BulkResult:
       type: object
       required: [updated]

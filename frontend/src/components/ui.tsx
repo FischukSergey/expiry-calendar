@@ -81,6 +81,7 @@ const statusClass: Record<Status, string> = {
   expired: 'bg-rose-500/15 text-rose-300',
   cancelled: 'bg-slate-500/20 text-slate-300',
   archived: 'bg-zinc-500/20 text-zinc-300',
+  paid: 'bg-sky-500/15 text-sky-300',
 }
 
 export function StatusBadge({ status }: { status: Status }) {

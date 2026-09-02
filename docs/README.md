@@ -15,7 +15,8 @@
 | 7 | Свои данные (прод, без org) | [plan](sprint-7-plan.md) | [api](api-sprint-7.md) | [checklist](sprint-7-checklist.md) | [limitations](known-limitations-sprint-7.md) |
 | 8 | CD на VPS | [plan](sprint-8-plan.md) | [api](api-sprint-8.md) | [checklist](sprint-8-checklist.md) | [limitations](known-limitations-sprint-8.md) |
 | 9 | Оплачено, «мобильная связь», «не уведомлять», лента PWA | [plan](sprint-9-plan.md) | [api](api-sprint-9.md) | [checklist](sprint-9-checklist.md) | [limitations](known-limitations-sprint-9.md) |
+| 10 | Оплата вхождения (календарь) | [plan](sprint-10-plan.md) | [api](api-sprint-10.md) | [checklist](sprint-10-checklist.md) | [limitations](known-limitations-sprint-10.md) |
 
 Правило: новый handler не меняет контракт спринта без правки `api-sprint-N.md`.
 
-Спринты 1–7 закрыты по чеклистам (v1 + свои данные). Sprint 8 — CD на VPS. Sprint 9 — продукт (оплачено / тип mobile / notify off / лента).
+Спринты 1–7 закрыты по чеклистам (v1 + свои данные). Sprint 8 — CD на VPS. Sprint 9 — продукт (оплачено / тип mobile / notify off / лента). Sprint 10 — документы; код не начинать, пока пользователь не попросил.

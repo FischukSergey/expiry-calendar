@@ -74,7 +74,7 @@ bash init-ssl.sh             # боевой сертификат
 docker compose -f deploy/prod/docker-compose.prod.yml --env-file .env up -d --build
 ```
 
-`.env` и том Postgres не трогает. После подъёма ждёт HTTP 200 на `https://duekeep.ru/healthz` (таймаут 600 с). Повтор на том же SHA безопасен.
+`.env` и том Postgres не трогает. После подъёма ждёт HTTP 200 на `https://duekeep.ru/healthz` (таймаут 600 с). При 200 — `docker image prune -f` и `docker builder prune -f` (только dangling / неиспользуемый кэш, не `-a`, не тома). Ошибка prune не валит выкладку. Повтор на том же SHA безопасен.
 
 Вручную с ноутбука:
 

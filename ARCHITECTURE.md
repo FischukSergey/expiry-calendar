@@ -234,6 +234,16 @@ renewals
   comment         TEXT NOT NULL DEFAULT ''
   created_at      TIMESTAMPTZ NOT NULL
 
+item_payments
+  id          UUID PK
+  item_id     UUID NOT NULL REFERENCES items(id) ON DELETE CASCADE
+  owner_id    UUID NOT NULL REFERENCES users(id)
+  paid_on     DATE NOT NULL
+  amount      INT NOT NULL
+  currency    CHAR(3) NOT NULL
+  created_at  TIMESTAMPTZ NOT NULL
+  UNIQUE (item_id, paid_on)
+
 notifications
   id              UUID PK
   item_id         UUID NOT NULL REFERENCES items(id) ON DELETE CASCADE
@@ -421,11 +431,13 @@ Swagger: `bearerAuth`. Login → скопировать access в Authorize. Ref
 | GET/POST | `/items` | read / admin | список (фильтры ниже) и создание |
 | GET/PATCH/DELETE | `/items/{id}` | read / admin | карточка |
 | POST | `/items/{id}/renew` | admin | продление |
+| POST | `/items/{id}/payments` | admin | отметить оплату вхождения (`date`) |
+| DELETE | `/items/{id}/payments?date=` | admin | снять оплату вхождения |
 | POST | `/items/bulk` | admin | `{ ids, category_id?, status? }` |
 | GET | `/items/export` | auth | CSV текущего фильтра |
 | POST | `/items/import` | admin | CSV: preview `?dry_run=true`, затем запись |
 | GET | `/dashboard` | auth | KPI + series для графиков |
-| GET | `/calendar?year=&month=` | auth | дни → краткие items |
+| GET | `/calendar?year=&month=` | auth | дни → items + сумма и `occurrence_status` |
 | GET | `/notifications` | auth | лента |
 | POST | `/notifications/{id}/read` | auth | прочитано |
 | POST | `/notifications/read-all` | auth | всё прочитано |
@@ -628,6 +640,7 @@ CI (GitHub Actions):
 | [7](docs/sprint-7-plan.md) | После v1: свои данные (`owner_id`), без org и viewer | |
 | [8](docs/sprint-8-plan.md) | CD на VPS: Actions → SSH → compose --build | |
 | [9](docs/sprint-9-plan.md) | `paid`, kind `mobile`, `notify_before_days: null`, крупнее лента PWA | |
+| [10](docs/sprint-10-plan.md) | оплата вхождения: `item_payments`, календарь / карточка / soonest | |
 
 Правило: handler не меняет контракт спринта без правки `docs/api-sprint-N.md`.
 

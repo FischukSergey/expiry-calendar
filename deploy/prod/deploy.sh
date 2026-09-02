@@ -2,6 +2,7 @@
 # Выкладка прода на этой машине: fetch + checkout SHA, compose --build, healthz.
 # Не читает и не перезаписывает .env, не трогает тома Postgres.
 # Повтор на том же SHA безопасен (пересборка, стек остаётся).
+# После healthz 200 — dangling-образы и неиспользуемый build cache (не -a, не тома).
 #
 #   ./deploy/prod/deploy.sh              # origin/main
 #   ./deploy/prod/deploy.sh <sha|ref>
@@ -18,6 +19,18 @@ HEALTH_URL="${HEALTH_URL:-https://duekeep.ru/healthz}"
 # Сборка Go+Node на 2 ГБ RAM может занять несколько минут.
 HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-600}"
 HEALTH_INTERVAL=5
+
+# Только после живого стека. Не -a / не system prune / не volume: текущие теги и том БД остаются.
+# Ошибка prune не валит выкладку: сайт уже отвечает.
+prune_build_leftovers() {
+  echo "==> prune dangling images и неиспользуемый build cache"
+  if ! docker image prune -f; then
+    echo "image prune не удался (стек уже живой)" >&2
+  fi
+  if ! docker builder prune -f; then
+    echo "builder prune не удался (стек уже живой)" >&2
+  fi
+}
 
 if [[ ! "${REF}" =~ ^[a-zA-Z0-9._/-]+$ ]]; then
   echo "недопустимый ref: ${REF}" >&2
@@ -65,6 +78,7 @@ while ((SECONDS < deadline)); do
   code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "${HEALTH_URL}" || true)"
   if [[ "${code}" == "200" ]]; then
     echo "healthz 200, SHA ${SHA}"
+    prune_build_leftovers
     exit 0
   fi
   sleep "${HEALTH_INTERVAL}"

@@ -2,6 +2,18 @@
 
 Журнал создания Duekeep. Записи добавляются по ходу работы, не в конце.
 
+## 2026-09-02 — Sprint 10 (документы, без кода)
+
+- Вариант 3: разреженная `item_payments` (факт оплаты даты), не полная серия в БД.
+- Календарь: сумма + `occurrence_status`; «Оплачено» не ставит `items.status`. Карточка и soonest — та же оплата ближайшего open.
+- Форма «Оплачено» остаётся заморозкой записи (Sprint 9).
+- Добавлены `docs/sprint-10-*.md`, строки в индексе, ARCHITECTURE, FUNCTIONAL. Код — после явной просьбы.
+
+## 2026-09-02 — деплой: prune после healthz
+
+- `deploy.sh`: после `healthz` 200 — `docker image prune -f` и `docker builder prune -f`. Не `-a`, не тома. Сбой prune не меняет exit 0.
+- Документы: `deploy/README.md`, `known-limitations-sprint-8.md`.
+
 ## 2026-09-02 — Sprint 9, код
 
 - Миграция `012_paid_notify.sql`: `status` + `paid`, `notify_before_days` NULL.

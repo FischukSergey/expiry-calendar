@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { ApiError } from '../api/client.ts'
-import { deleteItem, getItem, listCategories, listKinds, renewItem } from '../api/endpoints.ts'
+import { deleteItem, getItem, listCategories, listKinds, payItemOccurrence, renewItem } from '../api/endpoints.ts'
 import { Button, ErrorBanner, Field, PageState, PageTitle, StatusBadge, TextInput } from '../components/ui.tsx'
 import { useAuth } from '../hooks/useAuth.ts'
 import { billingLabel, findCategoryName, formatDate, formatDateTime, formatMoney } from '../lib/format.ts'
@@ -14,6 +14,7 @@ export function ItemCardPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [renewError, setRenewError] = useState<string | null>(null)
+  const [payError, setPayError] = useState<string | null>(null)
   const [expires, setExpires] = useState('')
   const [cost, setCost] = useState('')
   const [comment, setComment] = useState('')
@@ -27,6 +28,19 @@ export function ItemCardPage() {
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['items'] })
       navigate('/items')
+    },
+  })
+
+  const payOpen = useMutation({
+    mutationFn: (date: string) => payItemOccurrence(id, date),
+    onSuccess: async () => {
+      setPayError(null)
+      await qc.invalidateQueries({ queryKey: ['item', id] })
+      await qc.invalidateQueries({ queryKey: ['dashboard'] })
+      await qc.invalidateQueries({ queryKey: ['calendar'] })
+    },
+    onError: (err) => {
+      setPayError(err instanceof ApiError ? err.message : 'Не удалось отметить оплату')
     },
   })
 
@@ -100,9 +114,19 @@ export function ItemCardPage() {
         }
       />
 
-      <div className="mb-4">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <StatusBadge status={it.status} />
+        {isAdmin && card.data.next_open_at ? (
+          <Button
+            type="button"
+            disabled={payOpen.isPending}
+            onClick={() => payOpen.mutate(card.data.next_open_at as string)}
+          >
+            Оплатить {formatDate(card.data.next_open_at)}
+          </Button>
+        ) : null}
       </div>
+      {payError ? <ErrorBanner message={payError} /> : null}
 
       <dl className="grid gap-3 rounded-xl border border-slate-800 bg-slate-900/40 p-4 sm:grid-cols-2">
         {rows.map((row) => (

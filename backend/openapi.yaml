@@ -770,6 +770,58 @@ paths:
           $ref: "#/components/responses/NotFound"
         "422":
           $ref: "#/components/responses/Unprocessable"
+  /api/v1/items/{id}/payments:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [Items]
+      summary: Отметить оплату вхождения (admin)
+      operationId: payItemOccurrence
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemPaymentWrite"
+      responses:
+        "201":
+          description: Новая отметка
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemPayment"
+        "200":
+          description: Повтор на ту же дату — та же строка
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemPayment"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+    delete:
+      tags: [Items]
+      summary: Снять оплату вхождения (admin)
+      operationId: unpayItemOccurrence
+      parameters:
+        - in: query
+          name: date
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "204":
+          description: Снято или строки не было
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
   /api/v1/audit:
     get:
       tags: [Audit]
@@ -1279,7 +1331,7 @@ components:
           type: integer
     ItemCard:
       type: object
-      required: [item, renewals]
+      required: [item, renewals, next_open_at]
       properties:
         item:
           $ref: "#/components/schemas/Item"
@@ -1287,6 +1339,35 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Renewal"
+        next_open_at:
+          type: string
+          format: date
+          nullable: true
+          description: Ближайшее open-вхождение; null при заморозке paid или если open нет
+    ItemPaymentWrite:
+      type: object
+      required: [date]
+      properties:
+        date:
+          type: string
+          format: date
+    ItemPayment:
+      type: object
+      required: [id, item_id, date, amount, currency]
+      properties:
+        id:
+          type: string
+          format: uuid
+        item_id:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date
+        amount:
+          type: integer
+        currency:
+          type: string
     ItemWrite:
       type: object
       required: [title, kind_id, expires_at]
@@ -1687,7 +1768,7 @@ components:
             $ref: "#/components/schemas/CalendarItem"
     CalendarItem:
       type: object
-      required: [id, title, status]
+      required: [id, title, status, occurrence_status, cost_amount, currency]
       properties:
         id:
           type: string
@@ -1695,6 +1776,14 @@ components:
         title:
           type: string
         status:
+          type: string
+          description: Статус записи
+        occurrence_status:
+          type: string
+          enum: [open, paid]
+        cost_amount:
+          type: integer
+        currency:
           type: string
 security:
   - bearerAuth: []

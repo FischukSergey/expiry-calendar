@@ -40,12 +40,12 @@ func TestDashboardTwoCurrenciesAndSkipsCancelled(t *testing.T) {
 		},
 		{
 			ID: "b", OwnerID: owner, Title: "SaaS", KindID: "k2", Status: model.StatusExpiring,
-			ExpiresAt: "2026-08-28", CostAmount: 120, Currency: "USD",
+			ExpiresAt: expiresAug28, CostAmount: 120, Currency: "USD",
 			BillingPeriod: model.BillingYearly,
 		},
 		{
 			ID: "c", OwnerID: owner, Title: "Отмена", KindID: "k1", Status: model.StatusCancelled,
-			ExpiresAt: "2026-08-27", CostAmount: 999, Currency: model.CurrencyRUB,
+			ExpiresAt: expiresAug27, CostAmount: 999, Currency: model.CurrencyRUB,
 			BillingPeriod: model.BillingMonthly,
 		},
 		{
@@ -150,12 +150,12 @@ func TestDashboardMonthlyExpansionAndPaid(t *testing.T) {
 		},
 		{
 			ID: "paid", OwnerID: owner, Title: "Офис", KindID: "k1", Status: model.StatusPaid,
-			ExpiresAt: "2026-08-28", CostAmount: 10000, Currency: model.CurrencyRUB,
+			ExpiresAt: expiresAug28, CostAmount: 10000, Currency: model.CurrencyRUB,
 			BillingPeriod: model.BillingMonthly,
 		},
 		{
 			ID: "once", OwnerID: owner, Title: "Разово", KindID: "k2", Status: model.StatusPaid,
-			ExpiresAt: "2026-08-27", CostAmount: 50, Currency: model.CurrencyRUB,
+			ExpiresAt: expiresAug27, CostAmount: 50, Currency: model.CurrencyRUB,
 			BillingPeriod: model.BillingOneTime,
 		},
 	}}
@@ -186,7 +186,7 @@ func TestDashboardMonthlyExpansionAndPaid(t *testing.T) {
 		}
 		if row.ID == "far" {
 			foundFar = true
-			if row.ExpiresAt != "2026-09-15" {
+			if row.ExpiresAt != expiresSep15 {
 				t.Fatalf("far date %s", row.ExpiresAt)
 			}
 		}
@@ -206,8 +206,17 @@ func TestDashboardMonthlyExpansionAndPaid(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(aug.Days) != 1 || aug.Days[0].Date != "2026-08-15" {
-		t.Fatalf("aug cal %+v", aug.Days)
+	if len(aug.Days) != 3 {
+		t.Fatalf("aug cal days %+v", aug.Days)
+	}
+	if aug.Days[0].Date != "2026-08-15" || aug.Days[0].Items[0].OccurrenceStatus != model.OccurrenceOpen {
+		t.Fatalf("aug far %+v", aug.Days[0])
+	}
+	if aug.Days[1].Date != expiresAug27 || aug.Days[1].Items[0].OccurrenceStatus != model.OccurrencePaid {
+		t.Fatalf("aug one_time paid %+v", aug.Days[1])
+	}
+	if aug.Days[2].Date != expiresAug28 || aug.Days[2].Items[0].OccurrenceStatus != model.OccurrencePaid {
+		t.Fatalf("aug paid freeze %+v", aug.Days[2])
 	}
 
 	clampStore := &overviewItems{rows: []model.Item{

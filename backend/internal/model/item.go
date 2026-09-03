@@ -40,8 +40,13 @@ const (
 	AuditUpdate     = "update"
 	AuditDelete     = "delete"
 	AuditRenew      = "renew"
+	AuditPay        = "pay"
+	AuditUnpay      = "unpay"
 	AuditBulk       = "bulk"
 	AuditImport     = "import"
+
+	OccurrenceOpen = "open"
+	OccurrencePaid = "paid"
 
 	// MaxCSVExport — потолок GET /items/export (без пагинации списка).
 	MaxCSVExport = 10_000
@@ -86,10 +91,22 @@ type ItemList struct {
 	Total   int    `json:"total"`
 }
 
-// ItemCard — GET /items/{id}.
+// ItemCard — GET /items/{id}. NextOpenAt — ближайшее open-вхождение или null.
 type ItemCard struct {
-	Item     Item      `json:"item"`
-	Renewals []Renewal `json:"renewals"`
+	Item       Item      `json:"item"`
+	Renewals   []Renewal `json:"renewals"`
+	NextOpenAt *string   `json:"next_open_at"`
+}
+
+// ItemPayment — отметка оплаты вхождения (item_id, date).
+type ItemPayment struct {
+	ID        string    `json:"id"`
+	ItemID    string    `json:"item_id"`
+	OwnerID   string    `json:"-"`
+	Date      string    `json:"date"`
+	Amount    int       `json:"amount"`
+	Currency  string    `json:"currency"`
+	CreatedAt time.Time `json:"-"`
 }
 
 // ItemFilter — query GET /items. CategoryIDs заполняет service (узел + потомки).

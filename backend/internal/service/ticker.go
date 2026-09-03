@@ -33,6 +33,7 @@ type EventBus interface {
 type Ticker struct {
 	items TickItemStore
 	notes NotificationStore
+	pays  PaymentStore
 	tx    TxFunc
 	clk   clock.Clock
 	bus   EventBus
@@ -41,6 +42,11 @@ type Ticker struct {
 // NewTicker собирает тикер. Run только в cmd/server; тесты зовут Tick.
 func NewTicker(items TickItemStore, notes NotificationStore, tx TxFunc, clk clock.Clock, bus EventBus) *Ticker {
 	return &Ticker{items: items, notes: notes, tx: tx, clk: clk, bus: bus}
+}
+
+// SetPayments включает overlay дат: порог expiring/expired от ближайшего open.
+func (t *Ticker) SetPayments(pays PaymentStore) {
+	t.pays = pays
 }
 
 // Tick один проход: тот же StatusAtWrite, что при записи. Уведомление — только
@@ -52,15 +58,24 @@ func (t *Ticker) Tick(ctx context.Context) error {
 	}
 	today := clock.Today(t.clk)
 	now := t.clk.Now().UTC()
+	paidIdx, err := t.paymentsByItems(ctx, items)
+	if err != nil {
+		return err
+	}
 	for _, it := range items {
 		if it.Status == model.StatusPaid {
 			continue
 		}
-		expires, err := parseDate(fieldExpiresAt, it.ExpiresAt)
+		due, ok, err := nextUnpaidOccurrence(it, today, paidDateSet(paidIdx[it.ID]))
 		if err != nil {
 			return err
 		}
-		next := StatusAtWrite(today, expires, it.NotifyBeforeDays, "")
+		var next string
+		if !ok {
+			next = model.StatusActive
+		} else {
+			next = StatusAtWrite(today, due, it.NotifyBeforeDays, "")
+		}
 		if next == it.Status {
 			continue
 		}
@@ -99,6 +114,21 @@ func (t *Ticker) Tick(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func (t *Ticker) paymentsByItems(ctx context.Context, items []model.Item) (map[string]map[string]model.ItemPayment, error) {
+	if t.pays == nil || len(items) == 0 {
+		return map[string]map[string]model.ItemPayment{}, nil
+	}
+	ids := make([]string, 0, len(items))
+	for _, it := range items {
+		ids = append(ids, it.ID)
+	}
+	rows, err := t.pays.ListByItemIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	return paidDatesByItem(rows), nil
 }
 
 // Run сразу Tick, затем каждые every. every ≤ 0 — только выход (тесты/выкл).

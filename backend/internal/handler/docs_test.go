@@ -69,6 +69,7 @@ func TestOpenAPISpec(t *testing.T) {
 		"/api/v1/auth/logout", "/api/v1/auth/logout-all", "/api/v1/me",
 		"/api/v1/kinds", "/api/v1/categories",
 		"/api/v1/items", pathItemsBulk, "/api/v1/items/export", "/api/v1/items/import",
+		"/api/v1/items/{id}/payments",
 		"/api/v1/notifications", "/api/v1/events",
 		"/api/v1/push/vapid-public", "/api/v1/push/subscribe",
 		"/api/v1/dashboard", "/api/v1/calendar", "/api/v1/audit",

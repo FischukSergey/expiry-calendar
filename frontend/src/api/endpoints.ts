@@ -10,6 +10,7 @@ import type {
   ItemCard,
   ItemFilter,
   ItemList,
+  ItemPayment,
   ItemWrite,
   Kind,
   NotificationList,
@@ -95,6 +96,14 @@ export function renewItem(
   body: { new_expires_at: string; new_cost?: number; comment?: string },
 ): Promise<Item> {
   return api<Item>(`/api/v1/items/${id}/renew`, { method: 'POST', body })
+}
+
+export function payItemOccurrence(id: string, date: string): Promise<ItemPayment> {
+  return api<ItemPayment>(`/api/v1/items/${id}/payments`, { method: 'POST', body: { date } })
+}
+
+export function unpayItemOccurrence(id: string, date: string): Promise<void> {
+  return api<void>(`/api/v1/items/${id}/payments`, { method: 'DELETE', query: { date } })
 }
 
 export function exportItems(filter: Omit<ItemFilter, 'page' | 'per_page'>): Promise<Blob> {

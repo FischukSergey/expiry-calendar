@@ -66,6 +66,12 @@ func (nopItems) ListAudit(context.Context, model.Page, string) (model.AuditList,
 	return model.AuditList{Items: []model.AuditEntry{}}, nil
 }
 
+func (nopItems) Pay(context.Context, string, string, string) (model.ItemPayment, bool, error) {
+	return model.ItemPayment{}, false, model.ErrForbidden
+}
+
+func (nopItems) Unpay(context.Context, string, string, string) error { return model.ErrForbidden }
+
 func (nopItems) Export(context.Context, model.ItemFilter, string) ([]byte, error) {
 	return []byte("id,title\n"), nil
 }

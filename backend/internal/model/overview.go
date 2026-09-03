@@ -66,9 +66,12 @@ type CalendarDay struct {
 	Items []CalendarItem `json:"items"`
 }
 
-// CalendarItem — точка на дне календаря.
+// CalendarItem — точка на дне календаря. Status — запись; OccurrenceStatus — этот день.
 type CalendarItem struct {
-	ID     string `json:"id"`
-	Title  string `json:"title"`
-	Status string `json:"status"`
+	ID               string `json:"id"`
+	Title            string `json:"title"`
+	Status           string `json:"status"`
+	OccurrenceStatus string `json:"occurrence_status"`
+	CostAmount       int    `json:"cost_amount"`
+	Currency         string `json:"currency"`
 }

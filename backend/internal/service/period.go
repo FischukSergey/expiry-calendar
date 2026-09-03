@@ -17,8 +17,41 @@ func skipPaidOccurrence(it model.Item, expires, day time.Time) bool {
 	return it.Status == model.StatusPaid && !day.After(expires)
 }
 
-// occurrencesInRange — вхождения периода в [from, to). paid прячет текущий expires_at и более ранние.
-func occurrencesInRange(it model.Item, from, to time.Time) ([]time.Time, error) {
+func occurrencePaid(it model.Item, expires, day time.Time, paid map[string]struct{}) bool {
+	if skipPaidOccurrence(it, expires, day) {
+		return true
+	}
+	if paid == nil {
+		return false
+	}
+	_, ok := paid[day.Format(model.DateLayout)]
+	return ok
+}
+
+// isOccurrenceDate — день из ряда записи (якорь и clamp 29–31, как развёртка).
+func isOccurrenceDate(it model.Item, day time.Time) (bool, error) {
+	expires, err := parseDate(fieldExpiresAt, it.ExpiresAt)
+	if err != nil {
+		return false, err
+	}
+	day = clock.DateUTC(day.Day(), day.Month(), day.Year())
+	switch it.BillingPeriod {
+	case model.BillingMonthly:
+		return sameDay(clampDay(day.Year(), day.Month(), expires.Day()), day), nil
+	case model.BillingYearly:
+		return sameDay(clampDay(day.Year(), expires.Month(), expires.Day()), day), nil
+	default:
+		return sameDay(expires, day), nil
+	}
+}
+
+func sameDay(a, b time.Time) bool {
+	return a.Equal(b)
+}
+
+// occurrencesInRange — вхождения периода в [from, to).
+// openOnly: без заморозки paid и без дат из item_payments (обзор / «сгорит»).
+func occurrencesInRange(it model.Item, from, to time.Time, paid map[string]struct{}, openOnly bool) ([]time.Time, error) {
 	expires, err := parseDate(fieldExpiresAt, it.ExpiresAt)
 	if err != nil {
 		return nil, err
@@ -28,7 +61,7 @@ func occurrencesInRange(it model.Item, from, to time.Time) ([]time.Time, error) 
 		if d.Before(from) || !d.Before(to) {
 			return
 		}
-		if skipPaidOccurrence(it, expires, d) {
+		if openOnly && occurrencePaid(it, expires, d, paid) {
 			return
 		}
 		out = append(out, d)
@@ -50,8 +83,9 @@ func occurrencesInRange(it model.Item, from, to time.Time) ([]time.Time, error) 
 	return out, nil
 }
 
-// nextUnpaidOccurrence — ближайшее вхождение ≥ from, не скрытое paid. one_time в прошлом тоже возвращает дату.
-func nextUnpaidOccurrence(it model.Item, from time.Time) (time.Time, bool, error) {
+// nextUnpaidOccurrence — ближайшее вхождение ≥ from, не скрытое paid и не в item_payments.
+// one_time в прошлом тоже возвращает дату, если на неё нет платежа.
+func nextUnpaidOccurrence(it model.Item, from time.Time, paid map[string]struct{}) (time.Time, bool, error) {
 	expires, err := parseDate(fieldExpiresAt, it.ExpiresAt)
 	if err != nil {
 		return time.Time{}, false, err
@@ -61,7 +95,7 @@ func nextUnpaidOccurrence(it model.Item, from time.Time) (time.Time, bool, error
 		for i := range 24 {
 			probe := from.AddDate(0, i, 0)
 			d := clampDay(probe.Year(), probe.Month(), expires.Day())
-			if d.Before(from) || skipPaidOccurrence(it, expires, d) {
+			if d.Before(from) || occurrencePaid(it, expires, d, paid) {
 				continue
 			}
 			return d, true, nil
@@ -69,13 +103,13 @@ func nextUnpaidOccurrence(it model.Item, from time.Time) (time.Time, bool, error
 	case model.BillingYearly:
 		for i := range 6 {
 			d := clampDay(from.Year()+i, expires.Month(), expires.Day())
-			if d.Before(from) || skipPaidOccurrence(it, expires, d) {
+			if d.Before(from) || occurrencePaid(it, expires, d, paid) {
 				continue
 			}
 			return d, true, nil
 		}
 	default:
-		if skipPaidOccurrence(it, expires, expires) {
+		if occurrencePaid(it, expires, expires, paid) {
 			return time.Time{}, false, nil
 		}
 		return expires, true, nil

@@ -20,6 +20,10 @@ const (
 	otherOwner      = "other"
 	expiresSep      = "2026-09-01"
 	expiresSoon     = "2026-09-10"
+	expiresAug27    = "2026-08-27"
+	expiresAug28    = "2026-08-28"
+	expiresSep15    = "2026-09-15"
+	ownerOne        = "owner-1"
 )
 
 type tickItems struct {
@@ -116,7 +120,7 @@ func TestTickerMovesStatusAndNotifies(t *testing.T) {
 	notes := &tickNotes{}
 	today := time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC)
 	active := store.put(model.Item{
-		OwnerID: "owner-1", Title: itemTitleDomain, Status: model.StatusActive,
+		OwnerID: ownerOne, Title: itemTitleDomain, Status: model.StatusActive,
 		ExpiresAt: expiresSoon, NotifyBeforeDays: model.Ptr(30),
 	})
 	tkr := service.NewTicker(store, notes, nopTx, clock.Fixed{T: today}, nil)
@@ -126,7 +130,7 @@ func TestTickerMovesStatusAndNotifies(t *testing.T) {
 	if got := store.get(active.ID).Status; got != model.StatusExpiring {
 		t.Fatalf("status %s", got)
 	}
-	if len(notes.rows) != 1 || notes.rows[0].ToStatus != model.StatusExpiring || notes.rows[0].OwnerID != "owner-1" {
+	if len(notes.rows) != 1 || notes.rows[0].ToStatus != model.StatusExpiring || notes.rows[0].OwnerID != ownerOne {
 		t.Fatalf("notes %+v", notes.rows)
 	}
 	if err := tkr.Tick(t.Context()); err != nil {
@@ -270,6 +274,36 @@ func TestTickerNullNotifyNoExpiring(t *testing.T) {
 	tkr := service.NewTicker(store, notes, nopTx, clock.Fixed{
 		T: time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC),
 	}, nil)
+	if err := tkr.Tick(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if store.get(it.ID).Status != model.StatusActive {
+		t.Fatalf("status %s", store.get(it.ID).Status)
+	}
+	if len(notes.rows) != 0 {
+		t.Fatalf("notes %+v", notes.rows)
+	}
+}
+
+func TestTickerPaidOccurrenceNoExpiring(t *testing.T) {
+	t.Parallel()
+	store := newTickItems()
+	notes := &tickNotes{}
+	pays := newMemPayments()
+	it := store.put(model.Item{
+		OwnerID: ownerOne, Title: itemTitleDomain, Status: model.StatusActive,
+		ExpiresAt: expiresSoon, NotifyBeforeDays: model.Ptr(30),
+		BillingPeriod: model.BillingOneTime,
+	})
+	if _, _, err := pays.Insert(t.Context(), model.ItemPayment{
+		ItemID: it.ID, OwnerID: ownerOne, Date: expiresSoon, Amount: 1, Currency: model.CurrencyRUB,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	tkr := service.NewTicker(store, notes, nopTx, clock.Fixed{
+		T: time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC),
+	}, nil)
+	tkr.SetPayments(pays)
 	if err := tkr.Tick(t.Context()); err != nil {
 		t.Fatal(err)
 	}

@@ -220,6 +220,49 @@ func (a *API) deleteItem(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+type payBody struct {
+	Date string `json:"date"`
+}
+
+func (a *API) payItem(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	var body payBody
+	if err := decodeJSON(r, &body); err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "validation_error", "invalid json")
+		return
+	}
+	out, created, err := a.items.Pay(r.Context(), id, body.Date, middleware.UserID(r.Context()))
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	if created {
+		writeBytes(w, http.StatusCreated, out)
+		return
+	}
+	writeBytes(w, http.StatusOK, out)
+}
+
+func (a *API) unpayItem(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	date := r.URL.Query().Get("date")
+	if date == "" {
+		writeErrorDetails(w, http.StatusUnprocessableEntity, "validation_error", "date required", map[string]any{"date": "required"})
+		return
+	}
+	if err := a.items.Unpay(r.Context(), id, date, middleware.UserID(r.Context())); err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (a *API) renewItem(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathID(w, r)
 	if !ok {

@@ -15,7 +15,7 @@ description: >-
 
 - Спринты **1–6** — сдача `v1.0.0` (общий каталог). **Sprint 7 закрыт** (свои данные, seed off на prod).
 - Sprint 8 (CD) — по просьбе. **Sprint 9** — `paid`, kind `mobile`, `notify_before_days: null`, развёртка monthly/yearly, лента PWA.
-- Sprint 10 (оплата вхождения, календарь) — документы есть; код только по просьбе.
+- **Sprint 10** — `item_payments`, календарь `occurrence_status`, оплата ближайшего open с карточки и soonest.
 
 Документы спринта N: `docs/sprint-N-plan.md`, `checklist`, `api-sprint-N.md`, `known-limitations-sprint-N.md`. Журнал — `REPORT.md`.
 
@@ -36,7 +36,7 @@ chi, pgx/v5, goose (SQL embed, `001`…`011_owner_id.sql`), slog JSON, OpenAPI `
 
 ## Изоляция (`owner_id`)
 
-Таблицы с `owner_id NOT NULL` + FK на `users`: `categories`, `items`, `audit_log`, `notifications` (Sprint 10: ещё `item_payments` — когда будет код). В API не отдаём.
+Таблицы с `owner_id NOT NULL` + FK на `users`: `categories`, `items`, `audit_log`, `notifications`, `item_payments`. В API не отдаём.
 
 Правило: выборка и мутация предметных строк — `owner_id = sub`. Чужой UUID → **404**, не 403. Scope ставит service из `middleware.UserID`, не из query/body.
 
@@ -62,7 +62,7 @@ Create/import/ticker notification: писать `OwnerID`. Пустой owner в
 
 ## Ещё не сделано
 
-- Следующий спринт — только если пользователь его назвал. Чеклист 10 не реализовывать, пока не сказали «делай спринт 10».
+- Следующий спринт — только если пользователь его назвал.
 
 ## Не делать
 

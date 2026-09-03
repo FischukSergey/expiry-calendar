@@ -10,7 +10,8 @@ alwaysApply: false
 
 ## Что уже scoped
 
-- items: list/get/patch/delete/renew/bulk/CSV — `ItemFilter.OwnerID` ставит service из actor; чужой UUID → `404 not_found` (`requireOwner`).
+- items: list/get/patch/delete/renew/pay/unpay/bulk/CSV — `ItemFilter.OwnerID` ставит service из actor; чужой UUID → `404 not_found` (`requireOwner`).
+- `item_payments`: `owner_id` + UNIQUE `(item_id, paid_on)`; выборка обзора/тикера по owner или id записи.
 - categories: дерево и CRUD только свои; глубина ≤ 3; чужой parent → 404.
 - audit, notifications (list/read/read-all), dashboard, calendar — `WHERE owner_id = $sub`.
 - SSE: `Hub.Subscribe(userID)`, `Notify` только клиентам с тем же `sub`.

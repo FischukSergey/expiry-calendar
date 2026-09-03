@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 import type { Dashboard } from '../api/types.ts'
-import { getDashboard, listKinds } from '../api/endpoints.ts'
-import { PageState, PageTitle, StatusBadge } from '../components/ui.tsx'
+import { getDashboard, listKinds, payItemOccurrence } from '../api/endpoints.ts'
+import { Button, PageState, PageTitle, StatusBadge } from '../components/ui.tsx'
+import { useAuth } from '../hooks/useAuth.ts'
 import { formatDate, formatMoney, monthLabel } from '../lib/format.ts'
 
 const kpi = [
@@ -16,9 +17,25 @@ const kpi = [
 ]
 
 export function DashboardPage() {
+  const { isAdmin } = useAuth()
+  const qc = useQueryClient()
   const dash = useQuery({ queryKey: ['dashboard'], queryFn: getDashboard })
   const kinds = useQuery({ queryKey: ['kinds'], queryFn: listKinds })
   const [currency, setCurrency] = useState<string | null>(null)
+  const [payError, setPayError] = useState<string | null>(null)
+
+  const payOpen = useMutation({
+    mutationFn: ({ id, date }: { id: string; date: string }) => payItemOccurrence(id, date),
+    onSuccess: async () => {
+      setPayError(null)
+      await qc.invalidateQueries({ queryKey: ['dashboard'] })
+      await qc.invalidateQueries({ queryKey: ['calendar'] })
+      await qc.invalidateQueries({ queryKey: ['item'] })
+    },
+    onError: (err) => {
+      setPayError(err.message)
+    },
+  })
 
   const kindName = useMemo(() => {
     const map = new Map<string, { name: string; color: string }>()
@@ -152,6 +169,7 @@ export function DashboardPage() {
 
       <section className="mt-6">
         <h2 className="mb-3 text-sm font-medium text-slate-300">Ближайшие 10</h2>
+        {payError ? <p className="mb-2 text-sm text-rose-300">{payError}</p> : null}
         {data.soonest.length === 0 ? (
           <PageState title="Нет открытых записей" hint="Список пуст — это ваши данные, не общий каталог." />
         ) : (
@@ -163,6 +181,7 @@ export function DashboardPage() {
                   <th className="px-3 py-2 font-medium">Тип</th>
                   <th className="px-3 py-2 font-medium">Срок оплаты</th>
                   <th className="px-3 py-2 font-medium">Статус</th>
+                  {isAdmin ? <th className="px-3 py-2 font-medium" /> : null}
                 </tr>
               </thead>
               <tbody>
@@ -178,6 +197,18 @@ export function DashboardPage() {
                     <td className="px-3 py-2">
                       <StatusBadge status={row.status} />
                     </td>
+                    {isAdmin ? (
+                      <td className="px-3 py-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={payOpen.isPending}
+                          onClick={() => payOpen.mutate({ id: row.id, date: row.expires_at })}
+                        >
+                          Оплатить
+                        </Button>
+                      </td>
+                    ) : null}
                   </tr>
                 ))}
               </tbody>

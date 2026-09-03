@@ -99,6 +99,8 @@ func (a *API) Router() http.Handler {
 				r.Patch("/items/{id}", a.patchItem)
 				r.Delete("/items/{id}", a.deleteItem)
 				r.Post("/items/{id}/renew", a.renewItem)
+				r.Post("/items/{id}/payments", a.payItem)
+				r.Delete("/items/{id}/payments", a.unpayItem)
 				r.Get("/audit", a.listAudit)
 			})
 		})

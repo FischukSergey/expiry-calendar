@@ -45,6 +45,7 @@ func itemsAPI(t *testing.T) *handler.API {
 	clk := clock.Fixed{T: time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC)}
 	cats := newMemCats()
 	items := service.NewItem(newMemItems(), kinds, cats, newMemRenewals(), newMemAudit(), nopTx, clk)
+	items.SetPayments(newMemPayments())
 	return handler.New(handler.Deps{
 		Health:        fakeHealth{},
 		Auth:          fakeAuth{},
@@ -162,6 +163,8 @@ func TestViewerForbiddenItemMutations(t *testing.T) {
 		{http.MethodPatch, "/api/v1/items/" + it.ID, `{"title":"y"}`},
 		{http.MethodDelete, "/api/v1/items/" + it.ID, ""},
 		{http.MethodPost, "/api/v1/items/" + it.ID + "/renew", `{"new_expires_at":"2028-01-01"}`},
+		{http.MethodPost, "/api/v1/items/" + it.ID + "/payments", `{"date":"2027-01-01"}`},
+		{http.MethodDelete, "/api/v1/items/" + it.ID + "/payments?date=2027-01-01", ""},
 		{http.MethodPost, pathItemsBulk, `{"ids":["` + it.ID + `"],"status":"archived"}`},
 		{http.MethodPost, "/api/v1/items/import", ""},
 	} {

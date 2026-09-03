@@ -2,6 +2,15 @@
 
 Журнал создания Duekeep. Записи добавляются по ходу работы, не в конце.
 
+## 2026-09-03 — Sprint 10, код
+
+- Миграция `013_item_payments.sql`: разреженный журнал `(item_id, paid_on)`, backfill с `items.status=paid` на `expires_at` без смены статуса записи.
+- `POST/DELETE /items/{id}/payments`: снимок суммы, идемпотентный POST (201/200), audit `pay`/`unpay`. Чужой id — 404, viewer — 403, дата не из ряда — 422.
+- Календарь: все вхождения окна, `occurrence_status` + сумма; оплаченный день остаётся. Обзор / soonest / «сгорит» — только open. Карточка: `next_open_at`.
+- Тикер: порог от ближайшего open; заморозка `paid` и `notify_before_days: null` как Sprint 9.
+- UI: сайдбар дня (сумма, бейдж, оплатить/снять), точки по вхождению; карточка и soonest — «Оплатить» ближайшее open.
+- Проверка: `task lint` / `task test` зелёные. Демо API на локальной Postgres: goose 013, backfill 1=1, monthly сентябрь paid / октябрь open, `next_open_at`, POST 201/200, unpay 204, 422/403.
+
 ## 2026-09-02 — Sprint 10 (документы, без кода)
 
 - Вариант 3: разреженная `item_payments` (факт оплаты даты), не полная серия в БД.

@@ -1,8 +1,8 @@
 import { forwardRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 import { Link } from 'react-router-dom'
 
-import type { Status } from '../api/types.ts'
-import { statusLabel } from '../lib/format.ts'
+import type { OccurrenceStatus, Status } from '../api/types.ts'
+import { occurrenceLabel, statusLabel } from '../lib/format.ts'
 
 export const fieldClass =
   'w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:border-teal-500'
@@ -88,6 +88,19 @@ export function StatusBadge({ status }: { status: Status }) {
   return (
     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusClass[status]}`}>
       {statusLabel[status]}
+    </span>
+  )
+}
+
+const occurrenceClass: Record<OccurrenceStatus, string> = {
+  open: 'bg-amber-500/15 text-amber-300',
+  paid: 'bg-sky-500/15 text-sky-300',
+}
+
+export function OccurrenceBadge({ status }: { status: OccurrenceStatus }) {
+  return (
+    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${occurrenceClass[status]}`}>
+      {occurrenceLabel[status]}
     </span>
   )
 }

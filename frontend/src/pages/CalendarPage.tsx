@@ -1,19 +1,17 @@
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { getCalendar } from '../api/endpoints.ts'
-import type { Status } from '../api/types.ts'
-import { Button, PageState, PageTitle, StatusBadge } from '../components/ui.tsx'
+import { getCalendar, payItemOccurrence, unpayItemOccurrence } from '../api/endpoints.ts'
+import type { OccurrenceStatus } from '../api/types.ts'
+import { Button, OccurrenceBadge, PageState, PageTitle } from '../components/ui.tsx'
+import { useAuth } from '../hooks/useAuth.ts'
+import { formatMoney } from '../lib/format.ts'
 
 const weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
 
-const dot: Record<Status, string> = {
-  active: 'bg-emerald-400',
-  expiring: 'bg-amber-400',
-  expired: 'bg-rose-400',
-  cancelled: 'bg-slate-400',
-  archived: 'bg-zinc-400',
+const occDot: Record<OccurrenceStatus, string> = {
+  open: 'bg-amber-400',
   paid: 'bg-sky-400',
 }
 
@@ -41,10 +39,13 @@ function cells(year: number, month: number): (number | null)[] {
 
 export function CalendarPage() {
   const now = new Date()
+  const { isAdmin } = useAuth()
+  const qc = useQueryClient()
   const [params, setParams] = useSearchParams()
   const year = Number(params.get('year') ?? now.getUTCFullYear())
   const month = Number(params.get('month') ?? now.getUTCMonth() + 1)
   const [selected, setSelected] = useState<string | null>(null)
+  const [payError, setPayError] = useState<string | null>(null)
 
   const cal = useQuery({
     queryKey: ['calendar', year, month],
@@ -60,13 +61,43 @@ export function CalendarPage() {
     return map
   }, [days])
 
+  const invalidate = async () => {
+    await qc.invalidateQueries({ queryKey: ['calendar'] })
+    await qc.invalidateQueries({ queryKey: ['dashboard'] })
+    await qc.invalidateQueries({ queryKey: ['item'] })
+  }
+
+  const pay = useMutation({
+    mutationFn: ({ id, date }: { id: string; date: string }) => payItemOccurrence(id, date),
+    onSuccess: async () => {
+      setPayError(null)
+      await invalidate()
+    },
+    onError: (err) => {
+      setPayError(err.message)
+    },
+  })
+
+  const unpay = useMutation({
+    mutationFn: ({ id, date }: { id: string; date: string }) => unpayItemOccurrence(id, date),
+    onSuccess: async () => {
+      setPayError(null)
+      await invalidate()
+    },
+    onError: (err) => {
+      setPayError(err.message)
+    },
+  })
+
   const shift = (delta: number) => {
     const d = new Date(Date.UTC(year, month - 1 + delta, 1))
     setParams({ year: String(d.getUTCFullYear()), month: String(d.getUTCMonth() + 1) })
     setSelected(null)
+    setPayError(null)
   }
 
   const selectedItems = selected ? (byDate.get(selected) ?? []) : []
+  const busy = pay.isPending || unpay.isPending
 
   return (
     <div>
@@ -122,7 +153,7 @@ export function CalendarPage() {
                     {items.length > 0 ? (
                       <span className="mt-1 flex flex-wrap gap-1">
                         {items.slice(0, 3).map((it) => (
-                          <span key={it.id} className={`h-1.5 w-1.5 rounded-full ${dot[it.status]}`} />
+                          <span key={it.id} className={`h-1.5 w-1.5 rounded-full ${occDot[it.occurrence_status]}`} />
                         ))}
                       </span>
                     ) : null}
@@ -133,6 +164,7 @@ export function CalendarPage() {
           </div>
           <aside className="rounded-xl border border-slate-800 p-4">
             <h2 className="text-sm font-medium text-slate-300">{selected ?? 'День не выбран'}</h2>
+            {payError ? <p className="mt-2 text-sm text-rose-300">{payError}</p> : null}
             {selected && selectedItems.length === 0 ? <p className="mt-3 text-sm text-slate-500">Пусто</p> : null}
             <ul className="mt-3 space-y-2">
               {selectedItems.map((it) => (
@@ -140,9 +172,32 @@ export function CalendarPage() {
                   <Link to={`/items/${it.id}`} className="text-sm text-teal-300 hover:underline">
                     {it.title}
                   </Link>
+                  <p className="mt-1 text-sm text-slate-300">{formatMoney(it.cost_amount, it.currency)}</p>
                   <div className="mt-1">
-                    <StatusBadge status={it.status} />
+                    <OccurrenceBadge status={it.occurrence_status} />
                   </div>
+                  {isAdmin && selected ? (
+                    <div className="mt-2">
+                      {it.occurrence_status === 'open' ? (
+                        <Button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => pay.mutate({ id: it.id, date: selected })}
+                        >
+                          Оплачено
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={busy}
+                          onClick={() => unpay.mutate({ id: it.id, date: selected })}
+                        >
+                          Снять оплату
+                        </Button>
+                      )}
+                    </div>
+                  ) : null}
                 </li>
               ))}
             </ul>

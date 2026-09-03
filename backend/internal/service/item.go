@@ -59,6 +59,7 @@ type Item struct {
 	cats     CategoryStore
 	renewals RenewalStore
 	audit    AuditStore
+	pays     PaymentStore
 	notes    NotificationStore
 	bus      EventBus
 	tx       TxFunc
@@ -145,7 +146,23 @@ func (s *Item) Get(ctx context.Context, id, actorID string) (model.ItemCard, err
 	if hist == nil {
 		hist = []model.Renewal{}
 	}
-	return model.ItemCard{Item: it, Renewals: hist}, nil
+	var paid map[string]struct{}
+	if s.pays != nil {
+		rows, perr := s.pays.ListByItemIDs(ctx, []string{id})
+		if perr != nil {
+			return model.ItemCard{}, perr
+		}
+		paid = paidDateSet(paidDatesByItem(rows)[id])
+	}
+	next, ok, err := nextOpenAt(it, clock.Today(s.clk), paid)
+	if err != nil {
+		return model.ItemCard{}, err
+	}
+	card := model.ItemCard{Item: it, Renewals: hist}
+	if ok {
+		card.NextOpenAt = &next
+	}
+	return card, nil
 }
 
 // Patch частичное обновление. Пустой patch не ошибка.

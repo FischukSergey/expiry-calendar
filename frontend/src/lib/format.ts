@@ -1,4 +1,4 @@
-import type { BillingPeriod, Category, Status } from '../api/types.ts'
+import type { BillingPeriod, Category, OccurrenceStatus, Status } from '../api/types.ts'
 
 export const statusLabel: Record<Status, string> = {
   active: 'Активно',
@@ -6,6 +6,11 @@ export const statusLabel: Record<Status, string> = {
   expired: 'Просрочено',
   cancelled: 'Отменено',
   archived: 'Архив',
+  paid: 'Оплачено',
+}
+
+export const occurrenceLabel: Record<OccurrenceStatus, string> = {
+  open: 'К оплате',
   paid: 'Оплачено',
 }
 

@@ -44,6 +44,8 @@ type ItemService interface {
 	Renew(ctx context.Context, id string, in model.RenewInput, actorID string) (model.Item, error)
 	Bulk(ctx context.Context, in model.BulkInput, actorID string) (model.BulkResult, error)
 	ListAudit(ctx context.Context, page model.Page, actorID string) (model.AuditList, error)
+	Pay(ctx context.Context, id, date, actorID string) (model.ItemPayment, bool, error)
+	Unpay(ctx context.Context, id, date, actorID string) error
 	Export(ctx context.Context, f model.ItemFilter, actorID string) ([]byte, error)
 	Import(
 		ctx context.Context,

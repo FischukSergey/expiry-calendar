@@ -2,6 +2,8 @@ export type Role = 'admin' | 'viewer'
 
 export type Status = 'active' | 'expiring' | 'expired' | 'cancelled' | 'archived' | 'paid'
 
+export type OccurrenceStatus = 'open' | 'paid'
+
 export type BillingPeriod = 'one_time' | 'monthly' | 'yearly'
 
 export type AttrType = 'string' | 'number' | 'boolean'
@@ -86,6 +88,15 @@ export type ItemList = {
 export type ItemCard = {
   item: Item
   renewals: Renewal[]
+  next_open_at: string | null
+}
+
+export type ItemPayment = {
+  id: string
+  item_id: string
+  date: string
+  amount: number
+  currency: string
 }
 
 export type ItemFilter = {
@@ -138,10 +149,19 @@ export type Dashboard = {
   soonest: { id: string; title: string; expires_at: string; status: Status; kind_id: string }[]
 }
 
+export type CalendarItem = {
+  id: string
+  title: string
+  status: Status
+  occurrence_status: OccurrenceStatus
+  cost_amount: number
+  currency: string
+}
+
 export type CalendarMonth = {
   year: number
   month: number
-  days: { date: string; items: { id: string; title: string; status: Status }[] }[]
+  days: { date: string; items: CalendarItem[] }[]
 }
 
 export type Notification = {

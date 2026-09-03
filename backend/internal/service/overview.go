@@ -29,17 +29,27 @@ type OverviewStore interface {
 // Overview — дашборд и календарь. Агрегаты в памяти после одного SELECT.
 type Overview struct {
 	items OverviewStore
+	pays  PaymentStore
 	clk   clock.Clock
 }
 
-// NewOverview собирает обзор.
+// NewOverview собирает обзор. pays может быть nil (тесты без оплат вхождения).
 func NewOverview(items OverviewStore, clk clock.Clock) *Overview {
 	return &Overview{items: items, clk: clk}
+}
+
+// SetPayments включает overlay дат из item_payments.
+func (s *Overview) SetPayments(pays PaymentStore) {
+	s.pays = pays
 }
 
 // Dashboard — GET /dashboard. Только свои открытые записи.
 func (s *Overview) Dashboard(ctx context.Context, ownerID string) (model.Dashboard, error) {
 	items, err := s.items.ListOpenByOwner(ctx, ownerID)
+	if err != nil {
+		return model.Dashboard{}, err
+	}
+	paidIdx, err := s.paymentsByOwner(ctx, ownerID)
 	if err != nil {
 		return model.Dashboard{}, err
 	}
@@ -69,7 +79,8 @@ func (s *Overview) Dashboard(ctx context.Context, ownerID string) (model.Dashboa
 		case model.StatusExpired:
 			out.Counts.Expired++
 		}
-		next, ok, err := nextUnpaidOccurrence(it, today)
+		paid := paidDateSet(paidIdx[it.ID])
+		next, ok, err := nextUnpaidOccurrence(it, today, paid)
 		if err != nil {
 			return model.Dashboard{}, err
 		}
@@ -85,7 +96,7 @@ func (s *Overview) Dashboard(ctx context.Context, ownerID string) (model.Dashboa
 				Status: it.Status, KindID: it.KindID,
 			})
 		}
-		occs, err := occurrencesInRange(it, winStart, winEnd)
+		occs, err := occurrencesInRange(it, winStart, winEnd, paid, true)
 		if err != nil {
 			return model.Dashboard{}, err
 		}
@@ -134,18 +145,36 @@ func (s *Overview) Calendar(ctx context.Context, year, month int, ownerID string
 	if err != nil {
 		return model.Calendar{}, err
 	}
+	paidIdx, err := s.paymentsByOwner(ctx, ownerID)
+	if err != nil {
+		return model.Calendar{}, err
+	}
 	start := clock.DateUTC(1, time.Month(month), year)
 	end := start.AddDate(0, 1, 0)
 	byDay := map[string][]model.CalendarItem{}
 	for _, it := range items {
-		occs, err := occurrencesInRange(it, start, end)
+		expires, err := parseDate(fieldExpiresAt, it.ExpiresAt)
+		if err != nil {
+			return model.Calendar{}, err
+		}
+		paid := paidDateSet(paidIdx[it.ID])
+		occs, err := occurrencesInRange(it, start, end, paid, false)
 		if err != nil {
 			return model.Calendar{}, err
 		}
 		for _, occ := range occs {
 			day := occ.Format(model.DateLayout)
+			occStatus := model.OccurrenceOpen
+			amount, currency := it.CostAmount, it.Currency
+			if occurrencePaid(it, expires, occ, paid) {
+				occStatus = model.OccurrencePaid
+				if snap, ok := paidIdx[it.ID][day]; ok {
+					amount, currency = snap.Amount, snap.Currency
+				}
+			}
 			byDay[day] = append(byDay[day], model.CalendarItem{
 				ID: it.ID, Title: it.Title, Status: it.Status,
+				OccurrenceStatus: occStatus, CostAmount: amount, Currency: currency,
 			})
 		}
 	}
@@ -163,6 +192,17 @@ func (s *Overview) Calendar(ctx context.Context, year, month int, ownerID string
 		return cmp.Compare(a.Date, b.Date)
 	})
 	return model.Calendar{Year: year, Month: month, Days: days}, nil
+}
+
+func (s *Overview) paymentsByOwner(ctx context.Context, ownerID string) (map[string]map[string]model.ItemPayment, error) {
+	if s.pays == nil {
+		return map[string]map[string]model.ItemPayment{}, nil
+	}
+	rows, err := s.pays.ListByOwner(ctx, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	return paidDatesByItem(rows), nil
 }
 
 func emptyMonths(today time.Time, n int) []model.MonthCount {

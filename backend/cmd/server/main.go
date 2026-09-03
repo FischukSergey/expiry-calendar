@@ -92,13 +92,16 @@ func run() error {
 	catsRepo := repository.NewCategories(pool)
 	auth.SetCategoryDefaults(catsRepo)
 	itemsRepo := repository.NewItems(pool)
+	paysRepo := repository.NewPayments(pool)
 	notesRepo := repository.NewNotifications(pool)
 	pushRepo := repository.NewPushSubscriptions(pool)
 	itemsSvc := service.NewItem(
 		itemsRepo, kindsRepo, catsRepo,
 		repository.NewRenewals(pool), repository.NewAudit(pool), runTx, clk,
 	)
+	itemsSvc.SetPayments(paysRepo)
 	overview := service.NewOverview(itemsRepo, clk)
+	overview.SetPayments(paysRepo)
 	hub := sse.NewHub()
 	sender := service.NewWebPushSender(cfg.VAPIDPublic, cfg.VAPIDPrivate, cfg.VAPIDSubject)
 	pushSvc := service.NewPush(pushRepo, sender, cfg.VAPIDPublic)
@@ -120,6 +123,7 @@ func run() error {
 	bus := &service.Fanout{SSE: hub, Push: pushSvc}
 	itemsSvc.SetNotify(notesRepo, bus)
 	tkr := service.NewTicker(itemsRepo, notesRepo, runTx, clk, bus)
+	tkr.SetPayments(paysRepo)
 	go tkr.Run(ctx, cfg.TickEvery)
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,

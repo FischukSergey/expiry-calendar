@@ -1,220 +1,6 @@
 # REPORT
 
-Журнал создания Duekeep. Записи добавляются по ходу работы, не в конце.
-
-## 2026-09-03 — Sprint 10, код
-
-- Миграция `013_item_payments.sql`: разреженный журнал `(item_id, paid_on)`, backfill с `items.status=paid` на `expires_at` без смены статуса записи.
-- `POST/DELETE /items/{id}/payments`: снимок суммы, идемпотентный POST (201/200), audit `pay`/`unpay`. Чужой id — 404, viewer — 403, дата не из ряда — 422.
-- Календарь: все вхождения окна, `occurrence_status` + сумма; оплаченный день остаётся. Обзор / soonest / «сгорит» — только open. Карточка: `next_open_at`.
-- Тикер: порог от ближайшего open; заморозка `paid` и `notify_before_days: null` как Sprint 9.
-- UI: сайдбар дня (сумма, бейдж, оплатить/снять), точки по вхождению; карточка и soonest — «Оплатить» ближайшее open.
-- Проверка: `task lint` / `task test` зелёные. Демо API на локальной Postgres: goose 013, backfill 1=1, monthly сентябрь paid / октябрь open, `next_open_at`, POST 201/200, unpay 204, 422/403.
-
-## 2026-09-02 — Sprint 10 (документы, без кода)
-
-- Вариант 3: разреженная `item_payments` (факт оплаты даты), не полная серия в БД.
-- Календарь: сумма + `occurrence_status`; «Оплачено» не ставит `items.status`. Карточка и soonest — та же оплата ближайшего open.
-- Форма «Оплачено» остаётся заморозкой записи (Sprint 9).
-- Добавлены `docs/sprint-10-*.md`, строки в индексе, ARCHITECTURE, FUNCTIONAL. Код — после явной просьбы.
-
-## 2026-09-02 — деплой: prune после healthz
-
-- `deploy.sh`: после `healthz` 200 — `docker image prune -f` и `docker builder prune -f`. Не `-a`, не тома. Сбой prune не меняет exit 0.
-- Документы: `deploy/README.md`, `known-limitations-sprint-8.md`.
-
-## 2026-09-02 — Sprint 9, код
-
-- Миграция `012_paid_notify.sql`: `status` + `paid`, `notify_before_days` NULL.
-- Тикер не трогает `paid` и не пишет notification при `paid` или `notify_before_days IS NULL`. Renew с `paid` снова считает статус.
-- Seed / `EnsureKinds`: slug `mobile` («Мобильная связь»), `CheckCatalog` — 10 типов.
-- Обзор и календарь: развёртка `monthly`/`yearly` от якоря `expires_at` (clamp 29–31); `paid` прячет текущее вхождение.
-- UI: бейдж «Оплачено», чекбокс «Не уведомлять», нижняя лента PWA `text-sm`.
-- Контракт: `docs/api-sprint-9.md`, OpenAPI.
-- Проверка: `task lint` / `task test` зелёные. Compose rebuild: `GET /kinds` — 10 типов включая «Мобильная связь»; create `paid` и `notify_before_days: null`; monthly с `expires_at` в 2027 виден в календаре сентября; unread без этих записей.
-
-## 2026-09-01 — Sprint 9 (документы, без кода)
-
-- План: статус `paid` (тикер не уведомляет — предоплата), seed-тип `mobile` («Мобильная связь»), `notify_before_days: null` («не уведомлять»), крупнее подписи нижней ленты PWA.
-- Не входит: UI создания kinds, per-user kinds, эквайринг.
-- В спринт добавлена развёртка `monthly`/`yearly` в графике обзора и календаре (сейчас только одна `expires_at`).
-- Добавлены `docs/sprint-9-*.md`, строки в индексе, ARCHITECTURE, FUNCTIONAL.
-
-## 2026-09-01 — /login без демо-учётки на проде
-
-- Подсказка `admin@duekeep.local` только при Vite DEV или `VITE_DEMO_LOGIN=1` (local compose). Прод-сборка флаг не ставит.
-
-## 2026-09-01 — Sprint 8, CD
-
-- `deploy/prod/deploy.sh`: fetch + checkout SHA (дефолт `origin/main`), `compose --env-file .env up -d --build`, healthz 200 за 600 с. `.env` и тома не трогает. `v1.0.0` отклоняет.
-- Job Deploy в `ci.yml`: только после lint/test/build/frontend того же SHA; `push` в `main` и `workflow_dispatch`; PR и тег `v1.0.0` не деплоят. Host key из `deploy/prod/known_hosts`, без `StrictHostKeyChecking=no`.
-- nginx `duekeep.conf`: `server_name` и пути LE = `duekeep.ru`.
-- Документы: `deploy/README.md` (bootstrap, секреты Actions vs `.env`, откат), README — прод с `main`.
-- VPS: `/opt/duekeep`, swap 2G, `.env` chmod 600, ключ Actions в `authorized_keys` (forced command). Staging LE, затем боевой. `https://duekeep.ru/healthz` → 200 `{"status":"ok"}`.
-- Осталось: секреты GitHub (`DEPLOY_*`), push/merge в `main`, повтор `deploy.sh` на том же SHA и откат.
-
-## 2026-08-31 — формулировка «обязательства»
-
-- Слово «истечение» заменено на «обязательства» (UI, OpenAPI, README, FUNCTIONAL, комментарии). Поля API (`expires_at`) не менялись.
-
-## 2026-08-31 — Sprint 7 §7–8, тесты и DoD
-
-- `TestRegisterDoesNotSeeSeedCatalog`: register не видит seed-items/категории; второй аккаунт не видит item первого (демо плана §7).
-- OpenAPI: register/me без org и invite; `owner_id` не в JSON Item. Limitations: SEED на проде, UI без org.
-- `task lint` и `task test` зелёные.
-
-## 2026-08-31 — Sprint 7 §6, UI
-
-- Register ведёт на `/items` (свой пустой список). Экранов org/инвайта нет. Профиль — email, без названия org.
-- Роль viewer в копирайте входа убрана; в профиле остаётся только как пометка локального стенда.
-
-## 2026-08-31 — Sprint 7 §5, seed и прод
-
-- Prod: `SEED=false`, демо-каталог не пишется. Локально `SEED=true`: 50+ у seed-admin, viewer без шаринга.
-- Register копирует дефолтное дерево категорий (новые UUID), без seed-items. Kinds на проде — `EnsureKinds` (общий справочник).
-- Login/refresh/logout без изменений контракта Sprint 2.
-
-## 2026-08-31 — Sprint 7 §4, realtime и обзор
-
-- Dashboard, calendar, notifications, SSE и Web Push — только свой `owner_id` / `sub`.
-- Тикер пишет `OwnerID` владельца item. Интервал: `TICKER_EVERY` (дефолт 12h), плюс Tick при старте. Статус по календарному дню UTC.
-
-## 2026-08-31 — Sprint 7 §3, изоляция выборок
-
-- List/get/export items, CRUD categories, GET /audit — только `owner_id` = `sub`. Чужой UUID → 404.
-- `item_kinds` по-прежнему общие. Dashboard/calendar/SSE — следующий пункт.
-
-## 2026-08-31 — Sprint 7 §2, auth
-
-- Register создаёт admin; login/refresh/me без `org_id` в claims и `/me`.
-- Patch/delete/renew/bulk items и patch/delete categories — только свой `owner_id`, иначе 404.
-
-## 2026-08-31 — Sprint 7 §1, owner_id
-
-- Миграция `011_owner_id.sql`: колонка на categories/items/audit_log/notifications, backfill seed-admin, NOT NULL + FK + индексы. Org-таблиц нет.
-- Seed и INSERT в repository пишут `owner_id`, иначе NOT NULL ломает compose. Выборка по владельцу — следующие пункты.
-
-## 2026-08-31 — Sprint 8 (документы, без кода)
-
-- CD на Beget: после CI на `main` — SSH, `deploy.sh`, `compose --build`, `https://duekeep.ru/healthz`.
-- Не входит: registry, zero-downtime, секреты приложения в Actions, деплой `v1.0.0`.
-- Добавлены `docs/sprint-8-*.md`, строки в индексе и ARCHITECTURE.
-
-## 2026-08-31 — Sprint 7, смена цели
-
-- Прод: register → admin, видит только свои строки (`owner_id` = `sub`).
-- Не делаем: viewer, инвайты, `org_id` / org / шаринг.
-- Обновлены plan, checklist, api, limitations спринта 7; указатели в ARCHITECTURE, FUNCTIONAL, docs/README, README.
-
-## 2026-08-30 — хост прода
-
-- Документированы домен `duekeep.ru` и IPv4 VPS Beget `159.194.252.6` (`deploy/README.md`, `.env.example`, README).
-
-## 2026-08-30 — дашборд: суммы по месяцам
-
-- Столбцы «Сроки оплаты» заменены на «Суммы оплаты по месяцам».
-- API: у `expirations_by_month` добавлен `amounts` (сумма `cost_amount` по валютам, без конвертации). `count` сохранён.
-
-## 2026-08-29 — Sprint 6 старт
-
-- Спринты 1–5 закрыты. Дыры плана (reuse refresh, CSV dry_run, calendar, push 410) уже покрыты тестами; CI lint+test+build+frontend на месте; `/docs` живой.
-- Не хватает объёма seed (4 items вместо 50+), renewals/audit/unread, сверки OpenAPI cookie refresh, README под сдачу.
-- Дальше: каталог seed, спека, README, прогон на чистом томе.
-
-## 2026-08-29 — Sprint 6, seed и OpenAPI
-
-- Каталог: 52 items (даты от Clock.Today), ≥5 expired, ≥8 expiring, 1 cancelled, 1 archived. 22 renewals, 24 audit, unread на expired/expiring. Повторный seed не плодит строки; даты items/renewals обновляет.
-- CheckCatalog требует объём FUNCTIONAL. OpenAPI 1.0.0: cookie duekeep_refresh на refresh/logout, body важнее cookie. README под сдачу.
-
-## 2026-08-30 — правки формулировок формы
-
-- Обязательные поля на «Новая запись» со звёздочкой (название, тип, срок оплаты).
-- Тип записи и раздел разделены подсказками; при выборе типа подставляется раздел. В списке колонка раздела убрана.
-- «Начало» → «Начало периода». «Истекает/истекло» в UI → «срок оплаты» / «скоро срок» / «просрочено».
-
-## 2026-08-29 — фикс логина
-
-- TextInput/Select/TextArea не пробрасывали ref (React 18). register не видел поля → Zod «expected string, received undefined» на заполненной форме. Теперь forwardRef.
-
-## 2026-08-29 — Sprint 6 follow-up (демо)
-
-- Смена `expires_at` в админке пишет notification и SSE: иначе тикер не видит переход (статус уже пересчитан при PATCH). `TestPatchExpiresNotifies`.
-- VAPID в `deploy/local` зафиксирован — подписки не сбрасываются после рестарта backend.
-
-## 2026-08-29 — Sprint 6 закрыт
-
-- Чистый том: `docker compose down -v && docker compose up --build`. db/backend/frontend healthy.
-- Живые цифры: 2 users, 9 kinds, 13 categories, 52 items (6 expired, 12 expiring), 22 renewals, 24 audit, 18 unread. Повторный up — те же счётчики.
-- `/healthz` ok, `/docs` Swagger, UI `:80`, viewer 403 на запись. Calendar текущего месяца не пустой, CSV export отдаёт фильтр.
-- `task lint` / `task test` зелёные (83 теста). Limitations v1 без изменений. Код спринта ещё не закоммичен.
-
-## 2026-08-29 — Sprint 5 закрыт
-
-- §4: адаптив (сайдбар / табы, карточки списка, календарь, safe-area), loading/error/empty + «Повторить».
-- Контракт CSV сверен с роутером и OpenAPI. Limitations: нет офлайн-CRUD, seed 50+ и полная сверка спеки — Sprint 6.
-- DoD: login/dashboard/список/карточка/календарь/CSV; viewer без кнопок записи; PWA-артефакты на localhost. `task lint` / `task test` зелёные.
-
-## 2026-08-29 — Sprint 5, раздел 3 (Realtime и PWA)
-
-- После логина: EventSource на `/events?access_token=`. Событие `notification` инвалидирует уведомления, список, дашборд, календарь. Истёкший access — refresh и новое соединение.
-- Пуши: разрешение Notification, VAPID, subscribe; выход снимает подписку. SW показывает системное уведомление, клик открывает карточку.
-- PWA: `vite-plugin-pwa` injectManifest, manifest Duekeep standalone, иконки 192/512, Workbox network-first для HTML/API (без SSE), офлайн-заглушка «нет сети».
-- `beforeinstallprompt` — баннер «Установить» и кнопка в профиле. `task lint` / сборка зелёные.
-
-## 2026-08-29 — Sprint 5, раздел 2 (Экраны)
-
-- SPA: React Router, TanStack Query, react-hook-form + zod, Recharts. Тёмная тема как у заглушки Sprint 1.
-- Access в памяти; refresh/logout с `credentials: 'include'`; на 401 — один refresh и повтор. Холодный старт — refresh по cookie.
-- Экраны: вход/регистрация, дашборд, список (фильтры в URL + экспорт), форма + attrs, карточка/renew/история, календарь, категории, уведомления, аудит, импорт CSV, профиль.
-- Viewer не видит кнопок записи; импорт/аудит/форма закрыты маршрутом.
-- SSE, пуши и PWA — раздел 3. `npm run lint` / `typecheck` зелёные.
-
-## 2026-08-29 — Sprint 5, раздел 1 (CSV API)
-
-- `GET /items/export`: тот же фильтр, что список; без пагинации, max 10_000; колонки + `attrs.*` из schema видов в выгрузке. Viewer можно.
-- `POST /items/import`: multipart `file` + JSON `mapping` (поле → колонка, включая `attrs.*`). `dry_run=true` — превью без записи; запись — одна транзакция и audit `import`. Ошибки строк — 422, ничего не пишем. Потолок 5_000.
-- Хендлер тонкий; маппинг и coerce attrs — unit в `service`. `task test` / `task lint` зелёные.
-
-## 2026-08-29 — Sprint 4 закрыт
-
-- DoD: Tick меняет статус и пишет notification; SSE видит event; dashboard отдаёт series (6 месяцев, soonest).
-- HTTP: `TestTickerIntegrationStatusAndNotification`, `TestDashboardViewerTwoCurrencies` (RUB и USD не сливаются).
-- Контракт сверен с роутером и OpenAPI. Limitations: UI в Sprint 5, SSE один процесс, integration без Postgres.
-- `task test` / `task lint` зелёные. Код Sprint 4 ещё не закоммичен.
-
-## 2026-08-29 — Sprint 4, раздел 4 (Обзор)
-
-- `GET /dashboard`: counts, upcoming_cost по валютам без конвертации, 6 месяцев обязательств, cost_by_kind, soonest (10).
-- `GET /calendar?year=&month=`: дни только с записями. cancelled/archived не входят.
-- Один `ListOpen`, агрегаты в service. `task test` / `task lint` зелёные.
-
-## 2026-08-29 — Sprint 4, раздел 3 (Web Push)
-
-- Миграция `010_push_subscriptions.sql`: unique `endpoint`, индекс по `user_id`.
-- API: `GET /push/vapid-public`, `POST`/`DELETE /push/subscribe` (auth, viewer). Upsert по endpoint; unsubscribe идемпотентен.
-- Тикер через `service.Fanout`: после INSERT — SSE и Web Push всем подпискам (данные общие). Payload как у SSE.
-- `410 Gone` от push-сервиса удаляет строку. `webpush-go`; VAPID из env, иначе генерация на процесс.
-- `task test` / `task lint` зелёные.
-
-## 2026-08-28 — долг после v1: конфиг
-
-- Тикер 60 с оставить до сдачи; после v1 сменить (домен — день, не минута).
-- Не-секреты (HTTP, TTL, интервал тикера, SSE ping и т.п.) — файл конфига при инициализации, не только env.
-- В `.env` только чувствительное: пароли, JWT, VAPID. Зафиксировано в `known-limitations-sprint-4.md` и sprint-6.
-
-## 2026-08-28 — Sprint 4, раздел 2 (SSE)
-
-- `GET /api/v1/events`: Bearer или `?access_token=`. `text/event-stream`, сразу `ping`, дальше каждые 15 с.
-- Hub в памяти, mutex; полный буфер клиента не блокирует тикер.
-- Тикер после успешного INSERT шлёт `event: notification`. Повтор в тот же день — без события.
-- nginx фронта: `/api/v1/events` без буфера (как в prod). `task test` / `task lint` зелёные.
-
-## 2026-08-28 — Sprint 4, раздел 1 (Статусы и уведомления)
-
-- Тикер в `cmd/server`: сразу `Tick`, затем каждые 60 с. Тот же `StatusAtWrite`, что при записи. `cancelled` / `archived` не трогает.
-- Миграция `009_notifications.sql`: unique `(item_id, to_status, день UTC)`. Повторный tick в тот же день не плодит строки.
-- API: `GET /notifications` (`unread`, пагинация как у items), `POST /{id}/read`, `POST /read-all`. Viewer и admin.
-- Тесты зовут `Tick` явно, без ожидания минуты. `task test` / `task lint` зелёные.
+Журнал создания Duekeep. Записи добавляются по ходу работы, не в конце. Порядок — хронологический, от ранних дат к поздним.
 
 ## 2026-08-19 — старт
 
@@ -393,24 +179,11 @@
 - `task lint` / `task test` зелёные. Compose после rebuild: login admin → /me /kinds(9) /categories → refresh; старый refresh 401; viewer POST kind 403.
 - Sprint 2 закрыт по чеклисту.
 
-## 2026-08-26 — Sprint 3, разделы 4–5 (тесты и DoD)
+## 2026-08-25 — Sprint 7 (документы, без кода)
 
-- Unit: attrs, статус при записи, глубина категорий — уже были и остаются зелёными.
-- HTTP: `TestItemsCRUDRenewFilterPage` (CRUD, renew пишет историю, q+page, tag), `TestViewerForbiddenItemMutations`.
-- Контракт `api-sprint-3.md` сверен с роутером и OpenAPI. Limitations: нет тикера/UI, audit без фильтров, тесты без Postgres.
-- `task test` / `task lint` зелёные. Sprint 3 закрыт по чеклисту.
-
-## 2026-08-26 — Sprint 3, раздел 3 (Аудит)
-
-- Снимок `itemAuditSnap`: только id, title, kind_id, category_id, status, expires_at, cost_amount, attrs.
-- Create/update/delete/renew/bulk пишут audit в той же транзакции. Тест `TestMutationsWriteAudit` проверяет все action и отсутствие url/account_hint/паролей.
-
-## 2026-08-26 — Sprint 3, раздел 2 (API)
-
-- CRUD `/api/v1/items`, фильтры + CTE потомков категории, пагинация, renew, bulk, GET `/audit`.
-- Валидация `attrs` против `attr_schema`; статус при записи от `clock.Today` (UTC), с клиента только cancelled/archived.
-- Viewer 403 на мутации и audit; OpenAPI дополнен путями items/audit.
-- Мутации пишут audit (before/after без секретов) — задел на раздел 3.
+- После v1: хозяин своей org на одном сервере (PWA), инвайт viewer без почты.
+- Добавлены `docs/sprint-7-*.md`, строка в индексе спринтов. Код — только после Sprint 6.
+- Спринты 1–6 не меняем: v1 остаётся общим контуром + роли.
 
 ## 2026-08-26 — Sprint 3, раздел 1 (Данные)
 
@@ -420,8 +193,235 @@
 - Полный каталог 50+ items — Sprint 6. Notifications — Sprint 4.
 - `cost_amount` / `renewals.old_cost` / `new_cost` — `INT`, без дробной части.
 
-## 2026-08-25 — Sprint 7 (документы, без кода)
+## 2026-08-26 — Sprint 3, раздел 2 (API)
 
-- После v1: хозяин своей org на одном сервере (PWA), инвайт viewer без почты.
-- Добавлены `docs/sprint-7-*.md`, строка в индексе спринтов. Код — только после Sprint 6.
-- Спринты 1–6 не меняем: v1 остаётся общим контуром + роли.
+- CRUD `/api/v1/items`, фильтры + CTE потомков категории, пагинация, renew, bulk, GET `/audit`.
+- Валидация `attrs` против `attr_schema`; статус при записи от `clock.Today` (UTC), с клиента только cancelled/archived.
+- Viewer 403 на мутации и audit; OpenAPI дополнен путями items/audit.
+- Мутации пишут audit (before/after без секретов) — задел на раздел 3.
+
+## 2026-08-26 — Sprint 3, раздел 3 (Аудит)
+
+- Снимок `itemAuditSnap`: только id, title, kind_id, category_id, status, expires_at, cost_amount, attrs.
+- Create/update/delete/renew/bulk пишут audit в той же транзакции. Тест `TestMutationsWriteAudit` проверяет все action и отсутствие url/account_hint/паролей.
+
+## 2026-08-26 — Sprint 3, разделы 4–5 (тесты и DoD)
+
+- Unit: attrs, статус при записи, глубина категорий — уже были и остаются зелёными.
+- HTTP: `TestItemsCRUDRenewFilterPage` (CRUD, renew пишет историю, q+page, tag), `TestViewerForbiddenItemMutations`.
+- Контракт `api-sprint-3.md` сверен с роутером и OpenAPI. Limitations: нет тикера/UI, audit без фильтров, тесты без Postgres.
+- `task test` / `task lint` зелёные. Sprint 3 закрыт по чеклисту.
+
+## 2026-08-28 — Sprint 4, раздел 1 (Статусы и уведомления)
+
+- Тикер в `cmd/server`: сразу `Tick`, затем каждые 60 с. Тот же `StatusAtWrite`, что при записи. `cancelled` / `archived` не трогает.
+- Миграция `009_notifications.sql`: unique `(item_id, to_status, день UTC)`. Повторный tick в тот же день не плодит строки.
+- API: `GET /notifications` (`unread`, пагинация как у items), `POST /{id}/read`, `POST /read-all`. Viewer и admin.
+- Тесты зовут `Tick` явно, без ожидания минуты. `task test` / `task lint` зелёные.
+
+## 2026-08-28 — Sprint 4, раздел 2 (SSE)
+
+- `GET /api/v1/events`: Bearer или `?access_token=`. `text/event-stream`, сразу `ping`, дальше каждые 15 с.
+- Hub в памяти, mutex; полный буфер клиента не блокирует тикер.
+- Тикер после успешного INSERT шлёт `event: notification`. Повтор в тот же день — без события.
+- nginx фронта: `/api/v1/events` без буфера (как в prod). `task test` / `task lint` зелёные.
+
+## 2026-08-28 — долг после v1: конфиг
+
+- Тикер 60 с оставить до сдачи; после v1 сменить (домен — день, не минута).
+- Не-секреты (HTTP, TTL, интервал тикера, SSE ping и т.п.) — файл конфига при инициализации, не только env.
+- В `.env` только чувствительное: пароли, JWT, VAPID. Зафиксировано в `known-limitations-sprint-4.md` и sprint-6.
+
+## 2026-08-29 — Sprint 4, раздел 3 (Web Push)
+
+- Миграция `010_push_subscriptions.sql`: unique `endpoint`, индекс по `user_id`.
+- API: `GET /push/vapid-public`, `POST`/`DELETE /push/subscribe` (auth, viewer). Upsert по endpoint; unsubscribe идемпотентен.
+- Тикер через `service.Fanout`: после INSERT — SSE и Web Push всем подпискам (данные общие). Payload как у SSE.
+- `410 Gone` от push-сервиса удаляет строку. `webpush-go`; VAPID из env, иначе генерация на процесс.
+- `task test` / `task lint` зелёные.
+
+## 2026-08-29 — Sprint 4, раздел 4 (Обзор)
+
+- `GET /dashboard`: counts, upcoming_cost по валютам без конвертации, 6 месяцев обязательств, cost_by_kind, soonest (10).
+- `GET /calendar?year=&month=`: дни только с записями. cancelled/archived не входят.
+- Один `ListOpen`, агрегаты в service. `task test` / `task lint` зелёные.
+
+## 2026-08-29 — Sprint 4 закрыт
+
+- DoD: Tick меняет статус и пишет notification; SSE видит event; dashboard отдаёт series (6 месяцев, soonest).
+- HTTP: `TestTickerIntegrationStatusAndNotification`, `TestDashboardViewerTwoCurrencies` (RUB и USD не сливаются).
+- Контракт сверен с роутером и OpenAPI. Limitations: UI в Sprint 5, SSE один процесс, integration без Postgres.
+- `task test` / `task lint` зелёные. Код Sprint 4 ещё не закоммичен.
+
+## 2026-08-29 — Sprint 5, раздел 1 (CSV API)
+
+- `GET /items/export`: тот же фильтр, что список; без пагинации, max 10_000; колонки + `attrs.*` из schema видов в выгрузке. Viewer можно.
+- `POST /items/import`: multipart `file` + JSON `mapping` (поле → колонка, включая `attrs.*`). `dry_run=true` — превью без записи; запись — одна транзакция и audit `import`. Ошибки строк — 422, ничего не пишем. Потолок 5_000.
+- Хендлер тонкий; маппинг и coerce attrs — unit в `service`. `task test` / `task lint` зелёные.
+
+## 2026-08-29 — Sprint 5, раздел 2 (Экраны)
+
+- SPA: React Router, TanStack Query, react-hook-form + zod, Recharts. Тёмная тема как у заглушки Sprint 1.
+- Access в памяти; refresh/logout с `credentials: 'include'`; на 401 — один refresh и повтор. Холодный старт — refresh по cookie.
+- Экраны: вход/регистрация, дашборд, список (фильтры в URL + экспорт), форма + attrs, карточка/renew/история, календарь, категории, уведомления, аудит, импорт CSV, профиль.
+- Viewer не видит кнопок записи; импорт/аудит/форма закрыты маршрутом.
+- SSE, пуши и PWA — раздел 3. `npm run lint` / `typecheck` зелёные.
+
+## 2026-08-29 — Sprint 5, раздел 3 (Realtime и PWA)
+
+- После логина: EventSource на `/events?access_token=`. Событие `notification` инвалидирует уведомления, список, дашборд, календарь. Истёкший access — refresh и новое соединение.
+- Пуши: разрешение Notification, VAPID, subscribe; выход снимает подписку. SW показывает системное уведомление, клик открывает карточку.
+- PWA: `vite-plugin-pwa` injectManifest, manifest Duekeep standalone, иконки 192/512, Workbox network-first для HTML/API (без SSE), офлайн-заглушка «нет сети».
+- `beforeinstallprompt` — баннер «Установить» и кнопка в профиле. `task lint` / сборка зелёные.
+
+## 2026-08-29 — Sprint 5 закрыт
+
+- §4: адаптив (сайдбар / табы, карточки списка, календарь, safe-area), loading/error/empty + «Повторить».
+- Контракт CSV сверен с роутером и OpenAPI. Limitations: нет офлайн-CRUD, seed 50+ и полная сверка спеки — Sprint 6.
+- DoD: login/dashboard/список/карточка/календарь/CSV; viewer без кнопок записи; PWA-артефакты на localhost. `task lint` / `task test` зелёные.
+
+## 2026-08-29 — Sprint 6 старт
+
+- Спринты 1–5 закрыты. Дыры плана (reuse refresh, CSV dry_run, calendar, push 410) уже покрыты тестами; CI lint+test+build+frontend на месте; `/docs` живой.
+- Не хватает объёма seed (4 items вместо 50+), renewals/audit/unread, сверки OpenAPI cookie refresh, README под сдачу.
+- Дальше: каталог seed, спека, README, прогон на чистом томе.
+
+## 2026-08-29 — Sprint 6, seed и OpenAPI
+
+- Каталог: 52 items (даты от Clock.Today), ≥5 expired, ≥8 expiring, 1 cancelled, 1 archived. 22 renewals, 24 audit, unread на expired/expiring. Повторный seed не плодит строки; даты items/renewals обновляет.
+- CheckCatalog требует объём FUNCTIONAL. OpenAPI 1.0.0: cookie duekeep_refresh на refresh/logout, body важнее cookie. README под сдачу.
+
+## 2026-08-29 — фикс логина
+
+- TextInput/Select/TextArea не пробрасывали ref (React 18). register не видел поля → Zod «expected string, received undefined» на заполненной форме. Теперь forwardRef.
+
+## 2026-08-29 — Sprint 6 follow-up (демо)
+
+- Смена `expires_at` в админке пишет notification и SSE: иначе тикер не видит переход (статус уже пересчитан при PATCH). `TestPatchExpiresNotifies`.
+- VAPID в `deploy/local` зафиксирован — подписки не сбрасываются после рестарта backend.
+
+## 2026-08-29 — Sprint 6 закрыт
+
+- Чистый том: `docker compose down -v && docker compose up --build`. db/backend/frontend healthy.
+- Живые цифры: 2 users, 9 kinds, 13 categories, 52 items (6 expired, 12 expiring), 22 renewals, 24 audit, 18 unread. Повторный up — те же счётчики.
+- `/healthz` ok, `/docs` Swagger, UI `:80`, viewer 403 на запись. Calendar текущего месяца не пустой, CSV export отдаёт фильтр.
+- `task lint` / `task test` зелёные (83 теста). Limitations v1 без изменений. Код спринта ещё не закоммичен.
+
+## 2026-08-30 — дашборд: суммы по месяцам
+
+- Столбцы «Сроки оплаты» заменены на «Суммы оплаты по месяцам».
+- API: у `expirations_by_month` добавлен `amounts` (сумма `cost_amount` по валютам, без конвертации). `count` сохранён.
+
+## 2026-08-30 — правки формулировок формы
+
+- Обязательные поля на «Новая запись» со звёздочкой (название, тип, срок оплаты).
+- Тип записи и раздел разделены подсказками; при выборе типа подставляется раздел. В списке колонка раздела убрана.
+- «Начало» → «Начало периода». «Истекает/истекло» в UI → «срок оплаты» / «скоро срок» / «просрочено».
+
+## 2026-08-30 — хост прода
+
+- Документированы домен `duekeep.ru` и IPv4 VPS Beget `159.194.252.6` (`deploy/README.md`, `.env.example`, README).
+
+## 2026-08-31 — Sprint 7, смена цели
+
+- Прод: register → admin, видит только свои строки (`owner_id` = `sub`).
+- Не делаем: viewer, инвайты, `org_id` / org / шаринг.
+- Обновлены plan, checklist, api, limitations спринта 7; указатели в ARCHITECTURE, FUNCTIONAL, docs/README, README.
+
+## 2026-08-31 — Sprint 8 (документы, без кода)
+
+- CD на Beget: после CI на `main` — SSH, `deploy.sh`, `compose --build`, `https://duekeep.ru/healthz`.
+- Не входит: registry, zero-downtime, секреты приложения в Actions, деплой `v1.0.0`.
+- Добавлены `docs/sprint-8-*.md`, строки в индексе и ARCHITECTURE.
+
+## 2026-08-31 — Sprint 7 §1, owner_id
+
+- Миграция `011_owner_id.sql`: колонка на categories/items/audit_log/notifications, backfill seed-admin, NOT NULL + FK + индексы. Org-таблиц нет.
+- Seed и INSERT в repository пишут `owner_id`, иначе NOT NULL ломает compose. Выборка по владельцу — следующие пункты.
+
+## 2026-08-31 — Sprint 7 §2, auth
+
+- Register создаёт admin; login/refresh/me без `org_id` в claims и `/me`.
+- Patch/delete/renew/bulk items и patch/delete categories — только свой `owner_id`, иначе 404.
+
+## 2026-08-31 — Sprint 7 §3, изоляция выборок
+
+- List/get/export items, CRUD categories, GET /audit — только `owner_id` = `sub`. Чужой UUID → 404.
+- `item_kinds` по-прежнему общие. Dashboard/calendar/SSE — следующий пункт.
+
+## 2026-08-31 — Sprint 7 §4, realtime и обзор
+
+- Dashboard, calendar, notifications, SSE и Web Push — только свой `owner_id` / `sub`.
+- Тикер пишет `OwnerID` владельца item. Интервал: `TICKER_EVERY` (дефолт 12h), плюс Tick при старте. Статус по календарному дню UTC.
+
+## 2026-08-31 — Sprint 7 §5, seed и прод
+
+- Prod: `SEED=false`, демо-каталог не пишется. Локально `SEED=true`: 50+ у seed-admin, viewer без шаринга.
+- Register копирует дефолтное дерево категорий (новые UUID), без seed-items. Kinds на проде — `EnsureKinds` (общий справочник).
+- Login/refresh/logout без изменений контракта Sprint 2.
+
+## 2026-08-31 — Sprint 7 §6, UI
+
+- Register ведёт на `/items` (свой пустой список). Экранов org/инвайта нет. Профиль — email, без названия org.
+- Роль viewer в копирайте входа убрана; в профиле остаётся только как пометка локального стенда.
+
+## 2026-08-31 — Sprint 7 §7–8, тесты и DoD
+
+- `TestRegisterDoesNotSeeSeedCatalog`: register не видит seed-items/категории; второй аккаунт не видит item первого (демо плана §7).
+- OpenAPI: register/me без org и invite; `owner_id` не в JSON Item. Limitations: SEED на проде, UI без org.
+- `task lint` и `task test` зелёные.
+
+## 2026-08-31 — формулировка «обязательства»
+
+- Слово «истечение» заменено на «обязательства» (UI, OpenAPI, README, FUNCTIONAL, комментарии). Поля API (`expires_at`) не менялись.
+
+## 2026-09-01 — Sprint 8, CD
+
+- `deploy/prod/deploy.sh`: fetch + checkout SHA (дефолт `origin/main`), `compose --env-file .env up -d --build`, healthz 200 за 600 с. `.env` и тома не трогает. `v1.0.0` отклоняет.
+- Job Deploy в `ci.yml`: только после lint/test/build/frontend того же SHA; `push` в `main` и `workflow_dispatch`; PR и тег `v1.0.0` не деплоят. Host key из `deploy/prod/known_hosts`, без `StrictHostKeyChecking=no`.
+- nginx `duekeep.conf`: `server_name` и пути LE = `duekeep.ru`.
+- Документы: `deploy/README.md` (bootstrap, секреты Actions vs `.env`, откат), README — прод с `main`.
+- VPS: `/opt/duekeep`, swap 2G, `.env` chmod 600, ключ Actions в `authorized_keys` (forced command). Staging LE, затем боевой. `https://duekeep.ru/healthz` → 200 `{"status":"ok"}`.
+- Осталось: секреты GitHub (`DEPLOY_*`), push/merge в `main`, повтор `deploy.sh` на том же SHA и откат.
+
+## 2026-09-01 — /login без демо-учётки на проде
+
+- Подсказка `admin@duekeep.local` только при Vite DEV или `VITE_DEMO_LOGIN=1` (local compose). Прод-сборка флаг не ставит.
+
+## 2026-09-01 — Sprint 9 (документы, без кода)
+
+- План: статус `paid` (тикер не уведомляет — предоплата), seed-тип `mobile` («Мобильная связь»), `notify_before_days: null` («не уведомлять»), крупнее подписи нижней ленты PWA.
+- Не входит: UI создания kinds, per-user kinds, эквайринг.
+- В спринт добавлена развёртка `monthly`/`yearly` в графике обзора и календаре (сейчас только одна `expires_at`).
+- Добавлены `docs/sprint-9-*.md`, строки в индексе, ARCHITECTURE, FUNCTIONAL.
+
+## 2026-09-02 — Sprint 9, код
+
+- Миграция `012_paid_notify.sql`: `status` + `paid`, `notify_before_days` NULL.
+- Тикер не трогает `paid` и не пишет notification при `paid` или `notify_before_days IS NULL`. Renew с `paid` снова считает статус.
+- Seed / `EnsureKinds`: slug `mobile` («Мобильная связь»), `CheckCatalog` — 10 типов.
+- Обзор и календарь: развёртка `monthly`/`yearly` от якоря `expires_at` (clamp 29–31); `paid` прячет текущее вхождение.
+- UI: бейдж «Оплачено», чекбокс «Не уведомлять», нижняя лента PWA `text-sm`.
+- Контракт: `docs/api-sprint-9.md`, OpenAPI.
+- Проверка: `task lint` / `task test` зелёные. Compose rebuild: `GET /kinds` — 10 типов включая «Мобильная связь»; create `paid` и `notify_before_days: null`; monthly с `expires_at` в 2027 виден в календаре сентября; unread без этих записей.
+
+## 2026-09-02 — деплой: prune после healthz
+
+- `deploy.sh`: после `healthz` 200 — `docker image prune -f` и `docker builder prune -f`. Не `-a`, не тома. Сбой prune не меняет exit 0.
+- Документы: `deploy/README.md`, `known-limitations-sprint-8.md`.
+
+## 2026-09-02 — Sprint 10 (документы, без кода)
+
+- Вариант 3: разреженная `item_payments` (факт оплаты даты), не полная серия в БД.
+- Календарь: сумма + `occurrence_status`; «Оплачено» не ставит `items.status`. Карточка и soonest — та же оплата ближайшего open.
+- Форма «Оплачено» остаётся заморозкой записи (Sprint 9).
+- Добавлены `docs/sprint-10-*.md`, строки в индексе, ARCHITECTURE, FUNCTIONAL. Код — после явной просьбы.
+
+## 2026-09-03 — Sprint 10, код
+
+- Миграция `013_item_payments.sql`: разреженный журнал `(item_id, paid_on)`, backfill с `items.status=paid` на `expires_at` без смены статуса записи.
+- `POST/DELETE /items/{id}/payments`: снимок суммы, идемпотентный POST (201/200), audit `pay`/`unpay`. Чужой id — 404, viewer — 403, дата не из ряда — 422.
+- Календарь: все вхождения окна, `occurrence_status` + сумма; оплаченный день остаётся. Обзор / soonest / «сгорит» — только open. Карточка: `next_open_at`.
+- Тикер: порог от ближайшего open; заморозка `paid` и `notify_before_days: null` как Sprint 9.
+- UI: сайдбар дня (сумма, бейдж, оплатить/снять), точки по вхождению; карточка и soonest — «Оплатить» ближайшее open.
+- Проверка: `task lint` / `task test` зелёные. Демо API на локальной Postgres: goose 013, backfill 1=1, monthly сентябрь paid / октябрь open, `next_open_at`, POST 201/200, unpay 204, 422/403.

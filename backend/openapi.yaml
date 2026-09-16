@@ -1351,6 +1351,7 @@ components:
         date:
           type: string
           format: date
+          description: День из ряда записи (якорь expires_at, не раньше started_at).
     ItemPayment:
       type: object
       required: [id, item_id, date, amount, currency]

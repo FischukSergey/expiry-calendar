@@ -69,3 +69,53 @@ func TestPayUnpayIdempotentAndErrors(t *testing.T) {
 		t.Fatalf("audit pay/unpay %+v", got)
 	}
 }
+
+func TestPayClearsExpiredAndRejectsBeforeStart(t *testing.T) {
+	t.Parallel()
+	api := itemsAPI(t)
+	tok := testJWT(t, string(model.RoleAdmin))
+	expired := adminCreateItem(t, api, tok, `{"title":"`+itemTitleDomain+`","kind_id":"`+otherKindID+
+		`","expires_at":"2026-08-01","billing_period":"one_time"}`)
+	if expired.Status != model.StatusExpired {
+		t.Fatalf("create status %s", expired.Status)
+	}
+	adminJSON(t, api, tok, http.MethodPost, "/api/v1/items/"+expired.ID+"/payments",
+		`{"date":"2026-08-01"}`, http.StatusCreated)
+	listRec := adminJSON(t, api, tok, http.MethodGet, "/api/v1/items/"+expired.ID, "", http.StatusOK)
+	var card model.ItemCard
+	if err := json.NewDecoder(listRec.Body).Decode(&card); err != nil {
+		t.Fatal(err)
+	}
+	if card.Item.Status != model.StatusActive {
+		t.Fatalf("after pay status %s", card.Item.Status)
+	}
+	listed := listItems(t, api, tok, "q="+itemTitleDomain)
+	found := false
+	for _, it := range listed.Items {
+		if it.ID == expired.ID {
+			found = true
+			if it.Status != model.StatusActive {
+				t.Fatalf("list status %s", it.Status)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("paid item missing from list")
+	}
+
+	monthly := adminCreateItem(t, api, tok, `{"title":"Подписка","kind_id":"`+otherKindID+
+		`","expires_at":"2026-08-01","billing_period":"monthly"}`)
+	if monthly.Status == model.StatusExpired {
+		t.Fatalf("monthly past anchor %s", monthly.Status)
+	}
+
+	start := adminCreateItem(t, api, tok, `{"title":"Аренда","kind_id":"`+otherKindID+
+		`","expires_at":"2026-10-15","started_at":"2026-10-01","billing_period":"monthly"}`)
+	if start.Status != model.StatusActive {
+		t.Fatalf("future start status %s", start.Status)
+	}
+	adminJSON(t, api, tok, http.MethodPost, "/api/v1/items/"+start.ID+"/payments",
+		`{"date":"2026-08-15"}`, http.StatusUnprocessableEntity)
+	adminJSON(t, api, tok, http.MethodPost, "/api/v1/items/"+start.ID+"/payments",
+		`{"date":"2026-10-15"}`, http.StatusCreated)
+}

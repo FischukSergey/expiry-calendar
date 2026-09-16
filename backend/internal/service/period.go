@@ -17,6 +17,26 @@ func skipPaidOccurrence(it model.Item, expires, day time.Time) bool {
 	return it.Status == model.StatusPaid && !day.After(expires)
 }
 
+// seriesStart — нижняя граница ряда. Без started_at ряд идёт от якоря, как Sprint 9.
+func seriesStart(it model.Item) (time.Time, bool, error) {
+	if it.StartedAt == nil || *it.StartedAt == "" {
+		return time.Time{}, false, nil
+	}
+	d, err := parseDate(fieldStartedAt, *it.StartedAt)
+	if err != nil {
+		return time.Time{}, false, err
+	}
+	return d, true, nil
+}
+
+func beforeSeries(it model.Item, day time.Time) (bool, error) {
+	start, ok, err := seriesStart(it)
+	if err != nil || !ok {
+		return false, err
+	}
+	return day.Before(start), nil
+}
+
 func occurrencePaid(it model.Item, expires, day time.Time, paid map[string]struct{}) bool {
 	if skipPaidOccurrence(it, expires, day) {
 		return true
@@ -28,13 +48,20 @@ func occurrencePaid(it model.Item, expires, day time.Time, paid map[string]struc
 	return ok
 }
 
-// isOccurrenceDate — день из ряда записи (якорь и clamp 29–31, как развёртка).
+// isOccurrenceDate — день из ряда записи (якорь, clamp 29–31, не раньше started_at).
 func isOccurrenceDate(it model.Item, day time.Time) (bool, error) {
 	expires, err := parseDate(fieldExpiresAt, it.ExpiresAt)
 	if err != nil {
 		return false, err
 	}
 	day = clock.DateUTC(day.Day(), day.Month(), day.Year())
+	before, err := beforeSeries(it, day)
+	if err != nil {
+		return false, err
+	}
+	if before {
+		return false, nil
+	}
 	switch it.BillingPeriod {
 	case model.BillingMonthly:
 		return sameDay(clampDay(day.Year(), day.Month(), expires.Day()), day), nil
@@ -57,28 +84,42 @@ func occurrencesInRange(it model.Item, from, to time.Time, paid map[string]struc
 		return nil, err
 	}
 	var out []time.Time
-	add := func(d time.Time) {
+	add := func(d time.Time) error {
 		if d.Before(from) || !d.Before(to) {
-			return
+			return nil
+		}
+		skip, err := beforeSeries(it, d)
+		if err != nil {
+			return err
+		}
+		if skip {
+			return nil
 		}
 		if openOnly && occurrencePaid(it, expires, d, paid) {
-			return
+			return nil
 		}
 		out = append(out, d)
+		return nil
 	}
 	switch it.BillingPeriod {
 	case model.BillingMonthly:
 		cur := clock.DateUTC(1, from.Month(), from.Year())
 		for !cur.After(to) {
-			add(clampDay(cur.Year(), cur.Month(), expires.Day()))
+			if err := add(clampDay(cur.Year(), cur.Month(), expires.Day())); err != nil {
+				return nil, err
+			}
 			cur = cur.AddDate(0, 1, 0)
 		}
 	case model.BillingYearly:
 		for y := from.Year() - 1; y <= to.Year(); y++ {
-			add(clampDay(y, expires.Month(), expires.Day()))
+			if err := add(clampDay(y, expires.Month(), expires.Day())); err != nil {
+				return nil, err
+			}
 		}
 	default:
-		add(expires)
+		if err := add(expires); err != nil {
+			return nil, err
+		}
 	}
 	return out, nil
 }
@@ -95,7 +136,11 @@ func nextUnpaidOccurrence(it model.Item, from time.Time, paid map[string]struct{
 		for i := range 24 {
 			probe := from.AddDate(0, i, 0)
 			d := clampDay(probe.Year(), probe.Month(), expires.Day())
-			if d.Before(from) || occurrencePaid(it, expires, d, paid) {
+			skip, err := beforeSeries(it, d)
+			if err != nil {
+				return time.Time{}, false, err
+			}
+			if d.Before(from) || skip || occurrencePaid(it, expires, d, paid) {
 				continue
 			}
 			return d, true, nil
@@ -103,13 +148,21 @@ func nextUnpaidOccurrence(it model.Item, from time.Time, paid map[string]struct{
 	case model.BillingYearly:
 		for i := range 6 {
 			d := clampDay(from.Year()+i, expires.Month(), expires.Day())
-			if d.Before(from) || occurrencePaid(it, expires, d, paid) {
+			skip, err := beforeSeries(it, d)
+			if err != nil {
+				return time.Time{}, false, err
+			}
+			if d.Before(from) || skip || occurrencePaid(it, expires, d, paid) {
 				continue
 			}
 			return d, true, nil
 		}
 	default:
-		if occurrencePaid(it, expires, expires, paid) {
+		skip, err := beforeSeries(it, expires)
+		if err != nil {
+			return time.Time{}, false, err
+		}
+		if skip || occurrencePaid(it, expires, expires, paid) {
 			return time.Time{}, false, nil
 		}
 		return expires, true, nil

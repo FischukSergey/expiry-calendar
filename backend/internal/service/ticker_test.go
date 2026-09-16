@@ -315,6 +315,30 @@ func TestTickerPaidOccurrenceNoExpiring(t *testing.T) {
 	}
 }
 
+func TestTickerFutureStartNoCurrentMonthNote(t *testing.T) {
+	t.Parallel()
+	store := newTickItems()
+	notes := &tickNotes{}
+	start := "2026-10-01"
+	it := store.put(model.Item{
+		OwnerID: ownerOne, Title: itemTitleDomain, Status: model.StatusActive,
+		ExpiresAt: "2026-10-15", StartedAt: &start, NotifyBeforeDays: model.Ptr(30),
+		BillingPeriod: model.BillingMonthly,
+	})
+	tkr := service.NewTicker(store, notes, nopTx, clock.Fixed{
+		T: time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC),
+	}, nil)
+	if err := tkr.Tick(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if store.get(it.ID).Status != model.StatusActive {
+		t.Fatalf("status %s", store.get(it.ID).Status)
+	}
+	if len(notes.rows) != 0 {
+		t.Fatalf("notes %+v", notes.rows)
+	}
+}
+
 func TestTickerNullNotifyExpiresWithoutNote(t *testing.T) {
 	t.Parallel()
 	store := newTickItems()

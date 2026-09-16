@@ -6,6 +6,7 @@ import (
 	"errors"
 	"time"
 
+	"duekeep/internal/clock"
 	"duekeep/internal/model"
 )
 
@@ -60,10 +61,12 @@ func (s *Item) Pay(ctx context.Context, id, date, actorID string) (model.ItemPay
 		if ierr != nil {
 			return ierr
 		}
-		if !created {
-			return nil
+		if created {
+			if err := s.audit.Create(ctx, auditEntry(actorID, model.AuditPay, it.ID, nil, paymentSnap(out))); err != nil {
+				return err
+			}
 		}
-		return s.audit.Create(ctx, auditEntry(actorID, model.AuditPay, it.ID, nil, paymentSnap(out)))
+		return s.syncOpenStatus(ctx, it)
 	})
 	return out, created, err
 }
@@ -96,8 +99,44 @@ func (s *Item) Unpay(ctx context.Context, id, date, actorID string) error {
 		if err := s.pays.DeleteByItemDate(ctx, it.ID, key); err != nil {
 			return err
 		}
-		return s.audit.Create(ctx, auditEntry(actorID, model.AuditUnpay, it.ID, paymentSnap(cur), nil))
+		if err := s.audit.Create(ctx, auditEntry(actorID, model.AuditUnpay, it.ID, paymentSnap(cur), nil)); err != nil {
+			return err
+		}
+		return s.syncOpenStatus(ctx, it)
 	})
+}
+
+// syncOpenStatus пишет active/expiring/expired от ближайшего open после pay/unpay.
+func (s *Item) syncOpenStatus(ctx context.Context, it model.Item) error {
+	paid, err := s.paidDatesForItem(ctx, it.ID)
+	if err != nil {
+		return err
+	}
+	next, err := statusFromOccurrences(it, clock.Today(s.clk), paid)
+	if err != nil {
+		return err
+	}
+	if next == it.Status {
+		return nil
+	}
+	if _, err := s.items.SetStatus(ctx, it.ID, next); err != nil {
+		if errors.Is(err, model.ErrNotFound) {
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+func (s *Item) paidDatesForItem(ctx context.Context, id string) (map[string]struct{}, error) {
+	if s.pays == nil || id == "" {
+		return map[string]struct{}{}, nil
+	}
+	rows, err := s.pays.ListByItemIDs(ctx, []string{id})
+	if err != nil {
+		return nil, err
+	}
+	return paidDateSet(paidDatesByItem(rows)[id]), nil
 }
 
 func paymentSnap(p model.ItemPayment) json.RawMessage {

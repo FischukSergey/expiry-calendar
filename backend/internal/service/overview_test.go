@@ -234,3 +234,48 @@ func TestDashboardMonthlyExpansionAndPaid(t *testing.T) {
 		t.Fatalf("clamp feb %+v", feb.Days)
 	}
 }
+
+func TestDashboardAndCalendarSkipBeforeStartedAt(t *testing.T) {
+	t.Parallel()
+	today := time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC)
+	const owner = "owner"
+	start := "2026-10-01"
+	const firstPay = "2026-10-15"
+	store := &overviewItems{rows: []model.Item{{
+		ID: "future", OwnerID: owner, Title: "Аренда", KindID: "k1", Status: model.StatusActive,
+		ExpiresAt: firstPay, StartedAt: &start, CostAmount: 500, Currency: model.CurrencyRUB,
+		BillingPeriod: model.BillingMonthly,
+	}}}
+	ov := service.NewOverview(store, clock.Fixed{T: today})
+	got, err := ov.Dashboard(t.Context(), owner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ExpirationsByMonth[0].Count != 0 || got.ExpirationsByMonth[1].Count != 0 {
+		t.Fatalf("aug/sep before start: %+v", got.ExpirationsByMonth)
+	}
+	if got.ExpirationsByMonth[2].Count != 1 || got.ExpirationsByMonth[2].Month != "2026-10" {
+		t.Fatalf("oct first occ: %+v", got.ExpirationsByMonth[2])
+	}
+	if got.Counts.Expiring7 != 0 || got.Counts.Expiring30 != 0 {
+		t.Fatalf("future start in window %+v", got.Counts)
+	}
+	if len(got.Soonest) != 1 || got.Soonest[0].ExpiresAt != firstPay {
+		t.Fatalf("soonest %+v", got.Soonest)
+	}
+
+	aug, err := ov.Calendar(t.Context(), 2026, 8, owner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(aug.Days) != 0 {
+		t.Fatalf("aug cal %+v", aug.Days)
+	}
+	oct, err := ov.Calendar(t.Context(), 2026, 10, owner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(oct.Days) != 1 || oct.Days[0].Date != firstPay {
+		t.Fatalf("oct cal %+v", oct.Days)
+	}
+}

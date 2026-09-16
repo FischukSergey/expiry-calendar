@@ -37,6 +37,7 @@ type ItemStore interface {
 	Update(ctx context.Context, it model.Item) (model.Item, error)
 	Delete(ctx context.Context, id string) error
 	List(ctx context.Context, f model.ItemFilter, page model.Page) ([]model.Item, int, error)
+	SetStatus(ctx context.Context, id, status string) (model.Item, error)
 	BulkUpdate(ctx context.Context, ids []string, categoryID *string, status *string, ownerID string) (int, error)
 }
 
@@ -413,7 +414,15 @@ func (s *Item) prepareWrite(ctx context.Context, in model.Item, actorID string) 
 		in.StartedAt = &s
 	}
 	in.ExpiresAt = expires.Format(model.DateLayout)
-	in.Status = StatusAtWrite(clock.Today(s.clk), expires, in.NotifyBeforeDays, in.Status)
+	paid, err := s.paidDatesForItem(ctx, in.ID)
+	if err != nil {
+		return model.Item{}, err
+	}
+	st, err := statusFromOccurrences(in, clock.Today(s.clk), paid)
+	if err != nil {
+		return model.Item{}, err
+	}
+	in.Status = st
 	return in, nil
 }
 

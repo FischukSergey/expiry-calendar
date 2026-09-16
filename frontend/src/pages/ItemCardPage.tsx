@@ -38,6 +38,7 @@ export function ItemCardPage() {
       await qc.invalidateQueries({ queryKey: ['item', id] })
       await qc.invalidateQueries({ queryKey: ['dashboard'] })
       await qc.invalidateQueries({ queryKey: ['calendar'] })
+      await qc.invalidateQueries({ queryKey: ['items'] })
     },
     onError: (err) => {
       setPayError(err instanceof ApiError ? err.message : 'Не удалось отметить оплату')

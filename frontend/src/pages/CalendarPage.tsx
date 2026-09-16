@@ -65,6 +65,7 @@ export function CalendarPage() {
     await qc.invalidateQueries({ queryKey: ['calendar'] })
     await qc.invalidateQueries({ queryKey: ['dashboard'] })
     await qc.invalidateQueries({ queryKey: ['item'] })
+    await qc.invalidateQueries({ queryKey: ['items'] })
   }
 
   const pay = useMutation({

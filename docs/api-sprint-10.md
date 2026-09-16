@@ -19,7 +19,7 @@ Auth. Мутации — admin (`RequireAdmin`). Чтение отдельных
 { "date": "2026-09-15" }
 ```
 
-- `date` — `YYYY-MM-DD`, должна быть вхождением записи (якорь `expires_at`, clamp 29–31, как развёртка Sprint 9). Иначе `422 validation_error`.
+- `date` — `YYYY-MM-DD`, должна быть вхождением записи (якорь `expires_at`, clamp 29–31, как развёртка Sprint 9; не раньше `started_at`). Иначе `422 validation_error`.
 - `amount` / `currency` сервер копирует с item. С клиента не принимаем.
 - Первая отметка: `201` и тело платежа. Повтор на ту же дату: `200`, та же строка (не 409).
 - Нет записи / чужой UUID: `404`.
@@ -79,6 +79,10 @@ Auth. Мутации — admin (`RequireAdmin`). Чтение отдельных
 `GET /items/{id}` (карточка): плюс **`next_open_at`**: дата ближайшего open-вхождения или `null` (заморозка `paid` / нет open). Кнопка на карточке шлёт эту дату в `POST …/payments`.
 
 Тикер: при заморозке `paid` или `notify_before_days: null` — как Sprint 9. Иначе дата для `expiring`/`expired` — ближайшее open-вхождение.
+
+`POST`/`DELETE` оплаты вхождения сразу пересчитывают `items.status` (`active`/`expiring`/`expired`) от ближайшего open — не ждут Tick. Заморозка `paid`/`cancelled`/`archived` не трогается.
+
+Развёртка `monthly`/`yearly` не рисует дни раньше `started_at` (календарь, обзор, тикер, лента). Без `started_at` ряд по-прежнему от якоря `expires_at` в обе стороны.
 
 ## 6) Совместимость
 

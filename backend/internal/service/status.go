@@ -27,3 +27,19 @@ func StatusAtWrite(today, expires time.Time, notifyDays *int, requested string) 
 	}
 	return model.StatusActive
 }
+
+// statusFromOccurrences — active/expiring/expired от ближайшего open, не сырой expires_at.
+func statusFromOccurrences(it model.Item, today time.Time, paid map[string]struct{}) (string, error) {
+	switch it.Status {
+	case model.StatusCancelled, model.StatusArchived, model.StatusPaid:
+		return it.Status, nil
+	}
+	due, ok, err := nextUnpaidOccurrence(it, today, paid)
+	if err != nil {
+		return "", err
+	}
+	if !ok {
+		return model.StatusActive, nil
+	}
+	return StatusAtWrite(today, due, it.NotifyBeforeDays, ""), nil
+}

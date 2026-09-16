@@ -66,15 +66,9 @@ func (t *Ticker) Tick(ctx context.Context) error {
 		if it.Status == model.StatusPaid {
 			continue
 		}
-		due, ok, err := nextUnpaidOccurrence(it, today, paidDateSet(paidIdx[it.ID]))
+		next, err := statusFromOccurrences(it, today, paidDateSet(paidIdx[it.ID]))
 		if err != nil {
 			return err
-		}
-		var next string
-		if !ok {
-			next = model.StatusActive
-		} else {
-			next = StatusAtWrite(today, due, it.NotifyBeforeDays, "")
 		}
 		if next == it.Status {
 			continue

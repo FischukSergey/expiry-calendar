@@ -101,6 +101,30 @@ func TestPushBroadcastDeletesOn410(t *testing.T) {
 	}
 }
 
+func TestPushBroadcastDeletesOn404(t *testing.T) {
+	t.Parallel()
+	store := newMemPushStore()
+	sender := &stubSender{status: http.StatusNotFound}
+	p := service.NewPush(store, sender, "pub")
+	if err := store.Upsert(t.Context(), model.PushSubscription{
+		UserID: "u1", Endpoint: "https://push.example/dead", P256dh: "p", Auth: "a",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Broadcast(t.Context(), model.Notification{
+		OwnerID: "u1", ID: "n1", ItemID: "i1", ToStatus: model.StatusExpiring, Title: itemTitleDomain,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	subs, err := store.List(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(subs) != 0 {
+		t.Fatalf("left %d", len(subs))
+	}
+}
+
 func TestPushBroadcastSkipsOtherUser(t *testing.T) {
 	t.Parallel()
 	store := newMemPushStore()

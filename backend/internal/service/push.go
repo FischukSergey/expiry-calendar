@@ -67,7 +67,7 @@ func (s *Push) Unsubscribe(ctx context.Context, endpoint string) error {
 	return s.store.DeleteByEndpoint(ctx, endpoint)
 }
 
-// Broadcast шлёт подпискам владельца item. 410 — удаляем строку. Ошибка одного endpoint не стопорит остальных.
+// Broadcast шлёт подпискам владельца item. 410/404/403 — удаляем строку. Ошибка одного endpoint не стопорит остальных.
 func (s *Push) Broadcast(ctx context.Context, n model.Notification) error {
 	if s.sender == nil || n.OwnerID == "" {
 		return nil
@@ -91,16 +91,22 @@ func (s *Push) Broadcast(ctx context.Context, n model.Notification) error {
 		}
 		status, sendErr := s.sender.Send(ctx, sub, payload)
 		if sendErr != nil {
-			slog.ErrorContext(ctx, "push send", "err", sendErr)
-			continue
+			slog.ErrorContext(ctx, "push send", "err", sendErr, "status", status)
+		} else if status < 200 || status >= 300 {
+			slog.ErrorContext(ctx, "push send", "status", status)
 		}
-		if status == http.StatusGone {
+		if subscriptionDead(status) {
 			if delErr := s.store.DeleteByEndpoint(ctx, sub.Endpoint); delErr != nil {
-				slog.ErrorContext(ctx, "push drop 410", "err", delErr)
+				slog.ErrorContext(ctx, "push drop dead", "err", delErr, "status", status)
 			}
 		}
 	}
 	return nil
+}
+
+// subscriptionDead — endpoint больше не принимает VAPID (410/404/403).
+func subscriptionDead(status int) bool {
+	return status == http.StatusGone || status == http.StatusNotFound || status == http.StatusForbidden
 }
 
 func validateSubscribe(in model.PushSubscribe) (model.PushSubscription, error) {

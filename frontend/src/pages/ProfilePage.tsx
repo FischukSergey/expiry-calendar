@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Button, PageTitle } from '../components/ui.tsx'
 import { useAuth } from '../hooks/useAuth.ts'
 import { useInstallPrompt } from '../hooks/useInstallPrompt.ts'
-import { disablePush, usePush } from '../hooks/usePush.ts'
+import { isIOSDevice, isStandalonePWA, usePush } from '../hooks/usePush.ts'
 
 export function ProfilePage() {
   const { user, isAdmin, logout, logoutAll } = useAuth()
@@ -27,14 +27,26 @@ export function ProfilePage() {
           <p className="text-sm text-slate-500">Этот браузер не умеет Web Push. Демо — Chromium.</p>
         ) : (
           <>
+            {isIOSDevice() && !isStandalonePWA() ? (
+              <p className="text-sm text-amber-300">
+                На iPhone пуши только в приложении с домашнего экрана (Поделиться → На экран «Домой»).
+              </p>
+            ) : null}
             <p className="text-sm text-slate-400">
-              Разрешение: {push.permission === 'granted' ? 'есть' : push.permission === 'denied' ? 'запрещено' : 'не спрашивали'}
+              Разрешение:{' '}
+              {push.permission === 'granted' ? 'есть' : push.permission === 'denied' ? 'запрещено' : 'не спрашивали'}
+              {push.permission === 'granted'
+                ? push.subscribed
+                  ? ' · подписка на сервере есть'
+                  : ' · подписка не сохранилась'
+                : null}
             </p>
+            {push.error ? <p className="text-sm text-rose-300">{push.error}</p> : null}
             <div className="flex flex-wrap gap-2">
               <Button type="button" disabled={push.busy} onClick={() => void push.request()}>
                 Разрешить пуши
               </Button>
-              <Button type="button" variant="outline" onClick={() => void disablePush()}>
+              <Button type="button" variant="outline" disabled={push.busy} onClick={() => void push.disable()}>
                 Отписаться
               </Button>
             </div>

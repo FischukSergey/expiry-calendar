@@ -2,7 +2,7 @@
 import { clientsClaim } from 'workbox-core'
 import { cleanupOutdatedCaches, matchPrecache, precacheAndRoute } from 'workbox-precaching'
 import { registerRoute, setCatchHandler } from 'workbox-routing'
-import { NetworkFirst } from 'workbox-strategies'
+import { NetworkFirst, NetworkOnly } from 'workbox-strategies'
 
 declare let self: ServiceWorkerGlobalScope
 
@@ -10,6 +10,12 @@ self.skipWaiting()
 clientsClaim()
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
+
+// Спека и Swagger UI не должны попадать в pages-кэш: иначе UI парсит HTML и пишет «нет version field».
+registerRoute(
+  ({ url }) => url.pathname === '/openapi.yaml' || url.pathname.startsWith('/docs'),
+  new NetworkOnly(),
+)
 
 // HTML и API — сеть первая; иначе SW отдаёт старый index после деплоя. SSE не перехватываем.
 registerRoute(

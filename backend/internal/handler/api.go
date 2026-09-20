@@ -55,6 +55,7 @@ func (a *API) Router() http.Handler {
 	r.Use(requestLog)
 	r.Get("/healthz", a.healthz)
 	r.Get("/openapi.yaml", a.openAPISpec)
+	r.Get("/docs/openapi.yaml", a.openAPISpec)
 	r.Get("/docs", func(w http.ResponseWriter, req *http.Request) {
 		http.Redirect(w, req, "/docs/", http.StatusFound)
 	})

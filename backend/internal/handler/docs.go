@@ -6,9 +6,10 @@ import (
 	"github.com/swaggest/swgui/v5emb"
 )
 
-// openAPISpec отдаёт встроенную спеку. Content-Type application/yaml, не download-файл.
+// openAPISpec отдаёт встроенную спеку. text/yaml — Swagger UI; no-store, чтобы PWA/браузер не подсунули старый index.html.
 func (a *API) openAPISpec(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/yaml")
+	w.Header().Set("Content-Type", "text/yaml; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(a.spec)
 }

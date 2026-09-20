@@ -33,7 +33,19 @@ func TestOpenAPISpec(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: got %d", rec.Code)
 	}
+	if ct := rec.Header().Get("Content-Type"); !strings.Contains(ct, "yaml") {
+		t.Fatalf("content-type: %s", ct)
+	}
+	if rec.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("cache-control: %s", rec.Header().Get("Cache-Control"))
+	}
 	body := rec.Body.String()
+	if !strings.HasPrefix(body, "openapi:") {
+		t.Fatalf("spec must start with openapi: %q", body[:min(40, len(body))])
+	}
+	if strings.Contains(body, "summary: SSE:") {
+		t.Fatal("unquoted summary with colon breaks js-yaml / Swagger UI")
+	}
 	if !strings.Contains(body, "/healthz") || !strings.Contains(body, "/api/v1/auth/login") {
 		t.Fatalf("spec without health/auth: %s", body)
 	}
@@ -77,6 +89,21 @@ func TestOpenAPISpec(t *testing.T) {
 		if !strings.Contains(body, path) {
 			t.Fatalf("spec missing %s", path)
 		}
+	}
+}
+
+func TestOpenAPISpecUnderDocs(t *testing.T) {
+	t.Parallel()
+	api := docsAPI()
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/docs/openapi.yaml", nil)
+	api.Router().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: got %d body %s", rec.Code, rec.Body.String())
+	}
+	if !strings.HasPrefix(rec.Body.String(), "openapi:") {
+		t.Fatalf("not spec: %s", rec.Body.String()[:min(80, rec.Body.Len())])
 	}
 }
 

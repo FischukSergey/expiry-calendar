@@ -29,6 +29,9 @@ func Run(ctx context.Context, pool *pgxpool.Pool, clk clock.Clock) error {
 	if err := seedItems(ctx, pool, clk); err != nil {
 		return fmt.Errorf("seed items: %w", err)
 	}
+	if err := seedPayments(ctx, pool, clk); err != nil {
+		return fmt.Errorf("seed payments: %w", err)
+	}
 	if err := seedRenewals(ctx, pool, clk); err != nil {
 		return fmt.Errorf("seed renewals: %w", err)
 	}
@@ -136,6 +139,30 @@ ON CONFLICT (id) DO UPDATE SET
 			it.notifyDays, it.url, it.account, status, attrs,
 		); err != nil {
 			return fmt.Errorf("insert item %s: %w", it.title, err)
+		}
+	}
+	return nil
+}
+
+// seedPayments пишет оплаты вхождений. Конфликт по id — дату и сумму обновляет.
+func seedPayments(ctx context.Context, pool *pgxpool.Pool, clk clock.Clock) error {
+	const q = `
+INSERT INTO item_payments (id, item_id, owner_id, paid_on, amount, currency, created_at)
+VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6, now())
+ON CONFLICT (id) DO UPDATE SET
+    paid_on = EXCLUDED.paid_on,
+    amount = EXCLUDED.amount,
+    currency = EXCLUDED.currency`
+
+	today := clock.Today(clk)
+	for _, p := range paymentSeeds() {
+		it, ok := itemByN(p.itemN)
+		if !ok {
+			return fmt.Errorf("payment %d: unknown item %d", p.n, p.itemN)
+		}
+		paidOn := today.AddDate(0, 0, it.expireDays).AddDate(0, -p.monthsBack, 0)
+		if _, err := pool.Exec(ctx, q, paymentID(p.n), it.id, adminID, paidOn, it.cost, it.currency); err != nil {
+			return fmt.Errorf("insert payment %d: %w", p.n, err)
 		}
 	}
 	return nil

@@ -84,6 +84,7 @@ func checkItemSeeds() error {
 		return fmt.Errorf("want at least 50 items, got %d", len(items))
 	}
 	ids := make(map[string]struct{}, len(items))
+	var hasMobile, hasQuiet, hasPaid bool
 	for _, it := range items {
 		if _, dup := ids[it.id]; dup {
 			return fmt.Errorf("duplicate item id %s", it.id)
@@ -109,6 +110,24 @@ func checkItemSeeds() error {
 		if err := checkItemAttrs(it); err != nil {
 			return err
 		}
+		if it.kindSlug == slugMobile {
+			hasMobile = true
+		}
+		if it.notifyDays == nil {
+			hasQuiet = true
+		}
+		if it.status == statusPaid {
+			hasPaid = true
+		}
+	}
+	if !hasMobile {
+		return errors.New("want at least one mobile item")
+	}
+	if !hasQuiet {
+		return errors.New("want at least one item with notify_before_days null")
+	}
+	if !hasPaid {
+		return errors.New("want at least one paid item")
 	}
 	today := time.Date(2026, 8, 29, 0, 0, 0, 0, time.UTC)
 	expired, expiring := 0, 0
@@ -129,7 +148,7 @@ func checkItemSeeds() error {
 	return nil
 }
 
-// checkHistorySeeds: ≥20 renewals, ≥15 audit, unread notifications на expired/expiring.
+// checkHistorySeeds: ≥20 renewals, ≥15 audit, unread на expired/expiring, ≥5 payments.
 func checkHistorySeeds() error {
 	if len(renewalSeeds()) < 20 {
 		return fmt.Errorf("want at least 20 renewals, got %d", len(renewalSeeds()))
@@ -165,6 +184,27 @@ func checkHistorySeeds() error {
 	}
 	if unread < 1 {
 		return errors.New("want unread notifications, got 0")
+	}
+	return checkPaymentSeeds()
+}
+
+func checkPaymentSeeds() error {
+	pays := paymentSeeds()
+	if len(pays) < 5 {
+		return fmt.Errorf("want at least 5 payments, got %d", len(pays))
+	}
+	ids := make(map[string]struct{}, len(pays))
+	for _, p := range pays {
+		if _, dup := ids[paymentID(p.n)]; dup {
+			return fmt.Errorf("duplicate payment id %d", p.n)
+		}
+		ids[paymentID(p.n)] = struct{}{}
+		if p.monthsBack < 0 {
+			return fmt.Errorf("payment %d: monthsBack must be >= 0", p.n)
+		}
+		if _, ok := itemByN(p.itemN); !ok {
+			return fmt.Errorf("payment %d: unknown item %d", p.n, p.itemN)
+		}
 	}
 	return nil
 }

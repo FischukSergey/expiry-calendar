@@ -8,10 +8,11 @@ func TestSeedEnabled(t *testing.T) {
 		raw  string
 		want bool
 	}{
-		{"", true},
-		{"true", true},
+		{"", false},
+		{envTrue, true},
 		{"1", true},
 		{"yes", true},
+		{"on", true},
 		{"false", false},
 		{"FALSE", false},
 		{"0", false},

@@ -25,6 +25,7 @@ const (
 	statusExpired   = "expired"
 	statusCancelled = "cancelled"
 	statusArchived  = "archived"
+	statusPaid      = "paid"
 
 	actionCreate = "create"
 	actionRenew  = "renew"
@@ -52,6 +53,8 @@ const (
 	vendorCF       = "Cloudflare"
 	vendorFNS      = "ФНС"
 	vendorMTS      = "МТС"
+	vendorTele2    = "Теле2"
+	vendorTimeweb  = "Timeweb"
 	vendorCheap    = "Namecheap"
 	vinLadaWork    = "XTA21099050123456"
 	plateLadaWork  = "А123ВС777"

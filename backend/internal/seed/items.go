@@ -28,7 +28,7 @@ type itemSeed struct {
 	billing     string
 	startDays   *int
 	expireDays  int
-	notifyDays  int
+	notifyDays  *int
 	url         string
 	account     string
 	status      string
@@ -52,7 +52,7 @@ func it(n int, title, kind, cat string, expire int) itemSeed {
 		billing:    billingYearly,
 		startDays:  intPtr(expire - 365),
 		expireDays: expire,
-		notifyDays: 30,
+		notifyDays: intPtr(30),
 	}
 }
 
@@ -71,6 +71,10 @@ func (s itemSeed) link(v string) itemSeed              { s.url = v; return s }
 func (s itemSeed) hint(v string) itemSeed              { s.account = v; return s }
 func (s itemSeed) cancelled() itemSeed                 { s.status = statusCancelled; return s }
 func (s itemSeed) archived() itemSeed                  { s.status = statusArchived; return s }
+func (s itemSeed) paid() itemSeed                      { s.status = statusPaid; return s }
+
+// quiet — notify_before_days NULL: тикер не ставит expiring и не шлёт notification.
+func (s itemSeed) quiet() itemSeed { s.notifyDays = nil; return s }
 
 // itemSeeds — каталог FUNCTIONAL: ≥50 записей, даты от Clock.Today.
 func itemSeeds() []itemSeed {
@@ -126,7 +130,7 @@ func itemSeeds() []itemSeed {
 			extra(map[string]any{attrTaxAuth: taxOfficeSeven, attrPeriod: "2026-Q3"}).
 			tagged(tagTax),
 		it(13, "VPS Timeweb", slugOther, catIT, 9).
-			money(990, currencyRUB, billingMonthly).from("Timeweb").
+			money(990, currencyRUB, billingMonthly).from(vendorTimeweb).
 			tagged("хостинг").link("https://timeweb.cloud"),
 		it(14, "Яндекс 360", slugSubscription, catSubs, -5).
 			money(1699, currencyRUB, billingMonthly).from("Яндекс").
@@ -205,8 +209,8 @@ func itemSeeds() []itemSeed {
 			extra(map[string]any{attrLandlord: vendorTSJ, attrAddress: "Лесная, 12, кл. 3"}).
 			tagged(tagHome),
 		it(33, "Договор хостинга", slugContract, catContracts, 200).
-			money(0, currencyRUB, billingYearly).from("Timeweb").
-			extra(map[string]any{attrParty: "Timeweb", attrContractNo: "TW-8801"}).
+			money(0, currencyRUB, billingYearly).from(vendorTimeweb).
+			extra(map[string]any{attrParty: vendorTimeweb, attrContractNo: "TW-8801"}).
 			tagged("it"),
 		it(34, "Договор с бухгалтером", slugContract, catContracts, 35).
 			money(15000, currencyRUB, billingMonthly).from("ИП Смирнова").
@@ -279,6 +283,17 @@ func itemSeeds() []itemSeed {
 			money(16, currencyUSD, billingYearly).from(vendorCheap).
 			extra(map[string]any{attrRegistrar: vendorCheap, attrAutoRenew: true}).
 			tagged(tagDNS),
+		it(53, "МТС личная", slugMobile, catIT, 15).
+			money(650, currencyRUB, billingMonthly).from(vendorMTS).
+			extra(map[string]any{attrPhone: "+7 916 000-11-22", attrOperator: vendorMTS}).
+			desc("Основной номер").tagged("связь").hint("л/с 7700"),
+		it(54, "Теле2 запасной", slugMobile, catIT, 80).
+			money(350, currencyRUB, billingMonthly).from(vendorTele2).
+			extra(map[string]any{attrPhone: "+7 902 555-33-44", attrOperator: vendorTele2}).
+			desc("Без напоминаний").tagged("связь").quiet(),
+		it(55, "Предоплата Timeweb год", slugOther, catIT, 40).
+			money(11880, currencyRUB, billingYearly).from(vendorTimeweb).
+			desc("Заморозка записи: items.status = paid").tagged("хостинг").paid(),
 	}
 }
 
@@ -330,9 +345,17 @@ func marshalAttrs(attrs map[string]any) ([]byte, error) {
 }
 
 func itemComputedStatus(today time.Time, it itemSeed) string {
-	if it.status == statusCancelled || it.status == statusArchived {
+	if it.status == statusCancelled || it.status == statusArchived || it.status == statusPaid {
 		return it.status
 	}
 	_, expires := itemDates(today, it.startDays, it.expireDays)
-	return StatusAtWrite(today, expires, it.notifyDays)
+	if it.notifyDays == nil {
+		today = today.UTC().Truncate(24 * time.Hour)
+		expires = expires.UTC().Truncate(24 * time.Hour)
+		if expires.Before(today) {
+			return statusExpired
+		}
+		return statusActive
+	}
+	return StatusAtWrite(today, expires, *it.notifyDays)
 }

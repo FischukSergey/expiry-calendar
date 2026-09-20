@@ -151,6 +151,9 @@ func run() error {
 	}
 }
 
+// envTrue — значение «вкл» для COOKIE_SECURE и SEED.
+const envTrue = "true"
+
 // config — env процесса. JWT_SECRET без порога длины: в local compose 19 символов.
 type config struct {
 	HTTPAddr       string
@@ -200,7 +203,7 @@ func loadConfig() (config, error) {
 		JWTSecret:      os.Getenv("JWT_SECRET"),
 		AccessTTL:      accessTTL,
 		RefreshTTL:     refreshTTL,
-		CookieSecure:   os.Getenv("COOKIE_SECURE") == "true",
+		CookieSecure:   os.Getenv("COOKIE_SECURE") == envTrue,
 		VAPIDPublic:    vapidPublic,
 		VAPIDPrivate:   vapidPrivate,
 		VAPIDSubject:   cmp.Or(strings.TrimSpace(os.Getenv("VAPID_SUBJECT")), "dev@duekeep.local"),
@@ -217,13 +220,13 @@ func loadConfig() (config, error) {
 	return cfg, nil
 }
 
-// seedEnabled: пустой SEED — включён (локальный go run). 0/false/no/off — выкл.
+// seedEnabled: только явный true/1/yes/on. Пустой SEED и всё остальное — выкл (прод без опечатки).
 func seedEnabled(raw string) bool {
 	switch strings.ToLower(strings.TrimSpace(raw)) {
-	case "0", "false", "no", "off":
-		return false
-	default:
+	case "1", envTrue, "yes", "on":
 		return true
+	default:
+		return false
 	}
 }
 

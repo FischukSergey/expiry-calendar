@@ -1,4 +1,4 @@
-openapi: 3.0.3
+openapi: "3.0.3"
 info:
   title: Duekeep API
   version: 1.0.0
@@ -890,7 +890,7 @@ paths:
   /api/v1/events:
     get:
       tags: [Events]
-      summary: SSE: только свои notification
+      summary: "SSE: только свои notification"
       operationId: streamEvents
       parameters:
         - in: query

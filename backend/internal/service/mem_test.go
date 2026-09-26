@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"context"
+	"maps"
 	"sync"
 	"time"
 
@@ -44,6 +45,19 @@ func (m *memUsers) ByEmail(_ context.Context, email string) (model.User, error) 
 		return model.User{}, model.ErrNotFound
 	}
 	return u, nil
+}
+
+func (m *memUsers) SetRole(_ context.Context, id string, role model.Role) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	u, ok := m.byID[id]
+	if !ok {
+		return model.ErrNotFound
+	}
+	u.Role = role
+	m.byID[id] = u
+	m.byEmail[u.Email] = u
+	return nil
 }
 
 func (m *memUsers) ByID(_ context.Context, id string) (model.User, error) {
@@ -112,6 +126,18 @@ func (m *memRefresh) RevokeFamily(_ context.Context, familyID string, at time.Ti
 		}
 	}
 	return nil
+}
+
+func (m *memRefresh) snapshot() map[string]model.RefreshSession {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return maps.Clone(m.byHash)
+}
+
+func (m *memRefresh) restore(snap map[string]model.RefreshSession) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.byHash = snap
 }
 
 func (m *memRefresh) RevokeUser(_ context.Context, userID string, at time.Time) error {

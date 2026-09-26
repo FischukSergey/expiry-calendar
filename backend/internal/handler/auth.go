@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"duekeep/internal/middleware"
 	"duekeep/internal/model"
@@ -29,7 +31,7 @@ func (a *API) register(w http.ResponseWriter, r *http.Request) {
 	}
 	pair, err := a.auth.Register(r.Context(), body.Email, body.Password, r.UserAgent())
 	if err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	a.setRefreshCookie(w, pair.RefreshToken)
@@ -42,11 +44,20 @@ func (a *API) login(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity, "validation_error", "invalid json")
 		return
 	}
-	pair, err := a.auth.Login(r.Context(), body.Email, body.Password, r.UserAgent())
-	if err != nil {
-		writeDomainError(w, err)
+	key := loginKey(r, body.Email)
+	if a.loginLimit.blocked(key, time.Now()) {
+		writeError(w, http.StatusTooManyRequests, "rate_limited", "rate limited")
 		return
 	}
+	pair, err := a.auth.Login(r.Context(), body.Email, body.Password, r.UserAgent())
+	if err != nil {
+		if errors.Is(err, model.ErrUnauthorized) {
+			a.loginLimit.fail(key, time.Now())
+		}
+		writeDomainError(r, w, err)
+		return
+	}
+	a.loginLimit.success(key)
 	a.setRefreshCookie(w, pair.RefreshToken)
 	writeBytes(w, http.StatusOK, pair)
 }
@@ -59,7 +70,7 @@ func (a *API) refresh(w http.ResponseWriter, r *http.Request) {
 	}
 	pair, err := a.auth.Refresh(r.Context(), raw, r.UserAgent())
 	if err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	a.setRefreshCookie(w, pair.RefreshToken)
@@ -78,7 +89,7 @@ func (a *API) logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := a.auth.Logout(r.Context(), raw); err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	a.clearRefreshCookie(w)
@@ -88,7 +99,7 @@ func (a *API) logout(w http.ResponseWriter, r *http.Request) {
 func (a *API) logoutAll(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.UserID(r.Context())
 	if err := a.auth.LogoutAll(r.Context(), userID); err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	a.clearRefreshCookie(w)
@@ -98,7 +109,7 @@ func (a *API) logoutAll(w http.ResponseWriter, r *http.Request) {
 func (a *API) me(w http.ResponseWriter, r *http.Request) {
 	user, err := a.auth.Me(r.Context(), middleware.UserID(r.Context()))
 	if err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	writeBytes(w, http.StatusOK, user)
@@ -153,7 +164,7 @@ func decodeJSON(r *http.Request, dst any) error {
 	return err
 }
 
-func writeDomainError(w http.ResponseWriter, err error) {
+func writeDomainError(r *http.Request, w http.ResponseWriter, err error) {
 	var val *model.ValidationError
 	switch {
 	case errors.As(err, &val):
@@ -167,6 +178,12 @@ func writeDomainError(w http.ResponseWriter, err error) {
 	case errors.Is(err, model.ErrConflict):
 		writeError(w, http.StatusConflict, "conflict", "conflict")
 	default:
-		writeError(w, http.StatusInternalServerError, "internal", "internal")
+		writeInternal(r, w, err)
 	}
+}
+
+// writeInternal логирует причину 500 и отдаёт клиенту общее internal без текста ошибки.
+func writeInternal(r *http.Request, w http.ResponseWriter, err error) {
+	slog.ErrorContext(r.Context(), "internal", "err", err, "path", r.URL.Path)
+	writeError(w, http.StatusInternalServerError, "internal", "internal")
 }

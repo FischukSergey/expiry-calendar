@@ -21,7 +21,6 @@ import (
 	"duekeep/internal/db"
 	"duekeep/internal/handler"
 	"duekeep/internal/repository"
-	"duekeep/internal/seed"
 	"duekeep/internal/service"
 	"duekeep/internal/sse"
 	"duekeep/migrations"
@@ -34,7 +33,7 @@ func main() {
 	}
 }
 
-// run поднимает slog, пул, goose, seed (если SEED) и HTTP. По SIGINT/SIGTERM — Shutdown за 10 с.
+// run поднимает slog, пул, goose и HTTP. По SIGINT/SIGTERM — Shutdown за 10 с.
 func run() error {
 	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	slog.SetDefault(log)
@@ -51,7 +50,6 @@ func run() error {
 		"cookie_secure", cfg.CookieSecure,
 		"vapid_generated", cfg.VAPIDGenerated,
 		"ticker_every", cfg.TickEvery.String(),
-		"seed", cfg.Seed,
 	)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -66,17 +64,6 @@ func run() error {
 	if err := db.Migrate(ctx, pool, migrations.FS, "."); err != nil {
 		return err
 	}
-	if cfg.Seed {
-		if err := seed.Run(ctx, pool, clock.Real{}); err != nil {
-			return err
-		}
-	} else {
-		slog.Info("demo seed disabled")
-		if err := seed.EnsureKinds(ctx, pool); err != nil {
-			return err
-		}
-	}
-
 	users := repository.NewUsers(pool)
 	refresh := repository.NewRefreshTokens(pool)
 	runTx := func(ctx context.Context, fn func(context.Context) error) error {
@@ -84,10 +71,14 @@ func run() error {
 	}
 	clk := clock.Real{}
 	auth := service.NewAuth(users, refresh, runTx, clk, service.AuthConfig{
-		Secret:     []byte(cfg.JWTSecret),
-		AccessTTL:  cfg.AccessTTL,
-		RefreshTTL: cfg.RefreshTTL,
+		Secret:             []byte(cfg.JWTSecret),
+		AccessTTL:          cfg.AccessTTL,
+		RefreshTTL:         cfg.RefreshTTL,
+		AdministratorEmail: cfg.AdministratorEmail,
 	})
+	if err := auth.PromoteAdministrator(ctx); err != nil {
+		return err
+	}
 	kindsRepo := repository.NewKinds(pool)
 	catsRepo := repository.NewCategories(pool)
 	auth.SetCategoryDefaults(catsRepo)
@@ -151,23 +142,23 @@ func run() error {
 	}
 }
 
-// envTrue — значение «вкл» для COOKIE_SECURE и SEED.
+// envTrue — значение «вкл» для COOKIE_SECURE.
 const envTrue = "true"
 
 // config — env процесса. JWT_SECRET без порога длины: в local compose 19 символов.
 type config struct {
-	HTTPAddr       string
-	DatabaseURL    string
-	JWTSecret      string
-	AccessTTL      time.Duration
-	RefreshTTL     time.Duration
-	CookieSecure   bool
-	VAPIDPublic    string
-	VAPIDPrivate   string
-	VAPIDSubject   string
-	VAPIDGenerated bool // ключи не из env: подписки не переживут рестарт.
-	TickEvery      time.Duration
-	Seed           bool
+	HTTPAddr           string
+	DatabaseURL        string
+	JWTSecret          string
+	AccessTTL          time.Duration
+	RefreshTTL         time.Duration
+	CookieSecure       bool
+	VAPIDPublic        string
+	VAPIDPrivate       string
+	VAPIDSubject       string
+	VAPIDGenerated     bool // ключи не из env: подписки не переживут рестарт.
+	TickEvery          time.Duration
+	AdministratorEmail string
 }
 
 // loadConfig: HTTP_ADDR, DATABASE_URL, JWT_SECRET обязателен; TTL с дефолтами 15m / 336h.
@@ -198,18 +189,18 @@ func loadConfig() (config, error) {
 		slog.Warn("vapid keys generated for this process; set VAPID_PUBLIC/VAPID_PRIVATE to keep subscriptions after restart")
 	}
 	cfg := config{
-		HTTPAddr:       cmp.Or(os.Getenv("HTTP_ADDR"), ":8080"),
-		DatabaseURL:    os.Getenv("DATABASE_URL"),
-		JWTSecret:      os.Getenv("JWT_SECRET"),
-		AccessTTL:      accessTTL,
-		RefreshTTL:     refreshTTL,
-		CookieSecure:   os.Getenv("COOKIE_SECURE") == envTrue,
-		VAPIDPublic:    vapidPublic,
-		VAPIDPrivate:   vapidPrivate,
-		VAPIDSubject:   cmp.Or(strings.TrimSpace(os.Getenv("VAPID_SUBJECT")), "dev@duekeep.local"),
-		VAPIDGenerated: generated,
-		TickEvery:      tickEvery,
-		Seed:           seedEnabled(os.Getenv("SEED")),
+		HTTPAddr:           cmp.Or(os.Getenv("HTTP_ADDR"), ":8080"),
+		DatabaseURL:        os.Getenv("DATABASE_URL"),
+		JWTSecret:          os.Getenv("JWT_SECRET"),
+		AccessTTL:          accessTTL,
+		RefreshTTL:         refreshTTL,
+		CookieSecure:       os.Getenv("COOKIE_SECURE") == envTrue,
+		VAPIDPublic:        vapidPublic,
+		VAPIDPrivate:       vapidPrivate,
+		VAPIDSubject:       cmp.Or(strings.TrimSpace(os.Getenv("VAPID_SUBJECT")), "dev@duekeep.local"),
+		VAPIDGenerated:     generated,
+		TickEvery:          tickEvery,
+		AdministratorEmail: strings.TrimSpace(os.Getenv("ADMINISTRATOR_EMAIL")),
 	}
 	if cfg.DatabaseURL == "" {
 		return config{}, errors.New("DATABASE_URL is required")
@@ -218,16 +209,6 @@ func loadConfig() (config, error) {
 		return config{}, errors.New("JWT_SECRET is required")
 	}
 	return cfg, nil
-}
-
-// seedEnabled: только явный true/1/yes/on. Пустой SEED и всё остальное — выкл (прод без опечатки).
-func seedEnabled(raw string) bool {
-	switch strings.ToLower(strings.TrimSpace(raw)) {
-	case "1", envTrue, "yes", "on":
-		return true
-	default:
-		return false
-	}
 }
 
 // redactDSN маскирует пароль в DSN для slog. Невалидный URL → "invalid".

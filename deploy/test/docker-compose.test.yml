@@ -1,10 +1,8 @@
 name: duekeep-test
 
-# Только Postgres. Integration-тесты подключим в Taskfile позже.
 services:
-  postgres-test:
+  db:
     image: postgres:16-alpine
-    container_name: duekeep-postgres-test
     environment:
       POSTGRES_USER: duekeep
       POSTGRES_PASSWORD: duekeep
@@ -16,5 +14,5 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U duekeep -d duekeep_test"]
       interval: 2s
-      timeout: 3s
-      retries: 15
+      timeout: 5s
+      retries: 20

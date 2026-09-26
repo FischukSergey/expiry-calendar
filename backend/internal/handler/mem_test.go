@@ -46,6 +46,19 @@ func (m *memUsers) ByEmail(_ context.Context, email string) (model.User, error) 
 	return u, nil
 }
 
+func (m *memUsers) SetRole(_ context.Context, id string, role model.Role) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	u, ok := m.byID[id]
+	if !ok {
+		return model.ErrNotFound
+	}
+	u.Role = role
+	m.byID[id] = u
+	m.byEmail[u.Email] = u
+	return nil
+}
+
 func (m *memUsers) ByID(_ context.Context, id string) (model.User, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

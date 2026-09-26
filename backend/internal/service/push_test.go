@@ -63,6 +63,7 @@ func (s *stubSender) Send(context.Context, model.PushSubscription, []byte) (int,
 func TestPushSubscribeValidates(t *testing.T) {
 	t.Parallel()
 	p := service.NewPush(newMemPushStore(), nil, "pub")
+	p.AllowPublicHosts()
 	err := p.Subscribe(t.Context(), "u1", model.PushSubscribe{}, "")
 	if err == nil {
 		t.Fatal("expected validation")
@@ -81,6 +82,7 @@ func TestPushBroadcastDeletesOn410(t *testing.T) {
 	store := newMemPushStore()
 	sender := &stubSender{status: http.StatusGone}
 	p := service.NewPush(store, sender, "pub")
+	p.AllowPublicHosts()
 	if err := store.Upsert(t.Context(), model.PushSubscription{
 		UserID: "u1", Endpoint: "https://push.example/gone", P256dh: "p", Auth: "a",
 	}); err != nil {
@@ -106,6 +108,7 @@ func TestPushBroadcastDeletesOn404(t *testing.T) {
 	store := newMemPushStore()
 	sender := &stubSender{status: http.StatusNotFound}
 	p := service.NewPush(store, sender, "pub")
+	p.AllowPublicHosts()
 	if err := store.Upsert(t.Context(), model.PushSubscription{
 		UserID: "u1", Endpoint: "https://push.example/dead", P256dh: "p", Auth: "a",
 	}); err != nil {
@@ -130,6 +133,7 @@ func TestPushBroadcastSkipsOtherUser(t *testing.T) {
 	store := newMemPushStore()
 	sender := &stubSender{}
 	p := service.NewPush(store, sender, "pub")
+	p.AllowPublicHosts()
 	if err := store.Upsert(t.Context(), model.PushSubscription{
 		UserID: otherOwner, Endpoint: "https://push.example/other", P256dh: "p", Auth: "a",
 	}); err != nil {
@@ -158,7 +162,9 @@ func TestFanoutNotifiesSSEAndPush(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	f := &service.Fanout{SSE: bus, Push: service.NewPush(store, sender, "pub")}
+	push := service.NewPush(store, sender, "pub")
+	push.AllowPublicHosts()
+	f := &service.Fanout{SSE: bus, Push: push}
 	f.Notify(model.Notification{OwnerID: "u1", ID: "n1", Title: itemTitleDomain, ToStatus: model.StatusExpired})
 	bus.mu.Lock()
 	got := len(bus.got)

@@ -152,6 +152,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: 8 неудач за 15 минут на пару IP и email
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /api/v1/auth/refresh:
     post:
       tags: [Auth]
@@ -260,7 +266,7 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
     post:
       tags: [Catalog]
-      summary: Создать тип (admin)
+      summary: Создать тип (administrator)
       operationId: postKinds
       requestBody:
         required: true
@@ -276,7 +282,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Kind"
         "403":
-          description: Viewer
+          description: Роль не administrator
           content:
             application/json:
               schema:
@@ -303,7 +309,7 @@ paths:
           format: uuid
     patch:
       tags: [Catalog]
-      summary: Частичное обновление типа (admin)
+      summary: Частичное обновление типа (administrator)
       operationId: patchKind
       requestBody:
         required: true
@@ -319,7 +325,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Kind"
         "403":
-          description: Viewer
+          description: Роль не administrator
           content:
             application/json:
               schema:
@@ -344,13 +350,13 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
     delete:
       tags: [Catalog]
-      summary: Удалить тип (admin)
+      summary: Удалить тип (administrator)
       operationId: deleteKind
       responses:
         "204":
           description: Удалён
         "403":
-          description: Viewer
+          description: Роль не administrator
           content:
             application/json:
               schema:
@@ -1119,7 +1125,7 @@ components:
           type: string
         role:
           type: string
-          enum: [admin, viewer]
+          enum: [admin, viewer, administrator]
     AttrField:
       type: object
       required: [key, label, type, required]

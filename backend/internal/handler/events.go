@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -9,12 +10,14 @@ import (
 	"duekeep/internal/sse"
 )
 
+var errStreamingUnsupported = errors.New("streaming unsupported")
+
 const defaultSSEPing = 15 * time.Second
 
 func (a *API) events(w http.ResponseWriter, r *http.Request) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		writeError(w, http.StatusInternalServerError, "internal", "streaming unsupported")
+		writeInternal(r, w, errStreamingUnsupported)
 		return
 	}
 	w.Header().Set("Content-Type", "text/event-stream")

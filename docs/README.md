@@ -16,7 +16,8 @@
 | 8 | CD на VPS | [plan](sprint-8-plan.md) | [api](api-sprint-8.md) | [checklist](sprint-8-checklist.md) | [limitations](known-limitations-sprint-8.md) |
 | 9 | Оплачено, «мобильная связь», «не уведомлять», лента PWA | [plan](sprint-9-plan.md) | [api](api-sprint-9.md) | [checklist](sprint-9-checklist.md) | [limitations](known-limitations-sprint-9.md) |
 | 10 | Оплата вхождения (календарь) | [plan](sprint-10-plan.md) | [api](api-sprint-10.md) | [checklist](sprint-10-checklist.md) | [limitations](known-limitations-sprint-10.md) |
+| 11 | Исправления по ревью | [plan](sprint-11-plan.md) | [api](api-sprint-11.md) | [checklist](sprint-11-checklist.md) | [limitations](known-limitations-sprint-11.md) |
 
 Правило: новый handler не меняет контракт спринта без правки `api-sprint-N.md`.
 
-Спринты 1–7 закрыты по чеклистам (v1 + свои данные). Sprint 8 — CD на VPS. Sprint 9 — продукт (оплачено / тип mobile / notify off / лента). Sprint 10 — оплата вхождения (календарь).
+Спринты 1–7 закрыты по чеклистам (v1 + свои данные). Sprint 8 — CD на VPS. Sprint 9 — продукт (оплачено / тип mobile / notify off / лента). Sprint 10 — оплата вхождения (календарь). Sprint 11 — просрочка ряда, роль `administrator`, без демо-seed.

@@ -1,10 +1,11 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { exportItems, listCategories, listItems, listKinds } from '../api/endpoints.ts'
+import { ApiError } from '../api/client.ts'
+import { bulkItems, exportItems, listCategories, listItems, listKinds } from '../api/endpoints.ts'
 import type { ItemFilter, Status } from '../api/types.ts'
-import { Button, Field, PageState, PageTitle, Select, StatusBadge, TextInput } from '../components/ui.tsx'
+import { Button, ErrorBanner, Field, PageState, PageTitle, Select, StatusBadge, TextInput } from '../components/ui.tsx'
 import { useAuth } from '../hooks/useAuth.ts'
 import { billingLabel, flattenCategories, formatDate, formatMoney, statusLabel } from '../lib/format.ts'
 
@@ -29,12 +30,49 @@ function readFilter(params: URLSearchParams): ItemFilter {
 
 export function ItemsPage() {
   const { isAdmin } = useAuth()
+  const qc = useQueryClient()
   const [params, setParams] = useSearchParams()
   const filter = useMemo(() => readFilter(params), [params])
+  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set())
+  const [bulkCategory, setBulkCategory] = useState('')
+  const [bulkStatus, setBulkStatus] = useState('')
+  const [bulkError, setBulkError] = useState<string | null>(null)
 
   const kinds = useQuery({ queryKey: ['kinds'], queryFn: listKinds })
   const cats = useQuery({ queryKey: ['categories'], queryFn: listCategories })
   const items = useQuery({ queryKey: ['items', filter], queryFn: () => listItems(filter) })
+
+  useEffect(() => {
+    setPicked(new Set())
+  }, [filter])
+
+  const bulk = useMutation({
+    mutationFn: bulkItems,
+    onSuccess: async () => {
+      setBulkError(null)
+      setBulkCategory('')
+      setBulkStatus('')
+      setPicked(new Set())
+      await qc.invalidateQueries({ queryKey: ['items'] })
+      await qc.invalidateQueries({ queryKey: ['calendar'] })
+      await qc.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+    onError: (err: unknown) => {
+      setBulkError(err instanceof ApiError ? err.message : 'Не удалось обновить')
+    },
+  })
+
+  const toggle = (id: string) => {
+    setPicked((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
 
   const setField = (key: string, value: string) => {
     const next = new URLSearchParams(params)
@@ -167,6 +205,53 @@ export function ItemsPage() {
         </Field>
       </div>
 
+      {isAdmin && picked.size > 0 ? (
+        <form
+          className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-800 bg-slate-900/40 p-3"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (!bulkCategory && !bulkStatus) {
+              setBulkError('Выберите раздел или статус')
+              return
+            }
+            setBulkError(null)
+            bulk.mutate({
+              ids: [...picked],
+              ...(bulkCategory ? { category_id: bulkCategory } : {}),
+              ...(bulkStatus ? { status: bulkStatus as 'cancelled' | 'archived' | 'paid' } : {}),
+            })
+          }}
+        >
+          <p className="pb-2 text-sm text-slate-300">Выбрано: {picked.size}</p>
+          <Field label="Раздел">
+            <Select value={bulkCategory} onChange={(e) => setBulkCategory(e.target.value)}>
+              <option value="">Не менять</option>
+              {flatCats.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {'· '.repeat(c.depth)}
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Статус">
+            <Select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value)}>
+              <option value="">Не менять</option>
+              <option value="paid">Оплачено</option>
+              <option value="cancelled">Отменено</option>
+              <option value="archived">Архив</option>
+            </Select>
+          </Field>
+          <Button type="submit" disabled={bulk.isPending}>
+            Применить
+          </Button>
+          <Button type="button" variant="outline" onClick={() => setPicked(new Set())}>
+            Сбросить
+          </Button>
+          {bulkError ? <ErrorBanner message={bulkError} /> : null}
+        </form>
+      ) : null}
+
       {items.isPending ? <PageState title="Загрузка списка…" /> : null}
       {items.isError ? (
         <PageState title="Ошибка списка" hint={items.error.message} onRetry={() => void items.refetch()} />
@@ -194,9 +279,20 @@ export function ItemsPage() {
           <ul className="space-y-2 md:hidden">
             {items.data.items.map((it) => (
               <li key={it.id} className="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
-                <Link to={`/items/${it.id}`} className="font-medium text-teal-300">
-                  {it.title}
-                </Link>
+                <div className="flex items-start gap-2">
+                  {isAdmin ? (
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={picked.has(it.id)}
+                      aria-label={`Выбрать ${it.title}`}
+                      onChange={() => toggle(it.id)}
+                    />
+                  ) : null}
+                  <Link to={`/items/${it.id}`} className="font-medium text-teal-300">
+                    {it.title}
+                  </Link>
+                </div>
                 <p className="mt-1 text-xs text-slate-400">
                   {kindById.get(it.kind_id)?.name ?? '—'} · {formatDate(it.expires_at)}
                 </p>
@@ -211,6 +307,7 @@ export function ItemsPage() {
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead className="bg-slate-900 text-xs tracking-wide text-slate-400 uppercase">
                 <tr>
+                  {isAdmin ? <th className="px-3 py-2 font-medium"> </th> : null}
                   <th className="px-3 py-2 font-medium">Запись</th>
                   <th className="px-3 py-2 font-medium">Тип</th>
                   <th className="px-3 py-2 font-medium">Срок оплаты</th>
@@ -221,6 +318,16 @@ export function ItemsPage() {
               <tbody>
                 {items.data.items.map((it) => (
                   <tr key={it.id} className="border-t border-slate-800 hover:bg-slate-900/60">
+                    {isAdmin ? (
+                      <td className="px-3 py-2">
+                        <input
+                          type="checkbox"
+                          checked={picked.has(it.id)}
+                          aria-label={`Выбрать ${it.title}`}
+                          onChange={() => toggle(it.id)}
+                        />
+                      </td>
+                    ) : null}
                     <td className="px-3 py-2">
                       <Link to={`/items/${it.id}`} className="font-medium text-teal-300 hover:underline">
                         {it.title}

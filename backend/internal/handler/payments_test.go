@@ -105,8 +105,18 @@ func TestPayClearsExpiredAndRejectsBeforeStart(t *testing.T) {
 
 	monthly := adminCreateItem(t, api, tok, `{"title":"Подписка","kind_id":"`+otherKindID+
 		`","expires_at":"2026-08-01","billing_period":"monthly"}`)
-	if monthly.Status == model.StatusExpired {
+	if monthly.Status != model.StatusExpired {
 		t.Fatalf("monthly past anchor %s", monthly.Status)
+	}
+	adminJSON(t, api, tok, http.MethodPost, "/api/v1/items/"+monthly.ID+"/payments",
+		`{"date":"2026-08-01"}`, http.StatusCreated)
+	paidMonthly := adminJSON(t, api, tok, http.MethodGet, "/api/v1/items/"+monthly.ID, "", http.StatusOK)
+	var monthlyCard model.ItemCard
+	if err := json.NewDecoder(paidMonthly.Body).Decode(&monthlyCard); err != nil {
+		t.Fatal(err)
+	}
+	if monthlyCard.Item.Status == model.StatusExpired || monthlyCard.NextOpenAt == nil || *monthlyCard.NextOpenAt != "2026-09-01" {
+		t.Fatalf("after pay %+v status %s", monthlyCard.NextOpenAt, monthlyCard.Item.Status)
 	}
 
 	start := adminCreateItem(t, api, tok, `{"title":"Аренда","kind_id":"`+otherKindID+

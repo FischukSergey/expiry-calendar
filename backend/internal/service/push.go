@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"strings"
 
@@ -30,16 +32,31 @@ type PushSender interface {
 	Send(ctx context.Context, sub model.PushSubscription, payload []byte) (status int, err error)
 }
 
+// hostLookup резолвит хост push-endpoint. В тестах подменяется на публичный адрес.
+type hostLookup func(ctx context.Context, host string) ([]net.IP, error)
+
 // Push — subscribe/unsubscribe и рассылка из тикера.
 type Push struct {
 	store  PushStore
 	sender PushSender
 	public string
+	lookup hostLookup
 }
 
 // NewPush собирает сервис. sender nil — Broadcast ничего не шлёт (тесты без HTTP).
 func NewPush(store PushStore, sender PushSender, publicKey string) *Push {
-	return &Push{store: store, sender: sender, public: publicKey}
+	return &Push{store: store, sender: sender, public: publicKey, lookup: defaultLookup}
+}
+
+// AllowPublicHosts считает любой хост публичным. Только для тестов без DNS.
+func (s *Push) AllowPublicHosts() {
+	s.lookup = func(context.Context, string) ([]net.IP, error) {
+		return []net.IP{net.ParseIP("1.1.1.1")}, nil
+	}
+}
+
+func defaultLookup(ctx context.Context, host string) ([]net.IP, error) {
+	return net.DefaultResolver.LookupIP(ctx, "ip", host)
 }
 
 // PublicKey — GET /push/vapid-public.
@@ -49,7 +66,7 @@ func (s *Push) PublicKey() string {
 
 // Subscribe — POST /push/subscribe, upsert по endpoint.
 func (s *Push) Subscribe(ctx context.Context, userID string, in model.PushSubscribe, userAgent string) error {
-	sub, err := validateSubscribe(in)
+	sub, err := validateSubscribe(ctx, s.lookup, in)
 	if err != nil {
 		return err
 	}
@@ -89,6 +106,10 @@ func (s *Push) Broadcast(ctx context.Context, n model.Notification) error {
 		if sub.UserID != n.OwnerID {
 			continue
 		}
+		if err := endpointPublic(ctx, s.lookup, sub.Endpoint); err != nil {
+			slog.ErrorContext(ctx, "push skip private endpoint", "err", err)
+			continue
+		}
 		status, sendErr := s.sender.Send(ctx, sub, payload)
 		if sendErr != nil {
 			slog.ErrorContext(ctx, "push send", "err", sendErr, "status", status)
@@ -109,14 +130,14 @@ func subscriptionDead(status int) bool {
 	return status == http.StatusGone || status == http.StatusNotFound || status == http.StatusForbidden
 }
 
-func validateSubscribe(in model.PushSubscribe) (model.PushSubscription, error) {
+func validateSubscribe(ctx context.Context, lookup hostLookup, in model.PushSubscribe) (model.PushSubscription, error) {
 	endpoint := strings.TrimSpace(in.Endpoint)
 	p256dh := strings.TrimSpace(in.Keys.P256dh)
 	auth := strings.TrimSpace(in.Keys.Auth)
 	fields := map[string]any{}
 	if endpoint == "" {
 		fields[fieldEndpoint] = detailRequired
-	} else if u, err := url.Parse(endpoint); err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
+	} else if err := endpointPublic(ctx, lookup, endpoint); err != nil {
 		fields[fieldEndpoint] = "url"
 	}
 	if p256dh == "" {
@@ -134,3 +155,45 @@ func validateSubscribe(in model.PushSubscribe) (model.PushSubscription, error) {
 		Auth:     strings.Clone(auth),
 	}, nil
 }
+
+// endpointPublic пускает только https на глобальный unicast-адрес. Частные и loopback — нет.
+func endpointPublic(ctx context.Context, lookup hostLookup, raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme != "https" || u.Hostname() == "" {
+		return errPushEndpoint
+	}
+	host := u.Hostname()
+	if strings.EqualFold(host, "localhost") {
+		return errPushEndpoint
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		if !isPublicIP(ip) {
+			return errPushEndpoint
+		}
+		return nil
+	}
+	if lookup == nil {
+		lookup = defaultLookup
+	}
+	ips, err := lookup(ctx, host)
+	if err != nil || len(ips) == 0 {
+		return errPushEndpoint
+	}
+	for _, ip := range ips {
+		if !isPublicIP(ip) {
+			return errPushEndpoint
+		}
+	}
+	return nil
+}
+
+func isPublicIP(ip net.IP) bool {
+	addr, ok := netip.AddrFromSlice(ip)
+	if !ok {
+		return false
+	}
+	addr = addr.Unmap()
+	return addr.IsGlobalUnicast() && !addr.IsPrivate()
+}
+
+var errPushEndpoint = model.Validation("invalid endpoint", map[string]any{fieldEndpoint: "url"})

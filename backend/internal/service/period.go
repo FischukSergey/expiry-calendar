@@ -124,35 +124,37 @@ func occurrencesInRange(it model.Item, from, to time.Time, paid map[string]struc
 	return out, nil
 }
 
-// nextUnpaidOccurrence — ближайшее вхождение ≥ from, не скрытое paid и не в item_payments.
+// nextUnpaidOccurrence — самое раннее неоплаченное вхождение ряда, в том числе раньше from.
+// Нижняя граница: started_at, иначе якорь expires_at. Месяцы шагают от 1-го числа (не AddDate от 29–31).
 // one_time в прошлом тоже возвращает дату, если на неё нет платежа.
 func nextUnpaidOccurrence(it model.Item, from time.Time, paid map[string]struct{}) (time.Time, bool, error) {
 	expires, err := parseDate(fieldExpiresAt, it.ExpiresAt)
 	if err != nil {
 		return time.Time{}, false, err
 	}
+	lower := expires
+	if start, ok, err := seriesStart(it); err != nil {
+		return time.Time{}, false, err
+	} else if ok {
+		lower = start
+	}
 	switch it.BillingPeriod {
 	case model.BillingMonthly:
-		for i := range 24 {
-			probe := from.AddDate(0, i, 0)
-			d := clampDay(probe.Year(), probe.Month(), expires.Day())
-			skip, err := beforeSeries(it, d)
-			if err != nil {
-				return time.Time{}, false, err
-			}
-			if d.Before(from) || skip || occurrencePaid(it, expires, d, paid) {
+		cur := clock.DateUTC(1, lower.Month(), lower.Year())
+		end := clock.DateUTC(1, from.Month(), from.Year()).AddDate(0, 24, 0)
+		for !cur.After(end) {
+			d := clampDay(cur.Year(), cur.Month(), expires.Day())
+			cur = cur.AddDate(0, 1, 0)
+			if d.Before(lower) || occurrencePaid(it, expires, d, paid) {
 				continue
 			}
 			return d, true, nil
 		}
 	case model.BillingYearly:
-		for i := range 6 {
-			d := clampDay(from.Year()+i, expires.Month(), expires.Day())
-			skip, err := beforeSeries(it, d)
-			if err != nil {
-				return time.Time{}, false, err
-			}
-			if d.Before(from) || skip || occurrencePaid(it, expires, d, paid) {
+		endYear := from.Year() + 6
+		for y := lower.Year(); y <= endYear; y++ {
+			d := clampDay(y, expires.Month(), expires.Day())
+			if d.Before(lower) || occurrencePaid(it, expires, d, paid) {
 				continue
 			}
 			return d, true, nil

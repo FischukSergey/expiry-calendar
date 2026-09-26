@@ -42,7 +42,7 @@ type categoryPatchBody struct {
 func (a *API) listKinds(w http.ResponseWriter, r *http.Request) {
 	items, err := a.kinds.List(r.Context())
 	if err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	if items == nil {
@@ -61,7 +61,7 @@ func (a *API) createKind(w http.ResponseWriter, r *http.Request) {
 		Slug: body.Slug, Name: body.Name, Color: body.Color, AttrSchema: body.AttrSchema,
 	})
 	if err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	writeBytes(w, http.StatusCreated, k)
@@ -81,7 +81,7 @@ func (a *API) patchKind(w http.ResponseWriter, r *http.Request) {
 		Slug: body.Slug, Name: body.Name, Color: body.Color, AttrSchema: body.AttrSchema,
 	})
 	if err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	writeBytes(w, http.StatusOK, k)
@@ -93,7 +93,7 @@ func (a *API) deleteKind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := a.kinds.Delete(r.Context(), id); err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -102,7 +102,7 @@ func (a *API) deleteKind(w http.ResponseWriter, r *http.Request) {
 func (a *API) listCategories(w http.ResponseWriter, r *http.Request) {
 	items, err := a.categories.List(r.Context(), middleware.UserID(r.Context()))
 	if err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	if items == nil {
@@ -119,7 +119,7 @@ func (a *API) createCategory(w http.ResponseWriter, r *http.Request) {
 	}
 	c, err := a.categories.Create(r.Context(), body.ParentID, body.Name, body.SortOrder, middleware.UserID(r.Context()))
 	if err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	writeBytes(w, http.StatusCreated, c)
@@ -149,7 +149,7 @@ func (a *API) patchCategory(w http.ResponseWriter, r *http.Request) {
 	}
 	c, err := a.categories.Patch(r.Context(), id, p, middleware.UserID(r.Context()))
 	if err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	writeBytes(w, http.StatusOK, c)
@@ -161,7 +161,7 @@ func (a *API) deleteCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := a.categories.Delete(r.Context(), id, middleware.UserID(r.Context())); err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

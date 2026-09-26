@@ -71,6 +71,14 @@ export function deleteCategory(id: string): Promise<void> {
   return api<void>(`/api/v1/categories/${id}`, { method: 'DELETE' })
 }
 
+export function bulkItems(body: {
+  ids: string[]
+  category_id?: string
+  status?: 'cancelled' | 'archived' | 'paid'
+}): Promise<{ updated: number }> {
+  return api<{ updated: number }>('/api/v1/items/bulk', { method: 'POST', body })
+}
+
 export function listItems(filter: ItemFilter): Promise<ItemList> {
   return api<ItemList>('/api/v1/items', { query: filter as Record<string, QueryValue> })
 }

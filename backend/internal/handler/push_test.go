@@ -41,6 +41,7 @@ func pushAPI(t *testing.T) (*handler.API, *memPush, *recSender, *service.Ticker,
 	subs := newMemPush()
 	sender := &recSender{}
 	push := service.NewPush(subs, sender, testVAPIDPublic)
+	push.AllowPublicHosts()
 	hub := sse.NewHub()
 	clk := clock.Fixed{T: time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC)}
 	items := service.NewItem(store, kinds, newMemCats(), newMemRenewals(), newMemAudit(), nopTx, clk)

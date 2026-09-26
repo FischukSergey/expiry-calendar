@@ -94,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       ready,
-      isAdmin: user?.role === 'admin',
+      isAdmin: user?.role === 'admin' || user?.role === 'administrator',
       afterAuthPath,
       login,
       register,

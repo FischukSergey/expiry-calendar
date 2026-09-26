@@ -2,14 +2,16 @@ package model
 
 import "time"
 
-// Role — роль пользователя. После register — admin; viewer остаётся у seed v1.
+// Role — роль пользователя. Register создаёт admin своих данных.
 type Role string
 
 const (
-	// RoleAdmin — полный CRUD справочников и записей.
+	// RoleAdmin — CRUD своих записей и категорий. Справочник типов не меняет.
 	RoleAdmin Role = "admin"
-	// RoleViewer — только чтение.
+	// RoleViewer — только чтение своих данных.
 	RoleViewer Role = "viewer"
+	// RoleAdministrator — как admin, плюс мутации общего item_kinds. Регистрация её не выдаёт.
+	RoleAdministrator Role = "administrator"
 )
 
 // User — строка users. PasswordHash не отдаём в JSON.

@@ -8,11 +8,22 @@ import (
 
 	"github.com/google/uuid"
 
+	"duekeep/internal/catalog"
 	"duekeep/internal/clock"
 	"duekeep/internal/model"
-	"duekeep/internal/seed"
 	"duekeep/internal/service"
 )
+
+func rollbackTx(tokens *memRefresh) service.TxFunc {
+	return func(ctx context.Context, fn func(context.Context) error) error {
+		snap := tokens.snapshot()
+		if err := fn(ctx); err != nil {
+			tokens.restore(snap)
+			return err
+		}
+		return nil
+	}
+}
 
 func testAuth(t *testing.T) *service.Auth {
 	t.Helper()
@@ -67,7 +78,13 @@ func TestLoginBadPassword(t *testing.T) {
 
 func TestRefreshRotationAndReuse(t *testing.T) {
 	t.Parallel()
-	svc := testAuth(t)
+	tokens := newMemRefresh()
+	svc := service.NewAuth(newMemUsers(), tokens, rollbackTx(tokens), clock.Real{}, service.AuthConfig{
+		Secret:     []byte("unit-test-secret"),
+		AccessTTL:  15 * time.Minute,
+		RefreshTTL: 336 * time.Hour,
+		BcryptCost: 4,
+	})
 	first, err := svc.Register(t.Context(), "rot@duekeep.local", "secret12", "")
 	if err != nil {
 		t.Fatal(err)
@@ -179,7 +196,7 @@ func (m *memCatWriter) Create(_ context.Context, c model.Category) (model.Catego
 
 func TestRegisterCopiesDefaultCategories(t *testing.T) {
 	t.Parallel()
-	want := seed.DefaultCategories()
+	want := catalog.DefaultCategories()
 	cats := &memCatWriter{}
 	svc := testAuth(t)
 	svc.SetCategoryDefaults(cats)

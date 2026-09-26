@@ -1,20 +1,23 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
 	"duekeep/internal/middleware"
 )
 
+var errOverviewMissing = errors.New("overview service is not configured")
+
 func (a *API) dashboard(w http.ResponseWriter, r *http.Request) {
 	if a.overview == nil {
-		writeError(w, http.StatusInternalServerError, "internal", "internal")
+		writeInternal(r, w, errOverviewMissing)
 		return
 	}
 	out, err := a.overview.Dashboard(r.Context(), middleware.UserID(r.Context()))
 	if err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	writeBytes(w, http.StatusOK, out)
@@ -22,7 +25,7 @@ func (a *API) dashboard(w http.ResponseWriter, r *http.Request) {
 
 func (a *API) calendar(w http.ResponseWriter, r *http.Request) {
 	if a.overview == nil {
-		writeError(w, http.StatusInternalServerError, "internal", "internal")
+		writeInternal(r, w, errOverviewMissing)
 		return
 	}
 	q := r.URL.Query()
@@ -38,7 +41,7 @@ func (a *API) calendar(w http.ResponseWriter, r *http.Request) {
 	}
 	out, err := a.overview.Calendar(r.Context(), year, month, middleware.UserID(r.Context()))
 	if err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	writeBytes(w, http.StatusOK, out)

@@ -27,6 +27,7 @@ type API struct {
 	jwtSecret     []byte
 	cookieSecure  bool
 	refreshTTL    time.Duration
+	loginLimit    *loginLimit
 }
 
 // New собирает handlers.
@@ -46,6 +47,7 @@ func New(d Deps) *API {
 		jwtSecret:     d.JWTSecret,
 		cookieSecure:  d.CookieSecure,
 		refreshTTL:    d.RefreshTTL,
+		loginLimit:    newLoginLimit(),
 	}
 }
 
@@ -87,10 +89,13 @@ func (a *API) Router() http.Handler {
 			r.Post("/push/subscribe", a.pushSubscribe)
 			r.Delete("/push/subscribe", a.pushUnsubscribe)
 			r.Group(func(r chi.Router) {
-				r.Use(middleware.RequireAdmin)
+				r.Use(middleware.RequireAdministrator)
 				r.Post("/kinds", a.createKind)
 				r.Patch("/kinds/{id}", a.patchKind)
 				r.Delete("/kinds/{id}", a.deleteKind)
+			})
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.RequireAdmin)
 				r.Post("/categories", a.createCategory)
 				r.Patch("/categories/{id}", a.patchCategory)
 				r.Delete("/categories/{id}", a.deleteCategory)

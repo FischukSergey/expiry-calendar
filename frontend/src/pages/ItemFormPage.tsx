@@ -28,6 +28,9 @@ const schema = z.object({
   url: z.string(),
   account_hint: z.string(),
   status: z.enum(['', 'cancelled', 'archived', 'paid']),
+}).refine((v) => !v.started_at || v.started_at <= v.expires_at, {
+  path: ['started_at'],
+  message: 'не позже даты вхождения',
 })
 
 type FormValues = z.infer<typeof schema>
@@ -230,7 +233,11 @@ export function ItemFormPage() {
           <Field label="Срок оплаты" required error={form.formState.errors.expires_at?.message}>
             <TextInput type="date" {...form.register('expires_at')} />
           </Field>
-          <Field label="Начало периода" hint="С какого дня идёт текущий период (покупка, договор). Необязательно.">
+          <Field
+            label="Начало периода"
+            hint="С какого дня идёт текущий период (покупка, договор). Необязательно."
+            error={form.formState.errors.started_at?.message}
+          >
             <TextInput type="date" {...form.register('started_at')} />
           </Field>
           <Field

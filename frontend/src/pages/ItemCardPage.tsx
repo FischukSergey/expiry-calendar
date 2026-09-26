@@ -6,6 +6,7 @@ import { ApiError } from '../api/client.ts'
 import { deleteItem, getItem, listCategories, listKinds, payItemOccurrence, renewItem } from '../api/endpoints.ts'
 import { Button, ErrorBanner, Field, PageState, PageTitle, StatusBadge, TextInput } from '../components/ui.tsx'
 import { useAuth } from '../hooks/useAuth.ts'
+import { countdownText } from '../lib/countdown.ts'
 import { billingLabel, findCategoryName, formatDate, formatDateTime, formatMoney } from '../lib/format.ts'
 
 export function ItemCardPage() {
@@ -71,6 +72,7 @@ export function ItemCardPage() {
   }
 
   const it = card.data.item
+  const openLeft = countdownText(card.data.next_open_at)
   const kind = kinds.data?.items.find((k) => k.id === it.kind_id)
   const rows: { label: string; value: string }[] = [
     { label: 'Тип записи', value: kind?.name ?? '—' },
@@ -117,6 +119,7 @@ export function ItemCardPage() {
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <StatusBadge status={it.status} />
+        {openLeft ? <span className="text-sm text-slate-300">{openLeft}</span> : null}
         {isAdmin && card.data.next_open_at ? (
           <Button
             type="button"

@@ -6,15 +6,16 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
 
+	"duekeep/internal/catalog"
 	"duekeep/internal/clock"
 	"duekeep/internal/handler"
 	"duekeep/internal/model"
-	"duekeep/internal/seed"
 	"duekeep/internal/service"
 )
 
@@ -170,7 +171,7 @@ func TestViewerForbiddenCreateKindLive(t *testing.T) {
 	}
 }
 
-func TestRegisterCreatesAdminCanWriteKinds(t *testing.T) {
+func TestRegisterCreatesAdminCannotWriteKinds(t *testing.T) {
 	t.Parallel()
 	api := liveAPI(t, nil)
 	reg := serveJSON(t, api, http.MethodPost, "/api/v1/auth/register",
@@ -179,6 +180,30 @@ func TestRegisterCreatesAdminCanWriteKinds(t *testing.T) {
 		t.Fatalf("register %d %s", reg.Code, reg.Body.String())
 	}
 	pair := decodePair(t, reg)
+	create := serveJSON(t, api, http.MethodPost, "/api/v1/kinds",
+		`{"slug":"visa","name":"Виза","color":"#111111"}`, pair.AccessToken)
+	if create.Code != http.StatusForbidden {
+		t.Fatalf("create %d %s", create.Code, create.Body.String())
+	}
+}
+
+func TestAdministratorCanWriteKinds(t *testing.T) {
+	t.Parallel()
+	users := newMemUsers()
+	hash, err := bcrypt.GenerateFromPassword([]byte("secret12"), 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := users.Create(t.Context(), "root@duekeep.local", string(hash), model.RoleAdministrator); err != nil {
+		t.Fatal(err)
+	}
+	api := liveAPI(t, users)
+	login := serveJSON(t, api, http.MethodPost, "/api/v1/auth/login",
+		`{"email":"root@duekeep.local","password":"secret12"}`, "")
+	if login.Code != http.StatusOK {
+		t.Fatalf("login %d %s", login.Code, login.Body.String())
+	}
+	pair := decodePair(t, login)
 	create := serveJSON(t, api, http.MethodPost, "/api/v1/kinds",
 		`{"slug":"visa","name":"Виза","color":"#111111"}`, pair.AccessToken)
 	if create.Code != http.StatusCreated {
@@ -219,7 +244,7 @@ func TestAdminLoginCreatesKind(t *testing.T) {
 
 	create := serveJSON(t, api, http.MethodPost, "/api/v1/kinds",
 		`{"slug":"visa","name":"Виза","color":"#111111"}`, pair.AccessToken)
-	if create.Code != http.StatusCreated {
+	if create.Code != http.StatusForbidden {
 		t.Fatalf("create %d %s", create.Code, create.Body.String())
 	}
 }
@@ -331,7 +356,7 @@ func TestRegisterDoesNotSeeSeedCatalog(t *testing.T) {
 	}
 
 	tree := listCategories(t, api, pairA.AccessToken)
-	if n := countCatNodes(tree); n != len(seed.DefaultCategories()) {
+	if n := countCatNodes(tree); n != len(catalog.DefaultCategories()) {
 		t.Fatalf("A cats %d", n)
 	}
 	var walk func([]model.Category)
@@ -398,8 +423,8 @@ func TestRegisterCopiesDefaultCategoriesNoItems(t *testing.T) {
 	pair := decodePair(t, reg)
 
 	tree := listCategories(t, api, pair.AccessToken)
-	if n := countCatNodes(tree); n != len(seed.DefaultCategories()) {
-		t.Fatalf("categories %d want %d", n, len(seed.DefaultCategories()))
+	if n := countCatNodes(tree); n != len(catalog.DefaultCategories()) {
+		t.Fatalf("categories %d want %d", n, len(catalog.DefaultCategories()))
 	}
 	items := listItems(t, api, pair.AccessToken, "")
 	if items.Total != 0 || len(items.Items) != 0 {
@@ -418,6 +443,25 @@ func countCatNodes(tree []model.Category) int {
 	}
 	walk(tree)
 	return n
+}
+
+func TestLoginRateLimit(t *testing.T) {
+	t.Parallel()
+	api := liveAPI(t, nil)
+	body := `{"email":"limit@duekeep.local","password":"wrong-pass"}`
+	for i := range 8 {
+		rec := serveJSON(t, api, http.MethodPost, "/api/v1/auth/login", body, "")
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("attempt %d: %d %s", i+1, rec.Code, rec.Body.String())
+		}
+	}
+	rec := serveJSON(t, api, http.MethodPost, "/api/v1/auth/login", body, "")
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("9th: %d %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"rate_limited"`) {
+		t.Fatalf("body: %s", rec.Body.String())
+	}
 }
 
 func hasRefreshCookie(rec *httptest.ResponseRecorder, raw string) bool {

@@ -73,11 +73,6 @@ export function LoginPage() {
             {mode === 'login' ? 'Нет аккаунта — регистрация' : 'Уже есть аккаунт — вход'}
           </button>
         </form>
-        {import.meta.env.DEV || import.meta.env.VITE_DEMO_LOGIN === '1' ? (
-          <p className="mt-4 text-center text-xs text-slate-500">
-            Локальный стенд: admin@duekeep.local / admin1234
-          </p>
-        ) : null}
       </div>
     </main>
   )

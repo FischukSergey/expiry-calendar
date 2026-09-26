@@ -10,9 +10,9 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
+	"duekeep/internal/catalog"
 	"duekeep/internal/clock"
 	"duekeep/internal/model"
-	"duekeep/internal/seed"
 )
 
 // UserStore — пользователи. Интерфейс объявлен у потребителя.
@@ -20,6 +20,7 @@ type UserStore interface {
 	Create(ctx context.Context, email, passwordHash string, role model.Role) (model.User, error)
 	ByEmail(ctx context.Context, email string) (model.User, error)
 	ByID(ctx context.Context, id string) (model.User, error)
+	SetRole(ctx context.Context, id string, role model.Role) error
 }
 
 // RefreshStore — сессии refresh. Сырой токен store не видит.
@@ -36,11 +37,13 @@ type RefreshStore interface {
 type TxFunc func(ctx context.Context, fn func(context.Context) error) error
 
 // AuthConfig — секреты и TTL из env. BcryptCost 0 → DefaultCost.
+// AdministratorEmail — единственный email, который получает роль administrator. Пустой — никто.
 type AuthConfig struct {
-	Secret     []byte
-	AccessTTL  time.Duration
-	RefreshTTL time.Duration
-	BcryptCost int
+	Secret             []byte
+	AccessTTL          time.Duration
+	RefreshTTL         time.Duration
+	BcryptCost         int
+	AdministratorEmail string
 }
 
 // CategoryWriter — INSERT категории (копия дерева при Register).
@@ -50,15 +53,16 @@ type CategoryWriter interface {
 
 // Auth — register/login/refresh/logout. Cookie vs body сюда не входят: только сырой refresh.
 type Auth struct {
-	users   UserStore
-	tokens  RefreshStore
-	tx      TxFunc
-	clk     clock.Clock
-	secret  []byte
-	access  time.Duration
-	refresh time.Duration
-	bcrypt  int
-	cats    CategoryWriter
+	users      UserStore
+	tokens     RefreshStore
+	tx         TxFunc
+	clk        clock.Clock
+	secret     []byte
+	access     time.Duration
+	refresh    time.Duration
+	bcrypt     int
+	cats       CategoryWriter
+	adminEmail string
 }
 
 // NewAuth собирает сервис. Secret не должен быть пустым (проверяет main).
@@ -68,14 +72,15 @@ func NewAuth(users UserStore, tokens RefreshStore, tx TxFunc, clk clock.Clock, c
 		cost = bcrypt.DefaultCost
 	}
 	return &Auth{
-		users:   users,
-		tokens:  tokens,
-		tx:      tx,
-		clk:     clk,
-		secret:  cfg.Secret,
-		access:  cfg.AccessTTL,
-		refresh: cfg.RefreshTTL,
-		bcrypt:  cost,
+		users:      users,
+		tokens:     tokens,
+		tx:         tx,
+		clk:        clk,
+		secret:     cfg.Secret,
+		access:     cfg.AccessTTL,
+		refresh:    cfg.RefreshTTL,
+		bcrypt:     cost,
+		adminEmail: strings.TrimSpace(cfg.AdministratorEmail),
 	}
 }
 
@@ -106,7 +111,11 @@ func (s *Auth) Register(ctx context.Context, email, password, userAgent string) 
 	var user model.User
 	var pair model.TokenPair
 	err = s.tx(ctx, func(ctx context.Context) error {
-		created, cerr := s.users.Create(ctx, email, string(hash), model.RoleAdmin)
+		role := model.RoleAdmin
+		if s.isAdministratorEmail(email) {
+			role = model.RoleAdministrator
+		}
+		created, cerr := s.users.Create(ctx, email, string(hash), role)
 		if cerr != nil {
 			return cerr
 		}
@@ -149,8 +158,15 @@ func (s *Auth) Login(ctx context.Context, email, password, userAgent string) (mo
 		return model.TokenPair{}, model.ErrUnauthorized
 	}
 
+	promote := s.isAdministratorEmail(user.Email) && user.Role != model.RoleAdministrator
 	var pair model.TokenPair
 	err = s.tx(ctx, func(ctx context.Context) error {
+		if promote {
+			if err := s.users.SetRole(ctx, user.ID, model.RoleAdministrator); err != nil {
+				return err
+			}
+			user.Role = model.RoleAdministrator
+		}
 		p, perr := s.issuePair(ctx, user, uuid.NewString(), userAgent)
 		if perr != nil {
 			return perr
@@ -174,6 +190,7 @@ func (s *Auth) Refresh(ctx context.Context, raw, userAgent string) (model.TokenP
 	now := s.clk.Now()
 
 	var pair model.TokenPair
+	var reused bool
 	err := s.tx(ctx, func(ctx context.Context) error {
 		rec, err := s.tokens.ByHashForUpdate(ctx, hash)
 		if err != nil {
@@ -183,8 +200,11 @@ func (s *Auth) Refresh(ctx context.Context, raw, userAgent string) (model.TokenP
 			return err
 		}
 		if rec.RevokedAt != nil {
-			_ = s.tokens.RevokeFamily(ctx, rec.FamilyID, now)
-			return model.ErrUnauthorized
+			if err := s.tokens.RevokeFamily(ctx, rec.FamilyID, now); err != nil {
+				return err
+			}
+			reused = true
+			return nil
 		}
 		if !rec.ExpiresAt.After(now) {
 			return model.ErrUnauthorized
@@ -206,7 +226,33 @@ func (s *Auth) Refresh(ctx context.Context, raw, userAgent string) (model.TokenP
 	if err != nil {
 		return model.TokenPair{}, err
 	}
+	if reused {
+		return model.TokenPair{}, model.ErrUnauthorized
+	}
 	return pair, nil
+}
+
+// PromoteAdministrator ставит роль administrator email из конфига, если пользователь уже есть.
+// Пустой email и неизвестный адрес — не ошибка. Регистрация сама выдаёт роль, если email совпал.
+func (s *Auth) PromoteAdministrator(ctx context.Context) error {
+	if s.adminEmail == "" {
+		return nil
+	}
+	user, err := s.users.ByEmail(ctx, s.adminEmail)
+	if err != nil {
+		if errors.Is(err, model.ErrNotFound) {
+			return nil
+		}
+		return err
+	}
+	if user.Role == model.RoleAdministrator {
+		return nil
+	}
+	return s.users.SetRole(ctx, user.ID, model.RoleAdministrator)
+}
+
+func (s *Auth) isAdministratorEmail(email string) bool {
+	return s.adminEmail != "" && strings.EqualFold(email, s.adminEmail)
 }
 
 // Logout отзывает refresh, если он известен и ещё жив. Неизвестный — не ошибка (204).
@@ -291,7 +337,7 @@ func validatePassword(password string) error {
 
 // copyDefaultCategories пишет шаблон дерева владельцу. Новые id, без items.
 func copyDefaultCategories(ctx context.Context, ownerID string, w CategoryWriter) error {
-	templates := seed.DefaultCategories()
+	templates := catalog.DefaultCategories()
 	ids := make([]string, len(templates))
 	for i, t := range templates {
 		if t.ParentIdx >= i {

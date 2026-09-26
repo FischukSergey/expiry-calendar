@@ -67,7 +67,7 @@ func TestDashboardTwoCurrenciesAndSkipsCancelled(t *testing.T) {
 	if got.Counts.Active != 1 || got.Counts.Expired != 1 {
 		t.Fatalf("counts %+v", got.Counts)
 	}
-	if got.Counts.Expiring7 != 3 || got.Counts.Expiring30 != 3 {
+	if got.Counts.Expiring7 != 2 || got.Counts.Expiring30 != 2 {
 		t.Fatalf("windows %+v", got.Counts)
 	}
 	if len(got.UpcomingCost) != 2 {
@@ -83,7 +83,7 @@ func TestDashboardTwoCurrenciesAndSkipsCancelled(t *testing.T) {
 	if len(got.CostByKind) != 2 {
 		t.Fatalf("kinds %+v", got.CostByKind)
 	}
-	if got.Soonest[0].ID != "b" || len(got.Soonest) != 3 {
+	if got.Soonest[0].ID != "d" || got.Soonest[0].ExpiresAt != expiresPast || len(got.Soonest) != 3 {
 		t.Fatalf("soonest %+v", got.Soonest)
 	}
 	if len(got.ExpirationsByMonth) != 6 || got.ExpirationsByMonth[0].Month != "2026-08" {
@@ -186,7 +186,7 @@ func TestDashboardMonthlyExpansionAndPaid(t *testing.T) {
 		}
 		if row.ID == "far" {
 			foundFar = true
-			if row.ExpiresAt != expiresSep15 {
+			if row.ExpiresAt != "2027-03-15" {
 				t.Fatalf("far date %s", row.ExpiresAt)
 			}
 		}

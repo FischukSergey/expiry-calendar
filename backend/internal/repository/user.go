@@ -62,6 +62,18 @@ SELECT id::text, email, password_hash, role, created_at
 FROM users WHERE id = $1::uuid`, id)
 }
 
+// SetRole меняет роль существующего пользователя. Нет строки → ErrNotFound.
+func (r *Users) SetRole(ctx context.Context, id string, role model.Role) error {
+	tag, err := r.q(ctx).Exec(ctx, `UPDATE users SET role = $2 WHERE id = $1::uuid`, id, string(role))
+	if err != nil {
+		return fmt.Errorf("set role: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return model.ErrNotFound
+	}
+	return nil
+}
+
 func (r *Users) scanUser(ctx context.Context, q string, arg any) (model.User, error) {
 	var u model.User
 	err := r.q(ctx).QueryRow(ctx, q, arg).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Role, &u.CreatedAt)

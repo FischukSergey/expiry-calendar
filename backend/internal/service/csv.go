@@ -482,13 +482,13 @@ func writeItemsCSV(
 			}
 		}
 		rec := []string{
-			it.ID, it.Title, kindSlug, it.Status, it.ExpiresAt,
-			formatCSVNotify(it.NotifyBeforeDays),
-			strconv.Itoa(it.CostAmount), it.Currency, it.Vendor, it.BillingPeriod,
-			catName, strings.Join(it.Tags, ","),
+			csvSafe(it.ID), csvSafe(it.Title), csvSafe(kindSlug), csvSafe(it.Status), csvSafe(it.ExpiresAt),
+			csvSafe(formatCSVNotify(it.NotifyBeforeDays)),
+			csvSafe(strconv.Itoa(it.CostAmount)), csvSafe(it.Currency), csvSafe(it.Vendor), csvSafe(it.BillingPeriod),
+			csvSafe(catName), csvSafe(strings.Join(it.Tags, ",")),
 		}
 		for _, key := range attrKeys {
-			rec = append(rec, formatCSVAttr(it.Attrs[key]))
+			rec = append(rec, csvSafe(formatCSVAttr(it.Attrs[key])))
 		}
 		if err := w.Write(rec); err != nil {
 			return nil, err
@@ -499,6 +499,19 @@ func writeItemsCSV(
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// csvSafe не даёт ячейке открыться как формуле в Excel.
+func csvSafe(s string) string {
+	if s == "" {
+		return s
+	}
+	switch s[0] {
+	case '=', '+', '-', '@', '\t', '\r':
+		return "'" + s
+	default:
+		return s
+	}
 }
 
 func formatCSVNotify(days *int) string {

@@ -50,7 +50,7 @@ is_background: true
 **Структура:**
 ```
 backend/
-  cmd/server/          — env, slog, pgx, goose, seed если SEED, ticker, HTTP
+  cmd/server/          — env, slog, pgx, goose, ticker, HTTP
   internal/
     handler/           — REST, SSE /events, cookie refresh
     service/           — сценарии; интерфейсы store здесь
@@ -69,14 +69,14 @@ deploy/{local,test,prod}/
 
 - `item_kinds` + `items.attrs JSONB`; срок/деньги/статус — колонки. Kinds **общие** на инсталляцию.
 - Auth: access 15 мин (`sub`, `role`, `iss`, `iat`, `exp` — без `org_id`) + refresh 14 дней, ротация, cookie `duekeep_refresh`.
-- Register → **admin**. Предметные таблицы: `owner_id` = `sub`. Чужой UUID → **404**. Viewer — 403 на мутации (роль seed).
+- Register → **admin**. Предметные таблицы: `owner_id` = `sub`. Чужой UUID → **404**. Viewer — 403 на мутации. Kinds пишет только `administrator` (`ADMINISTRATOR_EMAIL`).
 - `requireOwner` в `service/owner.go`. List items: `ItemFilter.OwnerID` из actor. Categories: `List(ownerID)`.
 - Обзор: `ListOpenByOwner`. Тикер: `ListOpen` **без** фильтра по владельцу; notification с `OwnerID` item.
 - SSE: `Hub.Subscribe(userID)`, событие только тому же `sub`. Push: только `user_id` владельца.
 - Тикер: Tick при старте, затем `TICKER_EVERY` (дефолт 12h). Статус — день UTC.
 - Дашборд: суммы по валютам раздельно, без конвертации.
-- Seed: `SEED=false` на prod (`EnsureKinds` только); локально полный `seed.Run`. Register копирует дефолтные категории.
-- Seed-типы: есть `subscription` и `rent`; нет `ssl` и `warranty`.
+- Демо-seed нет. Десять типов — миграция `014`. Register копирует шаблон категорий из `internal/catalog`.
+- Типы: есть `subscription` и `rent`; нет `ssl` и `warranty`.
 
 **Соглашения:** `any`; `.cursor/rules/go-idioms.mdc`; `docker compose` с пробелом; `task lint` / `task test`.
 

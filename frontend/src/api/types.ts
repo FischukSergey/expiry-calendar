@@ -1,4 +1,4 @@
-export type Role = 'admin' | 'viewer'
+export type Role = 'admin' | 'viewer' | 'administrator'
 
 export type Status = 'active' | 'expiring' | 'expired' | 'cancelled' | 'archived' | 'paid'
 

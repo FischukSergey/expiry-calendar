@@ -118,7 +118,7 @@ expiry-calendar/
       middleware/    # Bearer JWT, request_id, ACL
       clock/         # инжектируемые часы
       sse/           # hub клиентов
-      seed/
+      catalog/       # шаблон категорий при регистрации
       db/            # пул, транзакции
     migrations/
     openapi.yaml
@@ -183,7 +183,7 @@ users
   id              UUID PK
   email           CITEXT UNIQUE NOT NULL
   password_hash   TEXT NOT NULL
-  role            TEXT NOT NULL CHECK (role IN ('admin', 'viewer'))
+  role            TEXT NOT NULL CHECK (role IN ('admin', 'viewer', 'administrator'))
   created_at      TIMESTAMPTZ NOT NULL
 
 item_kinds
@@ -310,7 +310,7 @@ push_subscriptions
 
 Seed-виды (9 штук): `domain`, `subscription`, `rent`, `contract`, `insurance`, `license`, `tax`, `vehicle`, `other`.  
 Названия в UI: Домен, Подписки, Аренда, Договор, Страховка, Лицензия, Налог, Авто, Прочее.  
-`ssl` и `warranty` в seed нет — при необходимости admin добавляет тип сам.
+`ssl` и `warranty` в миграции нет — тип добавляет роль `administrator`.
 
 ### 6.4. Категории
 
@@ -394,13 +394,14 @@ SSE: нативный `EventSource` не умеет заголовки → `GET 
 
 Swagger: `bearerAuth`. Login → скопировать access в Authorize. Refresh тоже в Try it out.
 
-Регистрация создаёт только `viewer`. Сменить роль через UI в v1 нельзя.
+Регистрация создаёт `admin`. Сменить роль через API и UI нельзя: `administrator` появляется, если email совпал с `ADMINISTRATOR_EMAIL` (старт, регистрация или вход). Пустой env — справочник типов только для чтения.
 
 | Роль | REST |
 |---|---|
 | аноним | `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh` |
 | viewer | чтение, экспорт CSV, уведомления, SSE, пуши, logout |
-| admin | плюс CRUD items/kinds/categories, продление, импорт, массовые операции, аудит |
+| admin | плюс CRUD своих items/categories, продление, импорт, массовые операции, аудит |
+| administrator | права admin и запись общего справочника `item_kinds` |
 
 ---
 
@@ -424,8 +425,8 @@ Swagger: `bearerAuth`. Login → скопировать access в Authorize. Ref
 | POST | `/auth/logout` | access или refresh | revoke текущего refresh |
 | POST | `/auth/logout-all` | access | revoke всех устройств пользователя |
 | GET | `/me` | access | текущий пользователь |
-| GET/POST | `/kinds` | read / admin | справочник типов |
-| PATCH/DELETE | `/kinds/{id}` | admin | правка / удаление пустого типа |
+| GET/POST | `/kinds` | read / administrator | справочник типов; POST только administrator |
+| PATCH/DELETE | `/kinds/{id}` | administrator | правка / удаление пустого типа |
 | GET/POST | `/categories` | read / admin | дерево |
 | PATCH/DELETE | `/categories/{id}` | admin | правка / удаление пустой |
 | GET/POST | `/items` | read / admin | список (фильтры ниже) и создание |
@@ -535,24 +536,16 @@ PWA (must have):
 
 ---
 
-## 12. Seed и старт
+## 12. Старт
 
 Порядок `backend` entrypoint:
 
 1. ждать PostgreSQL;
-2. goose up;
-3. идемпотентный seed (по email пользователей и slug видов);
+2. goose up (в том числе десять типов `item_kinds`, `ON CONFLICT (slug) DO NOTHING`);
+3. если задан `ADMINISTRATOR_EMAIL` и такой пользователь есть — роль `administrator`;
 4. слушать HTTP.
 
-Seed (относительные даты от `Clock.Today()`):
-
-- 2 пользователя: `admin@duekeep.local` / `viewer@duekeep.local`;
-- 9 kinds со схемами (`subscription` = Подписки, `rent` = Аренда; без ssl/warranty);
-- ≥ 10 категорий, 2 уровня;
-- ≥ 50 items: ≥ 5 expired, ≥ 8 expiring в 30 днях;
-- ≥ 20 renewals, ≥ 15 audit, несколько unread notifications.
-
-Пароли демо только в README. Повторный `compose up` seed не дублирует.
+Демо-пользователей, записей, платежей и уведомлений старт не пишет. Шаблон категорий копируется только при регистрации. Роль `viewer` в схеме остаётся, новых viewer процесс не создаёт.
 
 ---
 

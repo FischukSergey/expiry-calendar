@@ -1,2 +1,2 @@
-// Package clock — инжектируемые часы для тестов и seed.
+// Package clock — инжектируемые часы для тестов и тикера.
 package clock

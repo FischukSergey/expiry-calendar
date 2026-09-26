@@ -465,3 +465,12 @@
 - Клиент не переиспользует `PushSubscription` со старым `applicationServerKey`: unsubscribe и новая подписка на текущий VAPID, иначе FCM 403 после рестарта/смены ключей.
 - `serviceWorker.ready` с таймаутом; в профиле видно, ушла ли подписка на сервер, и ошибка (не только `Notification.permission`).
 - Broadcast удаляет endpoint на 410/404/403 и пишет `status` в лог.
+
+## 2026-09-26 — Sprint 11
+
+- Статус, `next_open_at` и soonest смотрят на самое раннее неоплаченное вхождение, включая день раньше today. Месяц обходится от 1-го числа, февраль после 31 января не пропускается.
+- Reuse refresh коммитит `RevokeFamily` и отвечает 401. Интеграционный тест на Postgres (`task test:integration`, тег `integration`).
+- Роль `administrator`: kinds пишет только она. Регистрация остаётся `admin`. Назначение — `ADMINISTRATOR_EMAIL`.
+- Демо-seed удалён. Десять типов — миграция. Шаблон категорий регистрации — `internal/catalog`.
+- Карточка считает дни до `next_open_at`. Форма не принимает `started_at` позже срока. Список умеет bulk для admin и administrator.
+- Push только на публичный https. 500 пишутся в лог без текста клиенту. Login: 8 неудач / 15 минут → 429. CSV экранирует формулы.

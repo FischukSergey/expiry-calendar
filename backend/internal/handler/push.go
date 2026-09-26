@@ -1,11 +1,14 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"duekeep/internal/middleware"
 	"duekeep/internal/model"
 )
+
+var errPushMissing = errors.New("push service is not configured")
 
 func (a *API) vapidPublic(w http.ResponseWriter, _ *http.Request) {
 	key := ""
@@ -17,7 +20,7 @@ func (a *API) vapidPublic(w http.ResponseWriter, _ *http.Request) {
 
 func (a *API) pushSubscribe(w http.ResponseWriter, r *http.Request) {
 	if a.push == nil {
-		writeError(w, http.StatusInternalServerError, "internal", "internal")
+		writeInternal(r, w, errPushMissing)
 		return
 	}
 	var body model.PushSubscribe
@@ -26,7 +29,7 @@ func (a *API) pushSubscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := a.push.Subscribe(r.Context(), middleware.UserID(r.Context()), body, r.UserAgent()); err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -34,7 +37,7 @@ func (a *API) pushSubscribe(w http.ResponseWriter, r *http.Request) {
 
 func (a *API) pushUnsubscribe(w http.ResponseWriter, r *http.Request) {
 	if a.push == nil {
-		writeError(w, http.StatusInternalServerError, "internal", "internal")
+		writeInternal(r, w, errPushMissing)
 		return
 	}
 	var body model.PushUnsubscribe
@@ -43,7 +46,7 @@ func (a *API) pushUnsubscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := a.push.Unsubscribe(r.Context(), body.Endpoint); err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

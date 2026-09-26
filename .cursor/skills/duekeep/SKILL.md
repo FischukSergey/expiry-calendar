@@ -16,6 +16,7 @@ description: >-
 - Спринты **1–6** — сдача `v1.0.0` (общий каталог). **Sprint 7 закрыт** (свои данные, seed off на prod).
 - Sprint 8 (CD) — по просьбе. **Sprint 9** — `paid`, kind `mobile`, `notify_before_days: null`, развёртка monthly/yearly, лента PWA.
 - **Sprint 10** — `item_payments`, календарь `occurrence_status`, оплата ближайшего open с карточки и soonest.
+- **Sprint 11** — просрочка ряда от раннего неоплаченного вхождения, commit reuse refresh, роль `administrator` на общий справочник, демо-seed удалён.
 
 Документы спринта N: `docs/sprint-N-plan.md`, `checklist`, `api-sprint-N.md`, `known-limitations-sprint-N.md`. Журнал — `REPORT.md`.
 
@@ -31,7 +32,7 @@ chi, pgx/v5, goose (SQL embed, `001`…`011_owner_id.sql`), slog JSON, OpenAPI `
 
 - JWT access: `sub`, `role`, `iss=duekeep`, `iat`, `exp`. **Нет `org_id`.**
 - Refresh: JSON body и/или cookie `duekeep_refresh` (body важнее). Ротация, `family_id`, reuse → revoke family.
-- `POST /auth/register` → роль **`admin`**, пара токенов. Viewer остаётся у локального seed, не у новых аккаунтов.
+- `POST /auth/register` → роль **`admin`**, пара токенов. Новых viewer нет. `administrator` — только если email совпал с `ADMINISTRATOR_EMAIL`.
 - `GET /me`: `id`, `email`, `role`.
 
 ## Изоляция (`owner_id`)
@@ -52,7 +53,7 @@ chi, pgx/v5, goose (SQL embed, `001`…`011_owner_id.sql`), slog JSON, OpenAPI `
 
 **Не фильтровать** `Items.ListOpen` — тикер должен видеть все open items всех владельцев.
 
-**Общее на инсталляцию:** `item_kinds`. GET всем auth. Не делать per-user kinds.
+**Общее на инсталляцию:** `item_kinds`. GET всем auth. Пишет только `administrator`. Не делать per-user kinds.
 
 Create/import/ticker notification: писать `OwnerID`. Пустой owner в INSERT notification ломает uuid NOT NULL.
 
@@ -60,14 +61,10 @@ Create/import/ticker notification: писать `OwnerID`. Пустой owner в
 
 `TICKER_EVERY` (дефолт `12h`) + Tick при старте. Статус по `Clock.Today` (день UTC). Не возвращать интервал 60 с без явной просьбы.
 
-## Ещё не сделано
-
-- Следующий спринт — только если пользователь его назвал.
-
 ## Не делать
 
 `org_id`, таблицы org/invites, шаринг, почта, Telegram, вложения, iCal, офлайн-CRUD, конвертация валют, фильтр по JSONB attrs, второй инстанс backend, GORM/Redis/Kafka/WebSocket.
 
 ## Документы при смене API
 
-Вместе с хендлерами: `docs/api-sprint-10.md` и `backend/openapi.yaml`. Чеклист `[x]` только после проверки. DoD — после lint/test/демо.
+Вместе с хендлерами: `docs/api-sprint-N.md` текущего спринта и `backend/openapi.yaml`. Чеклист `[x]` только после проверки. DoD — после lint/test/демо.

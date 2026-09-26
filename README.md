@@ -16,11 +16,9 @@ docker compose up --build
 
 Уже в корне, если нужен чистый том: `docker compose down -v && docker compose up --build`.
 
-Три сервиса: PostgreSQL, backend (Go), frontend (nginx + SPA). Backend ждёт healthy у БД, накатывает goose и пишет локальный seed (`SEED=true` в local compose). Корневой `.env` не нужен и не читается.
+Три сервиса: PostgreSQL, backend (Go), frontend (nginx + SPA). Backend ждёт healthy у БД и накатывает goose. Демо-пользователей и записей нет: зарегистрируйтесь в UI. Корневой `.env` не нужен и не читается.
 
-Повторный `docker compose up` не дублирует пользователей, виды, категории, записи и оплаты: конфликт по стабильным id / email / slug.
-
-Локальный `go run` без `SEED=true` демо не пишет. Compose и `task local:up` ставят флаг сами.
+Десять типов записей кладёт миграция. Категории появляются при регистрации. Повторный `docker compose up` типы не дублирует.
 
 Разработка: `task local:up` / `local:down` (тот же проект `duekeep`, файл [`deploy/local/docker-compose.local.yml`](deploy/local/docker-compose.local.yml)).
 
@@ -37,25 +35,18 @@ docker compose up --build
 
 nginx на `:80` проксирует `/api`, `/healthz`, `/docs`, `/openapi.yaml` на backend.
 
-## Демо-аккаунты
+## Первый вход
 
-Только локальный стенд, не прод-секреты.
+Регистрация на `/login` создаёт пользователя с ролью `admin` и копирует шаблон категорий. Справочник типов общий и с формы не редактируется: писать его может только роль `administrator`, если email указан в `ADMINISTRATOR_EMAIL` на сервере.
 
-| Email | Пароль | Роль |
-|---|---|---|
-| `admin@duekeep.local` | `admin1234` | полный CRUD, аудит, импорт |
-| `viewer@duekeep.local` | `viewer1234` | чтение своего пустого списка, без кнопок записи |
+## Сценарий
 
-Каталог 50+ принадлежит seed-admin: типы включая «Мобильная связь», запись «не уведомлять», заморозка `paid`, оплаты вхождений на календаре. Viewer чужие записи не видит. На проде seed выключен (`SEED=false` в prod compose, не из `.env`): нет этих аккаунтов и нет демо-записей.
-
-## Сценарий демо
-
-1. Войти admin (подсказка на `/login` только локально), затем viewer (кнопки записи скрыты).
-2. Дашборд: KPI, суммы оплаты по месяцам, pie по валюте, топ-10.
-3. Список: фильтр, карточка, создать/править, продлить (история на карточке). Тип «Мобильная связь», статус «Оплачено», чекбокс «Не уведомлять».
+1. Зарегистрироваться и войти.
+2. Дашборд: KPI, суммы оплаты по месяцам, pie по валюте, топ-10 (после своих записей).
+3. Список: фильтр, карточка с отсчётом, создать/править, продлить (история на карточке). Массовая смена раздела или статуса — чекбоксы в списке.
 4. Календарь: дни с бейджем оплаты и открытые вхождения; «Оплатить» в сайдбаре дня, на карточке и в soonest.
 5. Экспорт CSV фильтра; импорт — dry run, затем запись.
-6. Колокольчик: непрочитанные; вторая вкладка — SSE без перезагрузки (смена срока у записи; тикер при старте и каждые 12 ч).
+6. Колокольчик: непрочитанные; вторая вкладка — SSE без перезагрузки (тикер при старте и каждые 12 ч).
 7. Профиль: «Установить» (Chrome), разрешение пушей.
 8. Swagger: `/docs`.
 9. CI: вкладка Actions, workflow `CI`. Прод `duekeep.ru` обновляется с `main` после зелёного CI ([deploy/README.md](deploy/README.md)).
@@ -78,6 +69,8 @@ task tools:install   # gofumpt, golangci-lint, goose
 task fmt
 task lint            # Go в Docker + frontend
 task test            # go test -race
+task test:frontend    # vitest
+task test:integration # Postgres, тег integration
 ```
 
 `task` без аргументов: tidy → fmt → lint → test → build.
@@ -94,4 +87,4 @@ task test            # go test -race
 
 ## Статус
 
-Текущая защита — `main`. Историческая сдача v1 — тег [`v1.0.0`](https://github.com/FischukSergey/expiry-calendar/releases/tag/v1.0.0) (Sprint 6, общий каталог). Прод: каждый видит своё ([Sprint 7](docs/sprint-7-plan.md)); CD с `main` — [Sprint 8](docs/sprint-8-plan.md). Продукт: [Sprint 9](docs/sprint-9-plan.md) (оплачено, «Мобильная связь», «не уведомлять»), [Sprint 10](docs/sprint-10-plan.md) (оплата вхождения).
+Текущая защита — `main`. Историческая сдача v1 — тег [`v1.0.0`](https://github.com/FischukSergey/expiry-calendar/releases/tag/v1.0.0) (Sprint 6, общий каталог). Прод: каждый видит своё ([Sprint 7](docs/sprint-7-plan.md)); CD с `main` — [Sprint 8](docs/sprint-8-plan.md). Продукт: [Sprint 9](docs/sprint-9-plan.md) (оплачено, «Мобильная связь», «не уведомлять»), [Sprint 10](docs/sprint-10-plan.md) (оплата вхождения), [Sprint 11](docs/sprint-11-plan.md) (просрочка ряда, роль `administrator`, без демо-seed).

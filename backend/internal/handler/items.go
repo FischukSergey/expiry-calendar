@@ -72,17 +72,17 @@ func (a *API) listItems(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	page, err := queryPage(q.Get("page"), q.Get("per_page"))
 	if err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	f, err := itemFilterFromQuery(q)
 	if err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	out, err := a.items.List(r.Context(), f, page, middleware.UserID(r.Context()))
 	if err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	writeBytes(w, http.StatusOK, out)
@@ -91,12 +91,12 @@ func (a *API) listItems(w http.ResponseWriter, r *http.Request) {
 func (a *API) exportItems(w http.ResponseWriter, r *http.Request) {
 	f, err := itemFilterFromQuery(r.URL.Query())
 	if err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	body, err := a.items.Export(r.Context(), f, middleware.UserID(r.Context()))
 	if err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
@@ -108,7 +108,7 @@ func (a *API) exportItems(w http.ResponseWriter, r *http.Request) {
 func (a *API) importItems(w http.ResponseWriter, r *http.Request) {
 	dryRun, err := parseDryRun(r.URL.Query().Get("dry_run"))
 	if err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxCSVUpload)
@@ -143,7 +143,7 @@ func (a *API) importItems(w http.ResponseWriter, r *http.Request) {
 	}
 	preview, created, err := a.items.Import(r.Context(), csvData, mapping, dryRun, middleware.UserID(r.Context()))
 	if err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	if dryRun {
@@ -166,7 +166,7 @@ func (a *API) createItem(w http.ResponseWriter, r *http.Request) {
 	}
 	it, err := a.items.Create(r.Context(), in, middleware.UserID(r.Context()))
 	if err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	writeBytes(w, http.StatusCreated, it)
@@ -179,7 +179,7 @@ func (a *API) getItem(w http.ResponseWriter, r *http.Request) {
 	}
 	card, err := a.items.Get(r.Context(), id, middleware.UserID(r.Context()))
 	if err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	writeBytes(w, http.StatusOK, card)
@@ -202,7 +202,7 @@ func (a *API) patchItem(w http.ResponseWriter, r *http.Request) {
 	}
 	it, err := a.items.Patch(r.Context(), id, p, middleware.UserID(r.Context()))
 	if err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	writeBytes(w, http.StatusOK, it)
@@ -214,7 +214,7 @@ func (a *API) deleteItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := a.items.Delete(r.Context(), id, middleware.UserID(r.Context())); err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -236,7 +236,7 @@ func (a *API) payItem(w http.ResponseWriter, r *http.Request) {
 	}
 	out, created, err := a.items.Pay(r.Context(), id, body.Date, middleware.UserID(r.Context()))
 	if err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	if created {
@@ -257,7 +257,7 @@ func (a *API) unpayItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := a.items.Unpay(r.Context(), id, date, middleware.UserID(r.Context())); err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -277,7 +277,7 @@ func (a *API) renewItem(w http.ResponseWriter, r *http.Request) {
 		NewExpiresAt: body.NewExpiresAt, NewCost: body.NewCost, Comment: body.Comment,
 	}, middleware.UserID(r.Context()))
 	if err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	writeBytes(w, http.StatusOK, it)
@@ -293,7 +293,7 @@ func (a *API) bulkItems(w http.ResponseWriter, r *http.Request) {
 		IDs: body.IDs, CategoryID: body.CategoryID, Status: body.Status,
 	}, middleware.UserID(r.Context()))
 	if err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	writeBytes(w, http.StatusOK, out)
@@ -303,12 +303,12 @@ func (a *API) listAudit(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	page, err := queryPage(q.Get("page"), q.Get("per_page"))
 	if err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	out, err := a.items.ListAudit(r.Context(), page, middleware.UserID(r.Context()))
 	if err != nil {
-		writeDomainError(w, err)
+		writeDomainError(r, w, err)
 		return
 	}
 	writeBytes(w, http.StatusOK, out)

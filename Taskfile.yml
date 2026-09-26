@@ -124,11 +124,11 @@ tasks:
       - npm test
 
   test:integration:
-    desc: "Позже: интеграционные тесты с Postgres"
+    desc: Интеграционные тесты с Postgres (build tag integration)
     cmds:
-      - |
-        echo "test:integration ещё не заведён — добавим вместе с тестовым compose" >&2
-        exit 1
+      - "{{.DOCKER_COMPOSE_CMD}} -p duekeep-test -f {{.TEST_COMPOSE_FILE}} up -d --wait"
+      - defer: "{{.DOCKER_COMPOSE_CMD}} -p duekeep-test -f {{.TEST_COMPOSE_FILE}} down -v"
+      - cd {{.BACKEND_DIR}} && DATABASE_URL=postgres://duekeep:duekeep@localhost:55432/duekeep_test?sslmode=disable go test -tags=integration -count=1 -timeout 120s ./internal/service/ -run TestRefreshReuseCommitsOnPostgres
 
   build:
     desc: Собрать backend-бинарь

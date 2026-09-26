@@ -8,8 +8,10 @@ import (
 	"duekeep/internal/service"
 )
 
-const anchorJan15 = "2026-01-15"
-const anchorJan31 = "2026-01-31"
+const (
+	anchorJan15 = "2026-01-15"
+	anchorJan31 = "2026-01-31"
+)
 
 func TestNextUnpaidKeepsFebruaryWhenTodayIs31(t *testing.T) {
 	t.Parallel()

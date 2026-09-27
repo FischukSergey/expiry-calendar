@@ -10,6 +10,8 @@ import (
 	"duekeep/internal/service"
 )
 
+const currencyUSD = "USD"
+
 type overviewItems struct {
 	rows []model.Item
 }
@@ -40,7 +42,7 @@ func TestDashboardTwoCurrenciesAndSkipsCancelled(t *testing.T) {
 		},
 		{
 			ID: "b", OwnerID: owner, Title: "SaaS", KindID: "k2", Status: model.StatusExpiring,
-			ExpiresAt: expiresAug28, CostAmount: 120, Currency: "USD",
+			ExpiresAt: expiresAug28, CostAmount: 120, Currency: currencyUSD,
 			BillingPeriod: model.BillingYearly,
 		},
 		{
@@ -77,7 +79,7 @@ func TestDashboardTwoCurrenciesAndSkipsCancelled(t *testing.T) {
 	if rub.Currency != model.CurrencyRUB || rub.Monthly != 100 || rub.Yearly != 1200 {
 		t.Fatalf("RUB %+v", rub)
 	}
-	if got.UpcomingCost[1].Currency != "USD" || got.UpcomingCost[1].Yearly != 120 || got.UpcomingCost[1].Monthly != 10 {
+	if got.UpcomingCost[1].Currency != currencyUSD || got.UpcomingCost[1].Yearly != 120 || got.UpcomingCost[1].Monthly != 10 {
 		t.Fatalf("USD %+v", got.UpcomingCost[1])
 	}
 	if len(got.CostByKind) != 2 {
@@ -93,7 +95,7 @@ func TestDashboardTwoCurrenciesAndSkipsCancelled(t *testing.T) {
 		t.Fatalf("month counts %+v", got.ExpirationsByMonth)
 	}
 	if monthAmount(got.ExpirationsByMonth[0], model.CurrencyRUB) != 150 ||
-		monthAmount(got.ExpirationsByMonth[0], "USD") != 120 {
+		monthAmount(got.ExpirationsByMonth[0], currencyUSD) != 120 {
 		t.Fatalf("aug amounts %+v", got.ExpirationsByMonth[0].Amounts)
 	}
 	if monthAmount(got.ExpirationsByMonth[1], model.CurrencyRUB) != 150 {
@@ -278,4 +280,87 @@ func TestDashboardAndCalendarSkipBeforeStartedAt(t *testing.T) {
 	if len(oct.Days) != 1 || oct.Days[0].Date != firstPay {
 		t.Fatalf("oct cal %+v", oct.Days)
 	}
+}
+
+func TestDashboardMonthSpendAndOverdueCount(t *testing.T) {
+	t.Parallel()
+	today := time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC)
+	const owner = "owner"
+	start := "2026-07-01"
+	store := &overviewItems{rows: []model.Item{
+		{
+			ID: "paid-sep", OwnerID: owner, Title: "Оплачено", KindID: "k1", Status: model.StatusActive,
+			ExpiresAt: "2026-09-05", CostAmount: 3000, Currency: model.CurrencyRUB,
+			BillingPeriod: model.BillingOneTime,
+		},
+		{
+			ID: "future-sep", OwnerID: owner, Title: "Впереди", KindID: "k1", Status: model.StatusActive,
+			ExpiresAt: "2026-09-20", CostAmount: 4000, Currency: model.CurrencyRUB,
+			BillingPeriod: model.BillingOneTime,
+		},
+		{
+			ID: "overdue-sep", OwnerID: owner, Title: "Просрочка месяца", KindID: "k1", Status: model.StatusActive,
+			ExpiresAt: "2026-09-02", CostAmount: 2000, Currency: model.CurrencyRUB,
+			BillingPeriod: model.BillingOneTime,
+		},
+		{
+			ID: "overdue-aug", OwnerID: owner, Title: "Прошлый месяц", KindID: "k1", Status: model.StatusActive,
+			ExpiresAt: "2026-08-20", CostAmount: 5000, Currency: model.CurrencyRUB,
+			BillingPeriod: model.BillingOneTime,
+		},
+		{
+			ID: "usd", OwnerID: owner, Title: currencyUSD, KindID: "k2", Status: model.StatusActive,
+			ExpiresAt: "2026-09-18", CostAmount: 70, Currency: currencyUSD,
+			BillingPeriod: model.BillingOneTime,
+		},
+		{
+			ID: "series", OwnerID: owner, Title: "Ряд", KindID: "k1", Status: model.StatusActive,
+			ExpiresAt: "2026-09-01", StartedAt: &start, CostAmount: 100, Currency: model.CurrencyRUB,
+			BillingPeriod: model.BillingMonthly,
+		},
+		{
+			ID: "frozen", OwnerID: owner, Title: "Заморозка", KindID: "k1", Status: model.StatusPaid,
+			ExpiresAt: "2026-09-08", CostAmount: 99999, Currency: model.CurrencyRUB,
+			BillingPeriod: model.BillingOneTime,
+		},
+	}}
+	pays := newMemPayments()
+	if _, created, err := pays.Insert(t.Context(), model.ItemPayment{
+		ItemID: "paid-sep", OwnerID: owner, Date: "2026-09-05", Amount: 3000, Currency: model.CurrencyRUB,
+	}); err != nil || !created {
+		t.Fatalf("seed pay %v created=%v", err, created)
+	}
+	ov := service.NewOverview(store, clock.Fixed{T: today})
+	ov.SetPayments(pays)
+
+	got, err := ov.Dashboard(t.Context(), owner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.MonthSpend) != 2 {
+		t.Fatalf("currencies %+v", got.MonthSpend)
+	}
+	rub, ok := spendOf(got.MonthSpend, model.CurrencyRUB)
+	if !ok || rub.Total != 9100 || rub.Remaining != 4000 || rub.Overdue != 2100 {
+		t.Fatalf("RUB %+v", rub)
+	}
+	usd, ok := spendOf(got.MonthSpend, currencyUSD)
+	if !ok || usd.Total != 70 || usd.Remaining != 70 || usd.Overdue != 0 {
+		t.Fatalf("USD %+v", usd)
+	}
+	if got.OverdueCount != 5 {
+		t.Fatalf("overdue_count %d", got.OverdueCount)
+	}
+	if got.Counts.Active == 0 {
+		t.Fatal("counts dropped")
+	}
+}
+
+func spendOf(rows []model.MonthSpend, currency string) (model.MonthSpend, bool) {
+	for _, row := range rows {
+		if row.Currency == currency {
+			return row, true
+		}
+	}
+	return model.MonthSpend{}, false
 }

@@ -17,6 +17,7 @@ description: >-
 - Sprint 8 (CD) — по просьбе. **Sprint 9** — `paid`, kind `mobile`, `notify_before_days: null`, развёртка monthly/yearly, лента PWA.
 - **Sprint 10** — `item_payments`, календарь `occurrence_status`, оплата ближайшего open с карточки и soonest.
 - **Sprint 11** — просрочка ряда от раннего неоплаченного вхождения, commit reuse refresh, роль `administrator` на общий справочник, демо-seed удалён.
+- **Sprint 12** — деньги текущего месяца (`month_spend`) вместо четырёх счётчиков обзора, список месяца в календаре, закреплённое меню, бейдж PWA по `overdue_count`.
 
 Документы спринта N: `docs/sprint-N-plan.md`, `checklist`, `api-sprint-N.md`, `known-limitations-sprint-N.md`. Журнал — `REPORT.md`.
 

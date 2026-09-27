@@ -457,12 +457,16 @@ Swagger: `bearerAuth`. Login → скопировать access в Authorize. Ref
 ```json
 {
   "counts": { "active": 0, "expiring_7": 0, "expiring_30": 0, "expired": 0 },
+  "month_spend": [{ "currency": "RUB", "total": 0, "remaining": 0, "overdue": 0 }],
+  "overdue_count": 0,
   "upcoming_cost": [{ "currency": "RUB", "monthly": 0, "yearly": 0 }],
   "expirations_by_month": [{ "month": "2026-09", "count": 0, "amounts": [] }],
   "cost_by_kind": [{ "kind_id": "...", "currency": "RUB", "amount": 0 }],
   "soonest": []
 }
 ```
+
+`month_spend` — деньги текущего месяца UTC (всего / осталось / просрочено). `overdue_count` — открытые вхождения раньше today по всему ряду. Карточки обзора показывают `month_spend`, не `counts`.
 
 `expiring_7` / `expiring_30` считаются по фактической дате, не по полю `status` (у записи порог может быть 14 дней).
 

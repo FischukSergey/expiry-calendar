@@ -175,3 +175,56 @@ func nextUnpaidOccurrence(it model.Item, from time.Time, paid map[string]struct{
 func inClosedDayWindow(day, from, toInclusive time.Time) bool {
 	return !day.Before(from) && !day.After(toInclusive)
 }
+
+// countOverdueOccurrences считает открытые вхождения строго раньше today.
+// Нижняя граница ряда: started_at, иначе якорь expires_at. Заморозка paid не входит.
+func countOverdueOccurrences(it model.Item, today time.Time, paid map[string]struct{}) (int, error) {
+	expires, err := parseDate(fieldExpiresAt, it.ExpiresAt)
+	if err != nil {
+		return 0, err
+	}
+	lower := expires
+	if start, ok, err := seriesStart(it); err != nil {
+		return 0, err
+	} else if ok {
+		lower = start
+	}
+	n := 0
+	switch it.BillingPeriod {
+	case model.BillingMonthly:
+		cur := clock.DateUTC(1, lower.Month(), lower.Year())
+		end := clock.DateUTC(1, today.Month(), today.Year())
+		for !cur.After(end) {
+			d := clampDay(cur.Year(), cur.Month(), expires.Day())
+			cur = cur.AddDate(0, 1, 0)
+			if !d.Before(today) {
+				break
+			}
+			if d.Before(lower) || occurrencePaid(it, expires, d, paid) {
+				continue
+			}
+			n++
+		}
+	case model.BillingYearly:
+		for y := lower.Year(); y <= today.Year(); y++ {
+			d := clampDay(y, expires.Month(), expires.Day())
+			if !d.Before(today) {
+				break
+			}
+			if d.Before(lower) || occurrencePaid(it, expires, d, paid) {
+				continue
+			}
+			n++
+		}
+	default:
+		skip, err := beforeSeries(it, expires)
+		if err != nil {
+			return 0, err
+		}
+		if skip || !expires.Before(today) || occurrencePaid(it, expires, expires, paid) {
+			return 0, nil
+		}
+		n = 1
+	}
+	return n, nil
+}

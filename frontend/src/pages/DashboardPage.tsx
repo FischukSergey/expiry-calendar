@@ -9,13 +9,6 @@ import { Button, PageState, PageTitle, StatusBadge } from '../components/ui.tsx'
 import { useAuth } from '../hooks/useAuth.ts'
 import { formatDate, formatMoney, monthLabel } from '../lib/format.ts'
 
-const kpi = [
-  { key: 'active' as const, label: 'Активные' },
-  { key: 'expiring_7' as const, label: '7 дней' },
-  { key: 'expiring_30' as const, label: '30 дней' },
-  { key: 'expired' as const, label: 'Просрочены' },
-]
-
 export function DashboardPage() {
   const { isAdmin } = useAuth()
   const qc = useQueryClient()
@@ -54,6 +47,7 @@ export function DashboardPage() {
   }
 
   const data = dash.data
+  const monthKey = utcMonthKey(new Date())
   const currencies = collectCurrencies(data)
   const selected = currency ?? (currencies.includes('RUB') ? 'RUB' : currencies[0] ?? 'RUB')
   const pie = data.cost_by_kind
@@ -72,14 +66,25 @@ export function DashboardPage() {
     <div>
       <PageTitle title="Обзор" subtitle="Сроки оплаты и расходы без конвертации валют" />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {kpi.map((card) => (
-          <div key={card.key} className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-            <p className="text-xs tracking-wide text-slate-400 uppercase">{card.label}</p>
-            <p className="mt-2 text-3xl font-semibold">{data.counts[card.key]}</p>
-          </div>
-        ))}
-      </div>
+      {data.month_spend.length > 0 ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {data.month_spend.map((row) => (
+            <div key={row.currency} className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+              <p className="text-xs tracking-wide text-slate-400 uppercase">
+                {monthLabel(monthKey)} · {row.currency}
+              </p>
+              <p className="mt-2 text-3xl font-semibold">{formatMoney(row.total, row.currency)}</p>
+              <p className="mt-3 text-sm text-slate-300">
+                Осталось оплатить{' '}
+                <span className="text-slate-50">{formatMoney(row.remaining, row.currency)}</span>
+              </p>
+              <p className="text-sm text-slate-300">
+                Просрочено <span className="text-rose-300">{formatMoney(row.overdue, row.currency)}</span>
+              </p>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
         {data.upcoming_cost.length === 0 ? (
@@ -219,6 +224,11 @@ export function DashboardPage() {
       </section>
     </div>
   )
+}
+
+function utcMonthKey(now: Date): string {
+  const month = String(now.getUTCMonth() + 1).padStart(2, '0')
+  return `${now.getUTCFullYear()}-${month}`
 }
 
 function collectCurrencies(data: Dashboard): string[] {

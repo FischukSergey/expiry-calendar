@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { type ColumnDef } from '@tanstack/react-table'
 
 import { getCalendar, payItemOccurrence, unpayItemOccurrence } from '../api/endpoints.ts'
-import type { OccurrenceStatus } from '../api/types.ts'
+import type { CalendarItem, OccurrenceStatus } from '../api/types.ts'
+import { DataTable } from '../components/DataTable.tsx'
 import { Button, OccurrenceBadge, PageState, PageTitle } from '../components/ui.tsx'
 import { useAuth } from '../hooks/useAuth.ts'
-import { formatMoney } from '../lib/format.ts'
+import { formatDate, formatMoney } from '../lib/format.ts'
 
 const weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
 
@@ -14,6 +16,8 @@ const occDot: Record<OccurrenceStatus, string> = {
   open: 'bg-amber-400',
   paid: 'bg-sky-400',
 }
+
+type CalendarRow = { date: string; item: CalendarItem }
 
 function monthTitle(year: number, month: number): string {
   return new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString('ru-RU', {
@@ -54,11 +58,21 @@ export function CalendarPage() {
 
   const days = cal.data?.days
   const byDate = useMemo(() => {
-    const map = new Map<string, NonNullable<typeof days>[number]['items']>()
+    const map = new Map<string, CalendarItem[]>()
     for (const day of days ?? []) {
       map.set(day.date, day.items)
     }
     return map
+  }, [days])
+
+  const monthRows = useMemo(() => {
+    const rows: CalendarRow[] = []
+    for (const day of days ?? []) {
+      for (const item of day.items) {
+        rows.push({ date: day.date, item })
+      }
+    }
+    return rows
   }, [days])
 
   const invalidate = async () => {
@@ -97,8 +111,72 @@ export function CalendarPage() {
     setPayError(null)
   }
 
-  const selectedItems = selected ? (byDate.get(selected) ?? []) : []
+  const visibleRows = selected ? monthRows.filter((row) => row.date === selected) : monthRows
   const busy = pay.isPending || unpay.isPending
+  const columns = useMemo<ColumnDef<CalendarRow>[]>(() => {
+    const defs: ColumnDef<CalendarRow>[] = [
+      {
+        accessorKey: 'date',
+        header: 'Дата',
+        cell: ({ row }) => <span className="whitespace-nowrap tabular-nums">{formatDate(row.original.date)}</span>,
+        meta: { className: 'w-36' },
+      },
+      {
+        id: 'title',
+        header: 'Запись',
+        accessorFn: (row) => row.item.title,
+        cell: ({ row }) => (
+          <Link to={`/items/${row.original.item.id}`} className="font-medium text-teal-300 hover:underline">
+            {row.original.item.title}
+          </Link>
+        ),
+      },
+      {
+        id: 'amount',
+        header: 'Сумма',
+        accessorFn: (row) => row.item.cost_amount,
+        cell: ({ row }) => (
+          <span className="whitespace-nowrap tabular-nums">
+            {formatMoney(row.original.item.cost_amount, row.original.item.currency)}
+          </span>
+        ),
+        meta: { align: 'right' },
+      },
+      {
+        id: 'status',
+        header: 'Статус',
+        cell: ({ row }) => <OccurrenceBadge status={row.original.item.occurrence_status} />,
+        meta: { className: 'w-36' },
+      },
+    ]
+    if (isAdmin) {
+      defs.push({
+        id: 'pay',
+        header: '',
+        cell: ({ row }) =>
+          row.original.item.occurrence_status === 'open' ? (
+            <Button
+              type="button"
+              disabled={busy}
+              onClick={() => pay.mutate({ id: row.original.item.id, date: row.original.date })}
+            >
+              Оплачено
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => unpay.mutate({ id: row.original.item.id, date: row.original.date })}
+            >
+              Снять оплату
+            </Button>
+          ),
+        meta: { align: 'right', className: 'w-40' },
+      })
+    }
+    return defs
+  }, [busy, isAdmin, pay, unpay])
 
   return (
     <div>
@@ -123,7 +201,7 @@ export function CalendarPage() {
       ) : null}
 
       {cal.data ? (
-        <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
+        <div className="space-y-6">
           <div className="rounded-xl border border-slate-800 p-3">
             <div className="grid grid-cols-7 text-center text-[10px] text-slate-500 sm:text-xs">
               {weekdays.map((d) => (
@@ -145,7 +223,13 @@ export function CalendarPage() {
                   <button
                     key={date}
                     type="button"
-                    onClick={() => setSelected(items.length ? date : null)}
+                    onClick={() => {
+                      if (items.length === 0) {
+                        setSelected(null)
+                        return
+                      }
+                      setSelected((cur) => (cur === date ? null : date))
+                    }}
                     className={`min-h-10 rounded-lg border p-0.5 text-left text-xs sm:min-h-16 sm:p-1 sm:text-sm ${
                       active ? 'border-teal-500 bg-teal-500/10' : 'border-transparent hover:bg-slate-900'
                     }`}
@@ -163,46 +247,23 @@ export function CalendarPage() {
               })}
             </div>
           </div>
-          <aside className="rounded-xl border border-slate-800 p-4">
-            <h2 className="text-sm font-medium text-slate-300">{selected ?? 'День не выбран'}</h2>
-            {payError ? <p className="mt-2 text-sm text-rose-300">{payError}</p> : null}
-            {selected && selectedItems.length === 0 ? <p className="mt-3 text-sm text-slate-500">Пусто</p> : null}
-            <ul className="mt-3 space-y-2">
-              {selectedItems.map((it) => (
-                <li key={it.id} className="rounded-lg bg-slate-900 px-3 py-2">
-                  <Link to={`/items/${it.id}`} className="text-sm text-teal-300 hover:underline">
-                    {it.title}
-                  </Link>
-                  <p className="mt-1 text-sm text-slate-300">{formatMoney(it.cost_amount, it.currency)}</p>
-                  <div className="mt-1">
-                    <OccurrenceBadge status={it.occurrence_status} />
-                  </div>
-                  {isAdmin && selected ? (
-                    <div className="mt-2">
-                      {it.occurrence_status === 'open' ? (
-                        <Button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => pay.mutate({ id: it.id, date: selected })}
-                        >
-                          Оплачено
-                        </Button>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={busy}
-                          onClick={() => unpay.mutate({ id: it.id, date: selected })}
-                        >
-                          Снять оплату
-                        </Button>
-                      )}
-                    </div>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          </aside>
+          <section className="rounded-xl border border-slate-800">
+            <div className={visibleRows.length > 0 ? 'border-b border-slate-800 px-4 py-3' : 'px-4 py-3'}>
+              <h2 className="text-sm font-medium text-slate-300">{selected ? formatDate(selected) : 'Весь месяц'}</h2>
+              {payError ? <p className="mt-2 text-sm text-rose-300">{payError}</p> : null}
+              {visibleRows.length === 0 ? (
+                <p className="mt-2 text-sm text-slate-500">{selected ? 'Пусто' : 'В этом месяце нет вхождений'}</p>
+              ) : null}
+            </div>
+            {visibleRows.length > 0 ? (
+              <DataTable
+                columns={columns}
+                data={visibleRows}
+                getRowId={(row) => `${row.date}-${row.item.id}`}
+                minWidthClass="min-w-[40rem]"
+              />
+            ) : null}
+          </section>
         </div>
       ) : null}
     </div>

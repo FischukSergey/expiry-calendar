@@ -1,10 +1,12 @@
+import { useEffect } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
-import { listNotifications } from '../api/endpoints.ts'
+import { getDashboard, listNotifications } from '../api/endpoints.ts'
 import { useAuth } from '../hooks/useAuth.ts'
 import { usePush } from '../hooks/usePush.ts'
 import { useSSE } from '../hooks/useSSE.ts'
+import { syncAppBadge } from '../lib/appBadge.ts'
 import { InstallBanner } from './InstallBanner.tsx'
 
 type NavItem = { to: string; label: string; admin?: boolean; badge?: boolean }
@@ -42,13 +44,20 @@ export function Layout() {
     queryKey: ['notifications', 'unread-count'],
     queryFn: () => listNotifications({ unread: true, page: 1, per_page: 1 }),
   })
+  const dash = useQuery({ queryKey: ['dashboard'], queryFn: getDashboard })
+  useEffect(() => {
+    if (dash.data == null) {
+      return
+    }
+    syncAppBadge(dash.data.overdue_count)
+  }, [dash.data])
   const unreadTotal = unread.data?.total ?? 0
 
   const visible = mainNav.filter((item) => !item.admin || isAdmin)
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 lg:flex">
-      <aside className="hidden w-56 shrink-0 border-r border-slate-800 p-4 lg:flex lg:flex-col">
+    <div className="min-h-screen bg-slate-950 text-slate-50 lg:flex lg:h-screen lg:overflow-hidden">
+      <aside className="hidden w-56 shrink-0 border-r border-slate-800 p-4 lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:overflow-y-auto">
         <div className="px-3 pb-6">
           <p className="text-[11px] tracking-[0.2em] text-slate-500 uppercase">Duekeep</p>
           <p className="mt-1 text-lg font-semibold">Обязательства</p>
@@ -72,7 +81,7 @@ export function Layout() {
         </NavLink>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col pb-[calc(5.25rem+env(safe-area-inset-bottom))] lg:pb-0">
+      <div className="flex min-w-0 flex-1 flex-col pb-[calc(5.25rem+env(safe-area-inset-bottom))] lg:h-screen lg:min-h-0 lg:overflow-y-auto lg:pb-0">
         <InstallBanner />
         <header className="flex items-center justify-between border-b border-slate-800 px-4 py-3 lg:hidden">
           <span className="text-sm font-semibold tracking-wide">Duekeep</span>

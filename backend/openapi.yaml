@@ -975,7 +975,7 @@ paths:
       operationId: getDashboard
       responses:
         "200":
-          description: Агрегаты; суммы по валютам отдельно
+          description: Агрегаты; суммы по валютам отдельно. month_spend — текущий месяц UTC.
           content:
             application/json:
               schema:
@@ -1670,7 +1670,7 @@ components:
           format: uri
     Dashboard:
       type: object
-      required: [counts, upcoming_cost, expirations_by_month, cost_by_kind, soonest]
+      required: [counts, month_spend, overdue_count, upcoming_cost, expirations_by_month, cost_by_kind, soonest]
       properties:
         counts:
           type: object
@@ -1684,6 +1684,27 @@ components:
               type: integer
             expired:
               type: integer
+        month_spend:
+          type: array
+          description: Деньги текущего календарного месяца UTC по валютам. Пустой массив, если сумм нет.
+          items:
+            type: object
+            required: [currency, total, remaining, overdue]
+            properties:
+              currency:
+                type: string
+              total:
+                type: integer
+                description: Все вхождения месяца, включая оплаченные.
+              remaining:
+                type: integer
+                description: Открытые вхождения месяца с датой не раньше today.
+              overdue:
+                type: integer
+                description: Открытые вхождения месяца с датой раньше today.
+        overdue_count:
+          type: integer
+          description: Число открытых вхождений с датой раньше today по всему ряду, не только текущий месяц.
         upcoming_cost:
           type: array
           items:

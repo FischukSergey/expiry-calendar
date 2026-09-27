@@ -55,11 +55,15 @@ func (s *Overview) Dashboard(ctx context.Context, ownerID string) (model.Dashboa
 	}
 	today := clock.Today(s.clk)
 	out := model.Dashboard{
+		MonthSpend:         []model.MonthSpend{},
 		UpcomingCost:       []model.UpcomingCost{},
 		ExpirationsByMonth: emptyMonths(today, expirationMonths),
 		CostByKind:         []model.KindCost{},
 		Soonest:            []model.DashboardItem{},
 	}
+	monthStart := clock.DateUTC(1, today.Month(), today.Year())
+	monthEnd := monthStart.AddDate(0, 1, 0)
+	spendByCur := map[string]*model.MonthSpend{}
 	monthIdx := map[string]int{}
 	monthMoney := make([]map[string]int, len(out.ExpirationsByMonth))
 	for i, row := range out.ExpirationsByMonth {
@@ -106,6 +110,22 @@ func (s *Overview) Dashboard(ctx context.Context, ownerID string) (model.Dashboa
 				monthMoney[i][it.Currency] += it.CostAmount
 			}
 		}
+		overdueN, err := countOverdueOccurrences(it, today, paid)
+		if err != nil {
+			return model.Dashboard{}, err
+		}
+		out.OverdueCount += overdueN
+		expires, err := parseDate(fieldExpiresAt, it.ExpiresAt)
+		if err != nil {
+			return model.Dashboard{}, err
+		}
+		monthOccs, err := occurrencesInRange(it, monthStart, monthEnd, paid, false)
+		if err != nil {
+			return model.Dashboard{}, err
+		}
+		for _, occ := range monthOccs {
+			addMonthSpend(spendByCur, it, expires, occ, today, paid)
+		}
 		if it.Status == model.StatusExpired {
 			continue
 		}
@@ -121,6 +141,7 @@ func (s *Overview) Dashboard(ctx context.Context, ownerID string) (model.Dashboa
 	for i := range out.ExpirationsByMonth {
 		out.ExpirationsByMonth[i].Amounts = sortedCurrencyAmounts(monthMoney[i])
 	}
+	out.MonthSpend = sortedMonthSpend(spendByCur)
 	out.UpcomingCost = sortedUpcoming(costByCur)
 	out.CostByKind = sortedKindCost(kindCost)
 	slices.SortFunc(brief, func(a, b model.DashboardItem) int {
@@ -212,6 +233,38 @@ func emptyMonths(today time.Time, n int) []model.MonthCount {
 		out[i] = model.MonthCount{Month: cur.Format(monthLayout), Amounts: []model.CurrencyAmount{}}
 		cur = cur.AddDate(0, 1, 0)
 	}
+	return out
+}
+
+// addMonthSpend копит тройку текущего месяца. Заморозка paid и нулевая сумма не входят.
+func addMonthSpend(by map[string]*model.MonthSpend, it model.Item, expires, occ, today time.Time, paid map[string]struct{}) {
+	if skipPaidOccurrence(it, expires, occ) || it.CostAmount == 0 {
+		return
+	}
+	row, ok := by[it.Currency]
+	if !ok {
+		row = &model.MonthSpend{Currency: it.Currency}
+		by[it.Currency] = row
+	}
+	row.Total += it.CostAmount
+	if occurrencePaid(it, expires, occ, paid) {
+		return
+	}
+	if occ.Before(today) {
+		row.Overdue += it.CostAmount
+		return
+	}
+	row.Remaining += it.CostAmount
+}
+
+func sortedMonthSpend(by map[string]*model.MonthSpend) []model.MonthSpend {
+	out := make([]model.MonthSpend, 0, len(by))
+	for _, row := range by {
+		out = append(out, *row)
+	}
+	slices.SortFunc(out, func(a, b model.MonthSpend) int {
+		return cmp.Compare(a.Currency, b.Currency)
+	})
 	return out
 }
 

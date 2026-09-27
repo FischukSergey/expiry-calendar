@@ -3,10 +3,21 @@ package model
 // Dashboard — GET /dashboard. Суммы по валютам отдельно, без конвертации.
 type Dashboard struct {
 	Counts             DashboardCounts `json:"counts"`
+	MonthSpend         []MonthSpend    `json:"month_spend"`
+	OverdueCount       int             `json:"overdue_count"`
 	UpcomingCost       []UpcomingCost  `json:"upcoming_cost"`
 	ExpirationsByMonth []MonthCount    `json:"expirations_by_month"`
 	CostByKind         []KindCost      `json:"cost_by_kind"`
 	Soonest            []DashboardItem `json:"soonest"`
+}
+
+// MonthSpend — деньги одной валюты за текущий календарный месяц UTC.
+// Total включает оплаченные вхождения; Remaining и Overdue — только открытые этого месяца.
+type MonthSpend struct {
+	Currency  string `json:"currency"`
+	Total     int    `json:"total"`
+	Remaining int    `json:"remaining"`
+	Overdue   int    `json:"overdue"`
 }
 
 // DashboardCounts — KPI. expiring_7/30 по дате, active/expired по полю status.

@@ -136,6 +136,13 @@ export type ItemWrite = {
   attrs?: Record<string, unknown>
 }
 
+export type MonthSpend = {
+  currency: string
+  total: number
+  remaining: number
+  overdue: number
+}
+
 export type Dashboard = {
   counts: {
     active: number
@@ -143,6 +150,8 @@ export type Dashboard = {
     expiring_30: number
     expired: number
   }
+  month_spend: MonthSpend[]
+  overdue_count: number
   upcoming_cost: { currency: string; monthly: number; yearly: number }[]
   expirations_by_month: { month: string; count: number; amounts: { currency: string; amount: number }[] }[]
   cost_by_kind: { kind_id: string; currency: string; amount: number }[]
